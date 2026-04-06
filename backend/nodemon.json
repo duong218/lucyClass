@@ -1,0 +1,6 @@
+{
+  "signal": "SIGTERM",
+  "delay": "200ms",
+  "ignore": ["backups/*", "uploads/*", "node_modules/*"],
+  "ext": "js,json"
+}

@@ -37,12 +37,11 @@ backend/uploads/
 *.rar
 
 # database dumps
+
+backup/
+backups/
 *.bson
-*.json
-
-!frontend/package.json
-!frontend/package-lock.json
-
+*.metadata.json
 
 # agent AI
 .agent/*
