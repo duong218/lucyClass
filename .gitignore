@@ -40,6 +40,10 @@ backend/uploads/
 *.bson
 *.json
 
+!frontend/package.json
+!frontend/package-lock.json
+
+
 # agent AI
 .agent/*
 .agent
