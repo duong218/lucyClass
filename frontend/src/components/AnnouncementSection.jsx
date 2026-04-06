@@ -110,6 +110,36 @@ const AnnouncementSection = () => {
 
         {/* INNER WRAPPER (main content container) */}
         <div className="relative rounded-[40px] bg-gradient-to-br from-blue-50/50 via-white to-purple-50/50 p-8 md:p-12 border border-white/50 shadow-card overflow-hidden">
+          {/* Animated Characters (Desktop Only) */}
+          <div className="hidden lg:block pointer-events-none">
+            {/* Shin - Left Side */}
+            <div className="absolute left-0 bottom-0 z-0 select-none">
+              <div className="relative">
+                {/* Smoke/Dust Effect */}
+                <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-48 h-12 bg-gradient-to-t from-gray-400/20 to-transparent blur-2xl rounded-full" />
+                <img
+                  src="/model-transform/shin.png"
+                  alt="Shin"
+                  className="w-56 md:w-64 lg:w-72 h-auto animate-float-rotate"
+                />
+              </div>
+            </div>
+
+            {/* Doraemon - Right Side */}
+            <div className="absolute right-0 bottom-0 z-0 select-none">
+              <div className="relative">
+                {/* Pocket Glow Effect */}
+                <div className="absolute top-[45%] left-1/2 -translate-x-1/2 w-10 h-10 bg-yellow-300/40 blur-xl rounded-full animate-pulse-glow" />
+                <div className="absolute top-[45%] left-1/2 -translate-x-1/2 w-8 h-8 bg-yellow-400/30 rounded-full animate-ping [animation-duration:3s]" />
+                <img
+                  src="/model-transform/doraemon.png"
+                  alt="Doraemon"
+                  className="w-52 md:w-60 lg:w-68 h-auto animate-sway-slow"
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Floating Kids Graphics */}
           <div className="absolute inset-0 pointer-events-none z-0">
             {/* Bubbles */}
