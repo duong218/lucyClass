@@ -1,0 +1,48 @@
+# Node modules
+node_modules/
+
+# Env files
+.env
+.env.*
+!.env.example
+scan.js
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build files
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+
+# Optional
+coverage/
+
+# uploads
+backend/uploads/
+
+# backup files
+*.zip
+*.tar
+*.gz
+*.rar
+
+# database dumps
+*.bson
+*.json
+
+# agent AI
+.agent/*
+.agent
+
+#log
+backend/logs/*.log

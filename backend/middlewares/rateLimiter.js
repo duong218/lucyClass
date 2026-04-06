@@ -1,0 +1,135 @@
+const rateLimit = require('express-rate-limit');
+const systemLogger = require('../utils/systemLogger');
+
+const isProduction = process.env.NODE_ENV === 'production';
+
+/**
+ * Custom Rate Limit Handler
+ * Returns a standardized JSON response for the frontend
+ */
+const rateLimitHandler = (req, res, next, options) => {
+  const retryAfter = Math.ceil(options.windowMs / 1000);
+  
+  systemLogger.warn('Rate limit exceeded', { 
+    ip: req.ip, 
+    userId: req.user?.id || 'guest',
+    url: req.originalUrl,
+    retryAfter
+  });
+
+  res.status(429).json({
+    status: 'error',
+    type: 'RATE_LIMIT',
+    message: 'RATE_LIMIT_EXCEEDED',
+    retryAfter: retryAfter,
+    translationKey: 'form.rateLimit'
+  });
+};
+
+/**
+ * 1. Global API Limiter
+ * 200 requests / 5 minutes
+ */
+const apiLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 200,
+  skip: (req) => req.user?.role === 'admin',
+  handler: rateLimitHandler,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * 2. Auth/Login Limiter
+ * Strict protection for login attempts
+ * PROD: 5 attempts / 10 mins
+ * DEV: 100 attempts / 1 min
+ */
+const loginLimiter = rateLimit({
+  windowMs: isProduction ? 10 * 60 * 1000 : 1 * 60 * 1000,
+  max: isProduction ? 5 : 100,
+  skipSuccessfulRequests: true,
+  skip: (req) => req.user?.role === 'admin',
+  handler: rateLimitHandler,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * 3. Registration Limiter
+ * Protection against form spam
+ */
+const registerLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 20,
+  skip: (req) => req.user?.role === 'admin',
+  handler: rateLimitHandler,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * 4. Stats dashboard Limiter
+ * High limit for analytical dashboards
+ */
+const statsLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 500,
+  skip: (req) => req.user?.role === 'admin',
+  handler: rateLimitHandler,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * 5. Public Content Limiter
+ * Browsing courses, teachers, etc.
+ */
+const publicLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 300,
+  skip: (req) => req.user?.role === 'admin',
+  handler: rateLimitHandler,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * 6. Forgot Password Limiter
+ * Protection against email spam
+ * PROD: 3 attempts / 1 hour
+ * DEV: 100 attempts / 1 hour
+ */
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: isProduction ? 3 : 100,
+  skip: (req) => req.user?.role === 'admin',
+  handler: rateLimitHandler,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * 7. Reset Password Limiter
+ * Protection against token brute-force
+ * PROD: 5 attempts / 30 mins
+ * DEV: 1000 attempts / 1 hour
+ */
+const resetPasswordLimiter = rateLimit({
+  windowMs: isProduction ? 30 * 60 * 1000 : 60 * 60 * 1000,
+  max: isProduction ? 5 : 1000,
+  skip: (req) => req.user?.role === 'admin',
+  handler: rateLimitHandler,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+module.exports = {
+  apiLimiter,
+  loginLimiter,
+  registerLimiter,
+  statsLimiter,
+  publicLimiter,
+  forgotPasswordLimiter,
+  resetPasswordLimiter
+};

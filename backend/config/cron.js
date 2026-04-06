@@ -1,0 +1,59 @@
+const cron = require('node-cron');
+const backupService = require('../services/backup.service');
+const AuditLog = require('../models/AuditLog');
+const Admin = require('../models/Admin');
+
+/**
+ * PRODUCTION-READY CRON SETUP
+ * Daily backup at 2:00 AM
+ */
+const initCronJobs = () => {
+  // Schedule: '0 2 * * *' (Every day at 02:00 AM)
+  cron.schedule('0 2 * * *', async () => {
+    console.log('[Cron] Starting scheduled daily backup at 2:00 AM...');
+    
+    try {
+      const result = await backupService.runBackup({ 
+        uploadToDrive: true, 
+        fileNamePrefix: 'auto-backup' 
+      });
+      
+      console.log(`[Cron] Scheduled backup successful: ${result.fileName}`);
+
+      // Log to AuditLog (System entry)
+      try {
+        const systemAdmin = await Admin.findOne({ role: 'admin' });
+        await AuditLog.create({
+          adminId: systemAdmin?._id,
+          adminName: 'System (Cron)',
+          action: 'AUTO_BACKUP_SUCCESS',
+          description: `Daily automated backup completed: ${result.fileName}`,
+          ipAddress: '127.0.0.1'
+        });
+      } catch (logErr) {
+        console.error('[Cron] Failed to create audit log:', logErr.message);
+      }
+
+    } catch (error) {
+      console.error('[Cron] Scheduled backup failed:', error.message);
+      
+      // Log failure
+      try {
+        const systemAdmin = await Admin.findOne({ role: 'admin' });
+        await AuditLog.create({
+          adminId: systemAdmin?._id,
+          adminName: 'System (Cron)',
+          action: 'AUTO_BACKUP_FAILED',
+          description: `Daily automated backup failed: ${error.message}`,
+          ipAddress: '127.0.0.1'
+        });
+      } catch (logErr) {
+        console.error('[Cron] Failed to create failure audit log:', logErr.message);
+      }
+    }
+  });
+
+  console.log('⏰ Scheduled Backup Jobs initialized (Daily 2:00 AM)');
+};
+
+module.exports = initCronJobs;
