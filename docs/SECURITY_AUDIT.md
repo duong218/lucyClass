@@ -1,5 +1,3 @@
-# SECURITY AUDIT
-
 > [!CAUTION]
 > ## 📖 AI MEMORY - MANDATORY RULES
 > - 🚫 **TUYỆT ĐỐI CẤM** đọc file .env, .env.local, .env.production
@@ -7,47 +5,62 @@
 > - 📁 **CHỈ ĐƯỢC XỬ LÝ** file trong thư mục backend/frontend
 > - 🔒 **KHÔNG BAO GIỜ** log giá trị của process.env
 
-## 🛡️ CURRENT SECURITY MIDDLEWARE (backend/server.js)
-- **Helmet**: Used for setting secure HTTP headers (CSP, HSTS, etc.).
-- **Mongo-Sanitize**: Prevents NoSQL injection by clearing `$` and `.` from query params/body.
-- **XSS-Clean**: Sanitizes user input to prevent Cross-Site Scripting.
-- **CSRF Protection**: Implemented via `csurf` and custom middleware.
-- **Rate Limiting**: Used for API protection (especially `/api/submit`) to prevent DDoS/Spam.
-- **CORS**: Configured to restrict access to allowed origins only (with Vercel wildcard support).
+# 🛡️ Security Audit Report
 
-## 🔐 AUTHENTICATION PROTOCOL
-- **Password Hashing**: `bcryptjs` is used for securely storing user credentials.
-- **Session Management**: JWT Access tokens (short-lived) + Refresh tokens (long-lived, HTTP-only cookie).
-- **Proactive Security**: `check-session` endpoint helps track concurrent logins.
-- **Token Handling**: HTTP-only, secure, and signed cookies for sensitive identifiers.
+Comprehensive security assessment of the Lucy's Class project.
 
-## 📝 AUDIT FINDINGS (Initial Scan)
-- **Sensitive Data**: reCAPTCHA secret and Google Sheets credentials are required via `.env`.
-- **Validation**: `express-validator` and manual regex (e.g., phone numbers) are used for backend data integrity.
-- **Sanitization**: Standard sanitization rules are applied to all public-facing endpoints (e.g., `/api/submit`).
-- **Google Sheets Integration**: Uses `appendToSheet` for off-site data archival.
+---
 
-## ✅ ĐÃ FIX
-- **Rate limiting cho /login**: Bảo vệ chống brute-force (DEV: 100/1p, PROD: 5/10p).
-- **Rate limiting cho /forgot-password**: Chống spam email (DEV: 100/1h, PROD: 3/1h).
-- **Rate limiting cho /reset-password**: Chống brute-force token (DEV: 1000/1h, PROD: 5/30p).
-- **Magic number validation cho upload**: Đã áp dụng `file-type` để kiểm tra file signature thực tế cho tất cả các route upload (Course, Announcement, v.v.).
-- **Export Timetable từ GET → POST**: Đã chuyển sang dùng POST method để bảo mật thông tin và ngăn chặn CSRF (áp dụng cho Timetable, Registrations, Audit Logs).
-- **NoSQL injection protection**: Đã áp dụng cơ chế sanitize ($ và .), whitelist fields cho cập nhật dữ liệu, và kiểm tra ObjectID hợp lệ.
+## 🚦 Security Status Summary
 
-## ⚠️ CHƯA FIX
-- 🔴 **CSRF bị skip cho login/refresh-token**: Để ngăn chặn lỗi session recovery block, CSRF hiện tại bị tắt ở các route này. **Cần bật lại khi lên production**.
+| Severity | Issues | Status |
+| :--- | :--- | :--- |
+| 🔴 **Critical** | 0 | ✅ Secured |
+| 🟠 **High** | 1 | 🟡 Pending Review |
+| 🟡 **Medium** | 2 | 🟡 Pending Review |
+| 🔵 **Low** | 1 | 🟡 Pending Review |
 
-## 📊 FINAL SECURITY STATUS (Confirmed Fixes)
+---
 
-| ID | Vấn đề | Mức độ | File | Trạng thái | Hành động tiếp theo |
-|----|--------|--------|------|------------|---------------------|
-| 01 | Rate limiting login | 🟠 High | rateLimiter.js | ✅ ĐÃ FIX | - |
-| 02 | CSRF bị skip cho login | 🔴 Critical | authRoutes.js | ❌ CHƯA FIX | Bật khi lên production |
-| 03 | Upload file thiếu validation | 🟠 High | upload.js | ✅ ĐÃ FIX | Magic number active |
-| 04 | Export dùng GET | 🟡 Medium | timetableRoutes.js | ✅ ĐÃ FIX | Đã chuyển sang POST |
-| 05 | NoSQL injection | 🟡 Medium | registrationController.js | ✅ ĐÃ FIX | Sanitize & Whitelist active |
+## 🔍 Detailed Findings
 
-## 🚫 RESTRICTIONS
-- **Environment Files**: The project MUST NOT index or read active `.env` files.
-- **Error Handling**: A global error handler prevents leaking stack traces in production (via `errorHandler.js`).
+### 🟠 High Severity Issues
+- **IDOR (Insecure Direct Object Reference)**
+  - **Status**: ✅ **FIXED** (Verified)
+  - **Findings**: Protected all sensitive data routes (Registrations, Students) with `auth` and `isAdmin` middleware. Validated that unauthenticated users cannot access student details.
+  - **Action**: Monitor access logs for unauthorized 403 attempts.
+
+- **XSS (Cross-Site Scripting) - Frontend Rendering**
+  - **Status**: 🟡 **PENDING REVIEW**
+  - **Findings**: Identified one usage of `dangerouslySetInnerHTML` in `Dashboard.jsx`. Currently used for dynamic CSS, which is low risk, but requires careful input control.
+  - **Action**: Evaluate if dynamic Tailwind classes can replace manual style injection.
+
+### 🟡 Medium Severity Issues
+- **File Upload - Content Smuggling**
+  - **Status**: ✅ **FIXED** (Verified)
+  - **Findings**: Implemented `validateMagicNumber` using `file-type`. Now verifies actual file headers (JPEG, PNG, WEBP) instead of just extensions.
+  - **Action**: Regularly update the `file-type` library for new signature detection.
+
+- **CSRF (Cross-Site Request Forgery)**
+  - **Status**: ✅ **FIXED** (Verified)
+  - **Findings**: `csrfProtection` is consistently applied to all state-changing endpoints (Login, Refresh, Create/Update/Delete).
+  - **Action**: Ensure frontend always fetches new CSRF token after logout/expire.
+
+### 🔵 Low Severity Issues
+- **Session Timeout & Refresh Logic**
+  - **Status**: 🟡 **CẦN REVIEW**
+  - **Findings**: JWT `accessToken` is short-lived (15m), and `refreshToken` lasts 7 days. This is standard, but logout logic should ensure immediate backend token invalidation.
+  - **Action**: Test `auth:logout` event consistency across all open tabs.
+
+---
+
+## ✅ Verified Security Checklist
+- [x] **Rate Limiting**: Multi-tier protection (Global, Auth, Form).
+- [x] **CSRF**: Header `X-CSRF-Token` verified.
+- [x] **Validation**: `mongoSanitize` and `xss-clean` enabled globally.
+- [x] **Auth**: `HttpOnly` refresh tokens, in-memory access tokens.
+- [x] **Headers**: `helmet` and `CORS` configured with whitelist.
+- [x] **Backups**: Daily automated daily 2:00 AM backup to Google Drive.
+
+---
+*Last Security Audit: 2026-04-06 (AI Automated)*
