@@ -118,13 +118,6 @@ const handleSubmit = async (e) => {
       <div className="absolute bottom-10 right-10 text-5xl opacity-20 float-slow z-0" style={{ animationDelay: '1.5s' }}>👩‍🏫</div>
 
       <div className="w-full max-w-md animate-fadeInUp flex flex-col items-center relative z-10">
-        {/* Back to Home Button */}
-        <button
-          onClick={() => navigate('/')}
-          className="mb-4 text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors flex items-center gap-1 font-medium"
-        >
-          ← {t("back_home")}
-        </button>
 
         <div className="bg-white rounded-3xl shadow-2xl p-10 w-full relative z-10">
           <div className="text-center mb-6">
@@ -216,6 +209,16 @@ const handleSubmit = async (e) => {
               <p className="text-red-500 text-center text-sm font-semibold animate-fadeInUp">{error}</p>
             )}
           </form>
+
+          {/* Back to Home Button */}
+          <div className="mt-6 flex justify-center">
+            <button
+              onClick={() => navigate('/')}
+              className="text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors flex items-center gap-1 font-medium"
+            >
+              ← {t("back_home")}
+            </button>
+          </div>
 
           <p className="text-center text-xs text-gray-400 mt-6">{t("admin.adminAccess")}</p>
         </div>

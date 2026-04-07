@@ -262,7 +262,7 @@ const TimetableEditor = () => {
                         <td
                           key={idx}
                           onClick={() => setActiveCell({ cell, row, dayIndex: idx })}
-                          className="p-2 border-l border-[#E2E8F0] cursor-pointer relative"
+                          className="p-1 border-l border-[#E2E8F0] cursor-pointer relative"
                         >
                           {cell ? (
                             <motion.div
