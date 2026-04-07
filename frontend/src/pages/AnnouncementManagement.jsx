@@ -3,6 +3,9 @@ import api from '../services/api';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getImageUrl } from '../utils/getImageUrl';
+import { showToast } from '../utils/toastUtils';
+import ConfirmModal from '../components/common/ConfirmModal';
+import PrimaryButton from '../components/common/PrimaryButton';
 
 const AnnouncementManagement = () => {
   const { t } = useTranslation();
@@ -18,6 +21,7 @@ const AnnouncementManagement = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, id: null });
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -91,6 +95,7 @@ const AnnouncementManagement = () => {
         await api.put(`/announcements/${currentAnnouncement._id}`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
+        showToast.success('Cập nhật thông báo hoàn tất! ✨');
       } else {
         if (!currentAnnouncement.image) {
           setError('Vui lòng chọn hình ảnh!');
@@ -100,6 +105,7 @@ const AnnouncementManagement = () => {
         await api.post('/announcements', formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
+        showToast.success('Tadaa! Thêm thông báo thành công! 🎉');
       }
       setIsModalOpen(false);
       setError(null);
@@ -108,19 +114,27 @@ const AnnouncementManagement = () => {
       console.error('Error saving announcement:', error);
       const msg = error.response?.data?.message || 'Lỗi khi lưu thông báo';
       setError(msg);
+      showToast.error('Úi, thử lại sau nhé! 🛠️');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa thông báo này?')) {
-      try {
-        await api.delete(`/announcements/${id}`);
-        fetchAnnouncements();
-      } catch (error) {
-        console.error('Error deleting announcement:', error);
-      }
+  const handleDeleteClick = (id) => {
+    setConfirmModal({ isOpen: true, id });
+  };
+
+  const confirmDelete = async () => {
+    if (!confirmModal.id) return;
+    try {
+      await api.delete(`/announcements/${confirmModal.id}`);
+      showToast.success('Đã xoá thông báo! 🌪️');
+      fetchAnnouncements();
+    } catch (error) {
+      console.error('Error deleting announcement:', error);
+      showToast.error('Ôi hỏng! Có lỗi xảy ra mất rồi 😢');
+    } finally {
+      setConfirmModal({ isOpen: false, id: null });
     }
   };
 
@@ -167,13 +181,13 @@ const AnnouncementManagement = () => {
                 <div className="flex gap-2">
                   <button 
                     onClick={() => handleOpenModal(ann)}
-                    className="flex-1 bg-blue-50 text-blue-600 py-2 rounded-xl text-xs font-bold hover:bg-blue-100 transition-colors"
+                    className="flex-1 bg-blue-50 text-blue-600 py-2 rounded-xl text-xs font-bold hover:bg-blue-100 hover:-translate-y-0.5 hover:shadow-button transition-all"
                   >
                     Edit
                   </button>
                   <button 
-                    onClick={() => handleDelete(ann._id)}
-                    className="flex-1 bg-red-50 text-red-600 py-2 rounded-xl text-xs font-bold hover:bg-red-100 transition-colors"
+                    onClick={() => handleDeleteClick(ann._id)}
+                    className="flex-1 bg-red-50 text-red-600 py-2 rounded-xl text-xs font-bold hover:bg-red-100 hover:-translate-y-0.5 hover:shadow-button transition-all"
                   >
                     Delete
                   </button>
@@ -288,19 +302,19 @@ const AnnouncementManagement = () => {
                   />
                 </div>
                 <div className="flex gap-4 pt-4">
+                  <PrimaryButton 
+                    type="submit"
+                    isLoading={isSubmitting}
+                    className="flex-1 py-3.5 rounded-2xl font-bold"
+                  >
+                    {isEditing ? 'Update' : 'Create'}
+                  </PrimaryButton>
                   <button 
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="flex-1 py-3.5 bg-gray-100 text-gray-600 rounded-2xl font-bold hover:bg-gray-200 transition-all border-b-4 border-gray-300 active:translate-y-1 active:border-b-0"
+                    className="flex-1 py-3.5 bg-gray-100 text-gray-600 rounded-2xl font-bold hover:bg-gray-200 transition-all hover:-translate-y-0.5 hover:shadow-button"
                   >
                     Cancel
-                  </button>
-                  <button 
-                    type="submit"
-                    disabled={isSubmitting}
-                    className={`flex-1 py-3.5 ${isSubmitting ? 'bg-gray-400 border-gray-500' : 'bg-primary-500 hover:bg-primary-600 border-primary-800'} text-white rounded-2xl font-bold transition-all border-b-4 shadow-lg shadow-primary-200 active:translate-y-1 active:border-b-0`}
-                  >
-                    {isSubmitting ? 'Processing...' : (isEditing ? 'Update' : 'Create')}
                   </button>
                 </div>
               </form>
@@ -308,6 +322,14 @@ const AnnouncementManagement = () => {
           </div>
         )}
       </AnimatePresence>
+
+      <ConfirmModal 
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ isOpen: false, id: null })}
+        onConfirm={confirmDelete}
+        title="Xoá thông báo này? 🤔"
+        message="Thông báo này sẽ biến mất và không thể lấy lại được đâu nhé! 🌪️"
+      />
     </div>
   );
 };

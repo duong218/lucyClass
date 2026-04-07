@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 import { getImageUrl } from '../utils/getImageUrl';
+import ConfirmModal from '../components/common/ConfirmModal';
+import PrimaryButton from '../components/common/PrimaryButton';
+import { showToast } from '../utils/toastUtils';
+
 
 const CourseManagement = () => {
   const [courses, setCourses] = useState([]);
@@ -12,6 +16,7 @@ const CourseManagement = () => {
   const [imagePreview, setImagePreview] = useState('');
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, id: null });
 
   const fetchData = async () => {
     try {
@@ -115,18 +120,33 @@ const CourseManagement = () => {
       if (editing) { await api.put(`/courses/${editing._id}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }); }
       else { await api.post('/courses', fd, { headers: { 'Content-Type': 'multipart/form-data' } }); }
       setShowForm(false);
+      showToast.success('Tadaa! Lưu thành công rồi nhé! 🎉');
       fetchData();
     } catch (err) { 
       console.error("Course Operation Failed:", err.response?.data || err);
+      showToast.error('Úi, xui quá, thử lại lần nữa xem sao! 🛠️');
       setErrors({ submit: err.response?.data?.message || 'Operation failed' });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const deleteCourse = async (id) => {
-    if (!window.confirm('Are you sure?')) return;
-    try { await api.delete(`/courses/${id}`); fetchData(); } catch (err) { console.error(err); }
+  const handleDeleteClick = (id) => {
+    setConfirmModal({ isOpen: true, id });
+  };
+
+  const confirmDelete = async () => {
+    if (!confirmModal.id) return;
+    try { 
+      await api.delete(`/courses/${confirmModal.id}`); 
+      showToast.success('Tuyệt vời! Xoá xong xuôi! ✨');
+      fetchData(); 
+    } catch (err) { 
+      console.error(err); 
+      showToast.error('Ôi hỏng! Có lỗi xảy ra mất rồi 😢');
+    } finally {
+      setConfirmModal({ isOpen: false, id: null });
+    }
   };
 
   if (showForm) {
@@ -231,10 +251,10 @@ const CourseManagement = () => {
           <div className="flex flex-col gap-2 pt-2">
             {errors.submit && <p className="text-red-500 text-sm font-bold bg-red-50 p-3 rounded-xl border border-red-100">{errors.submit}</p>}
             <div className="flex gap-3">
-              <button type="submit" disabled={isSubmitting} className="bg-green-500 text-white px-8 py-2.5 rounded-xl font-semibold hover:bg-green-600 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
-                {isSubmitting ? 'Saving...' : 'Save Course'}
-              </button>
-              <button type="button" onClick={() => setShowForm(false)} className="bg-gray-200 text-gray-700 px-8 py-2.5 rounded-xl font-semibold hover:bg-gray-300 text-sm">
+              <PrimaryButton type="submit" isLoading={isSubmitting} variant="success" className="px-8">
+                {editing ? 'Save Changes' : 'Save Course'}
+              </PrimaryButton>
+              <button type="button" onClick={() => setShowForm(false)} className="bg-gray-200 text-gray-700 px-8 py-2.5 rounded-xl font-semibold hover:bg-gray-300 text-sm transition-all hover:shadow-button hover:-translate-y-0.5">
                 ✕ Cancel
               </button>
             </div>
@@ -273,13 +293,21 @@ const CourseManagement = () => {
             <p className="text-sm text-gray-600 mb-2 line-clamp-2">{course.description}</p>
             {course.teacher && <p className="text-xs text-primary-500 mb-3 font-semibold">👩‍🏫 {course.teacher.name}</p>}
             <div className="flex gap-2">
-              <button onClick={() => openEdit(course)} className="flex-1 bg-green-500 text-white py-2 rounded-xl text-sm font-semibold hover:bg-green-600">✏️ Edit</button>
-              <button onClick={() => deleteCourse(course._id)} className="flex-1 bg-red-50 text-red-600 py-2 rounded-xl text-sm font-semibold hover:bg-red-100">🗑️ Delete</button>
+              <button onClick={() => openEdit(course)} className="flex-1 bg-green-500 text-white py-2 rounded-xl text-sm font-semibold hover:bg-green-600 hover:shadow-button hover:-translate-y-0.5 transition-all">✏️ Edit</button>
+              <button onClick={() => handleDeleteClick(course._id)} className="flex-1 bg-red-50 text-red-600 py-2 rounded-xl text-sm font-semibold hover:bg-red-100 hover:shadow-button hover:-translate-y-0.5 transition-all">🗑️ Delete</button>
             </div>
           </div>
         ))}
         {courses.length === 0 && <p className="text-gray-400 col-span-3 text-center py-8">No courses yet. Add one!</p>}
       </div>
+
+      <ConfirmModal 
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ isOpen: false, id: null })}
+        onConfirm={confirmDelete}
+        title="Xoá khoá học này? 🤔"
+        message="Khoá học này sẽ bị xoá vĩnh viễn và không thể khôi phục. Bạn chắn chắn chưa? 🌪️"
+      />
     </div>
   );
 };

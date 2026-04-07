@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { toast } from 'react-toastify';
+import { showToast } from '../utils/toastUtils';
+import ConfirmModal from '../components/common/ConfirmModal';
 import api from '../services/api';
 import { formatDateTime, getRelativeTime } from '../utils/dateUtils';
 
@@ -18,6 +19,7 @@ const RegistrationManagement = () => {
   const [todayCount, setTodayCount] = useState(0);
   const [weekCount, setWeekCount] = useState(0);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, id: null });
   const itemsPerPage = 10;
 
   const fetchStudents = async () => {
@@ -102,7 +104,7 @@ const RegistrationManagement = () => {
 
     try { 
       await api.put(`/registrations/${id}`, { status }); 
-      toast.success('Cập nhật trạng thái thành công');
+      showToast.success('Tadaa! Cập nhật trạng thái thành công 🎉');
       // Refetch data after update
       await Promise.all([
         fetchStudents(),
@@ -113,9 +115,9 @@ const RegistrationManagement = () => {
       setRegistrations(originalRegistrations);
       const msg = err.response?.data?.message || err.message || '';
       if (msg === 'Lớp đã đủ học viên') {
-        toast.error('Không thể thêm học sinh, lớp đã đủ');
+        showToast.error('Không thể thêm học sinh, lớp đã đủ 😢');
       } else {
-        toast.error(msg || 'Cập nhật thất bại');
+        showToast.error(msg ? `Úi, ${msg}` : 'Cập nhật thất bại 😢');
       }
       console.error(err); 
     } finally {
@@ -123,13 +125,21 @@ const RegistrationManagement = () => {
     }
   };
 
-  const deleteReg = async (id) => {
-    if (!window.confirm('Are you sure?')) return;
+  const handleDeleteClick = (id) => {
+    setConfirmModal({ isOpen: true, id });
+  };
+
+  const confirmDelete = async () => {
+    if (!confirmModal.id) return;
     try { 
-      await api.delete(`/registrations/${id}`); 
+      await api.delete(`/registrations/${confirmModal.id}`); 
+      showToast.success('Tuyệt vời! Xoá đăng ký thành công! ✨');
       fetchStudents(); 
     } catch (err) { 
       console.error(err); 
+      showToast.error('Ôi hỏng! Có lỗi xảy ra mất rồi 😢');
+    } finally {
+      setConfirmModal({ isOpen: false, id: null });
     }
   };
 
@@ -231,8 +241,8 @@ const RegistrationManagement = () => {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
-                      <button onClick={() => setSelected(reg)} className="bg-blue-50 text-blue-600 px-3 py-1 rounded-lg text-xs font-semibold hover:bg-blue-100 border border-blue-100">View Details</button>
-                      <button onClick={() => deleteReg(reg._id)} className="bg-red-50 text-red-600 px-3 py-1 rounded-lg text-xs font-semibold hover:bg-red-100 border border-red-100">Delete</button>
+                      <button onClick={() => setSelected(reg)} className="bg-blue-50 text-blue-600 px-3 py-1 rounded-lg text-xs font-semibold hover:bg-blue-100 border border-blue-100 transition-all hover:-translate-y-0.5 shadow-sm hover:shadow-button">Xem chi tiết</button>
+                      <button onClick={() => handleDeleteClick(reg._id)} className="bg-red-50 text-red-600 px-3 py-1 rounded-lg text-xs font-semibold hover:bg-red-100 border border-red-100 transition-all hover:-translate-y-0.5 shadow-sm hover:shadow-button">Xoá</button>
                     </div>
                   </td>
                 </tr>
@@ -344,6 +354,14 @@ const RegistrationManagement = () => {
           </div>
         </div>
       )}
+
+      <ConfirmModal 
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ isOpen: false, id: null })}
+        onConfirm={confirmDelete}
+        title="Xoá đăng ký này? 🤔"
+        message="Dữ liệu đăng ký sẽ bị xoá vĩnh viễn và không thể khôi phục. Mọi thứ đã ok chưa? 🌪️"
+      />
     </div>
   );
 };

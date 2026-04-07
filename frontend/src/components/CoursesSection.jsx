@@ -183,7 +183,7 @@ const CoursesSection = () => {
               onClick={() => setVisibleCount(visibleCount === 8 ? filteredCourses.length : 8)}
               className="text-blue-500 hover:underline font-bold transition-all duration-300 flex items-center justify-center gap-1 mx-auto"
             >
-              {visibleCount === 8 ? t('coursesSection.showMore', 'Xem thêm') : t('coursesSection.showLess', 'Ẩn bớt')}
+              {visibleCount === 8 ? t('coursesSection.showMore') : t('coursesSection.showLess')}
               <span className="text-lg leading-none">{visibleCount === 8 ? '↓' : '↑'}</span>
             </button>
           </div>

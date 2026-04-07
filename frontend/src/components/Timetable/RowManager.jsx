@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { HiPlus, HiTrash, HiPencil, HiCheck, HiX, HiMenuAlt4, HiDotsVertical } from 'react-icons/hi';
 import timetableService from '../../services/timetableService';
-import { toast } from 'react-toastify';
+import { showToast } from '../../utils/toastUtils';
+import ConfirmModal from '../common/ConfirmModal';
 
 const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
   const { t } = useTranslation();
@@ -15,6 +16,7 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
     order: 0 
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, id: null });
 
   // 🛡️ Sync local reorder state with props
   useEffect(() => {
@@ -30,12 +32,10 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
     try {
       const rowIds = newItems.map(item => item._id);
       await timetableService.updateRowOrder(rowIds);
-      // We don't necessarily need to reload the whole grid here 
-      // if the local reorder is enough, but we should notify parent of change.
       onRowsUpdated?.();
     } catch (err) {
       console.error('[RowManager] Reorder sync failed:', err);
-      toast.error('Failed to save room order');
+      showToast.error('Vui lòng thử lại sau 😢');
     }
   };
 
@@ -46,11 +46,11 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
     setIsLoading(true);
     try {
       await timetableService.createRow(newRow);
-      toast.success(t('success') || 'Row added successfully');
+      showToast.success('Tadaa! Đã lưu thành công! 🎉');
       setNewRow({ roomName: '', timeSlot: '', order: items.length + 2 });
       onRowsUpdated?.();
     } catch (err) {
-      toast.error(err?.message || 'Failed to add row');
+      showToast.error('Không thể cập nhật trạng thái 😢');
     } finally {
       setIsLoading(false);
     }
@@ -63,29 +63,32 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
     setIsLoading(true);
     try {
       await timetableService.updateRow(editingRow._id, editingRow);
-      toast.success(t('success') || 'Row updated');
+      showToast.success('Tuyệt vời! Cập nhật hoàn tất! ✨');
       setEditingRow(null);
       onRowsUpdated?.();
     } catch (err) {
-      toast.error(err?.message || 'Update failed');
+      showToast.error('Cập nhật thất bại 😢');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleDeleteRow = async (id) => {
-    if (!id) return;
-    if (!window.confirm(t('admin.rowManager.delete_confirm') || 'Permanently delete this row and all its sessions?')) return;
+  const handleDeleteClick = (id) => {
+    setConfirmModal({ isOpen: true, id });
+  };
 
+  const confirmDelete = async () => {
+    if (!confirmModal.id) return;
     setIsLoading(true);
     try {
-      await timetableService.deleteRow(id);
-      toast.success(t('success') || 'Row deleted');
+      await timetableService.deleteRow(confirmModal.id);
+      showToast.success('Xoá thành công! 🌪️');
       onRowsUpdated?.();
     } catch (err) {
-      toast.error(err?.message || 'Delete failed');
+      showToast.error('Xoá thất bại 😢');
     } finally {
       setIsLoading(false);
+      setConfirmModal({ isOpen: false, id: null });
     }
   };
 
@@ -176,7 +179,7 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
                           <HiPencil className="text-xl" />
                         </button>
                         <button
-                          onClick={() => handleDeleteRow(row._id)}
+                          onClick={() => handleDeleteClick(row._id)}
                           className="p-3 text-red-500 hover:bg-red-50 rounded-2xl transition-all"
                         >
                           <HiTrash className="text-xl" />
@@ -239,6 +242,14 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
           </form>
         </div>
       </motion.div>
+
+      <ConfirmModal 
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ isOpen: false, id: null })}
+        onConfirm={confirmDelete}
+        title="Xoá dòng dữ liệu này? 🤔"
+        message="Các dữ liệu trên lịch của dòng này sẽ bị xoá luôn đó. Chắc chắn chứ? 🌪️"
+      />
     </div>
   );
 };

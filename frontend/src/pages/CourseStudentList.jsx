@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { toast } from 'react-toastify';
+import { showToast } from '../utils/toastUtils';
+import ConfirmModal from '../components/common/ConfirmModal';
 import api from '../services/api';
 
 const CourseStudentList = () => {
@@ -45,7 +46,7 @@ const CourseStudentList = () => {
             }
         } catch (error) {
             console.error('Failed to fetch data:', error);
-            toast.error('Lỗi khi tải dữ liệu');
+            showToast.error('Lỗi khi tải dữ liệu 😢');
         } finally {
             setLoading(false);
         }
@@ -61,14 +62,14 @@ const CourseStudentList = () => {
         try {
             const res = await api.put(`/students/${studentId}/remove`);
             if (res.data.success) {
-                toast.success(t('admin.updateSuccess'));
+                showToast.success('Tadaa! Đã cập nhật xong! 🎉');
             } else {
                 throw new Error(res.data.message);
             }
         } catch (error) {
             console.error('Remove failed:', error);
             setStudents(originalStudents); // Rollback
-            toast.error(error.response?.data?.message || 'Không thể cập nhật trạng thái');
+            showToast.error(error.response?.data?.message || 'Không thể cập nhật trạng thái 😢');
         }
     };
 
@@ -200,30 +201,13 @@ const CourseStudentList = () => {
                 </div>
             </div>
 
-            {/* Confirm Modal */}
-            {showConfirm && (
-                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-in zoom-in duration-200">
-                        <div className="text-4xl mb-4 text-center">⚠️</div>
-                        <h3 className="text-xl font-black text-center mb-2">{t('admin.confirm')}</h3>
-                        <p className="text-gray-500 text-center text-sm mb-8">{t('admin.removeConfirm')}</p>
-                        <div className="flex gap-4">
-                            <button 
-                                onClick={() => setShowConfirm(null)}
-                                className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl font-bold transition-all"
-                            >
-                                {t('admin.cancel')}
-                            </button>
-                            <button 
-                                onClick={() => handleRemove(showConfirm._id)}
-                                className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-bold shadow-lg shadow-red-100 transition-all"
-                            >
-                                {t('admin.confirm')}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <ConfirmModal 
+                isOpen={!!showConfirm}
+                onClose={() => setShowConfirm(null)}
+                onConfirm={() => handleRemove(showConfirm._id)}
+                title={t('admin.confirm') || "Chắc chắn xoá chứ?"}
+                message={t('admin.removeConfirm') || "Hành động này sẽ thay đổi trạng thái của học viên!"}
+            />
         </div>
     );
 };

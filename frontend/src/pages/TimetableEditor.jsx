@@ -7,7 +7,7 @@ import WeekSelector from '../components/Timetable/WeekSelector';
 import RowManager from '../components/Timetable/RowManager';
 import CellPopover from '../components/Timetable/CellPopover';
 import { useAuth } from '../contexts/AuthContext';
-import { toast } from 'react-toastify';
+import { showToast } from '../utils/toastUtils';
 
 const DAYS_VI = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật'];
 const DAYS_EN = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -65,7 +65,7 @@ const TimetableEditor = () => {
       });
     } catch (err) {
       console.error('[TimetableEditor] Fetch failed:', err);
-      toast.error('Failed to load timetable data');
+      showToast.error('Thông báo này bị lỗi chút đỉnh nha 😢');
       setTimetable({ rows: [], cells: [] });
     } finally {
       setIsLoading(false);
@@ -83,11 +83,11 @@ const TimetableEditor = () => {
   const handleCellSave = async (cellData) => {
     try {
       await timetableService.upsertCell(cellData);
-      toast.success(t('success') || 'Success');
+      showToast.success('Lưu hoàn tất nhé! 🎉');
       setActiveCell(null);
       fetchTimetable();
     } catch (err) {
-      toast.error(err.message || 'Error saving cell');
+      showToast.error(err.message || 'Error saving cell 😢');
       throw err;
     }
   };
@@ -114,10 +114,10 @@ const TimetableEditor = () => {
       link.parentNode.removeChild(link);
       window.URL.revokeObjectURL(url);
       
-      toast.success('Excel file generated successfully');
+      showToast.success('Xuất file thành công! 🚀');
     } catch (err) {
       console.error('[Timetable] Export failed:', err);
-      toast.error('Failed to export Excel file');
+      showToast.error('Lỗi khi xuất file Excel 😢');
     } finally {
       setIsExporting(false);
     }
