@@ -25,6 +25,7 @@ const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
 const xss = require('xss-clean');
 const connectDB = require('./config/db');
+const { verifyCSRF } = require('./middlewares/securityMiddleware');
 
 // --- 🎯 ABSOLUTE PRIORITY MIDDLEWARE ---
 const app = express();
@@ -107,7 +108,6 @@ const timetableRoutes = require('./routes/timetableRoutes');
 const initCronJobs = require('./config/cron');
 const userIdentifier = require('./middlewares/userIdentifier');
 const { apiLimiter } = require('./middlewares/rateLimiter');
-const { verifyCSRF } = require('./middlewares/securityMiddleware');
 const errorHandler = require('./middlewares/errorHandler');
 
 // 7. Global Logic
