@@ -287,5 +287,14 @@
     "notFound": "😢 Not here, try again!",
     "redirecting": "Redirecting...",
     "backHome": "🏠 Back to Home"
+  },
+  "creator": {
+    "link": "Website Creator",
+    "title": "✨ CREATED BY ✨",
+    "contact": "📱 CONNECT WITH ME 📱",
+    "info": "Student at Vietnam National University of Agriculture",
+    "heartBtn": "❤️ SEND LOVE ❤️",
+    "badge": "Learning & Growing",
+    "note": "This is my first project, I would really appreciate your feedback 💖"
   }
 }

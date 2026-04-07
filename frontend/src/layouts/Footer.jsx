@@ -1,10 +1,19 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FaFacebookF, FaInstagram, FaTiktok } from "react-icons/fa";
 import { SiZalo } from "react-icons/si";
+import CreatorPopup from '../components/CreatorPopup';
+import HeartRain from '../components/HeartRain';
 
 const Footer = () => {
   const { t } = (typeof useTranslation !== 'undefined') ? useTranslation() : { t: (key) => key };
+  const [showCreatorPopup, setShowCreatorPopup] = useState(false);
+  const [showHeartRain, setShowHeartRain] = useState(false);
+
+  const handleHeartClick = useCallback(() => {
+    setShowHeartRain(true);
+    setTimeout(() => setShowHeartRain(false), 3000);
+  }, []);
 
   return (
     <footer id="contact" className="bg-[#C2E0F9] pt-16 pb-8 px-6 text-text-main">
@@ -46,6 +55,21 @@ const Footer = () => {
             <li><a href="#teachers" className="hover:text-blue-600 transition-colors">{t('nav.teachers')}</a></li>
             <li><a href="#activities" className="hover:text-blue-600 transition-colors">{t('nav.activities')}</a></li>
             <li><a href="/admin/login" className="hover:text-blue-600 transition-colors">{t('nav.admin')} Login</a></li>
+            <li>
+              <a
+                onClick={(e) => {
+                  e.preventDefault();
+                  setShowCreatorPopup(true);
+                }}
+                href="#"
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-md -ml-1
+                border border-blue-300
+                hover:bg-blue-600 hover:text-white hover:border-blue-600
+                transition-all duration-200"
+              >
+                <span>{t('creator.link')}</span>
+              </a>
+            </li>
           </ul>
         </div>
 
@@ -79,6 +103,17 @@ const Footer = () => {
       <div className="text-center font-bold opacity-70">
         <p>{t('footer.copyright').replace('© 2024 Lucy\'s Class. All rights reserved.', `© ${new Date().getFullYear()} Lucy's Class. All rights reserved.`)}</p>
       </div>
+
+      {/* Creator Popup */}
+      {showCreatorPopup && (
+        <CreatorPopup
+          onClose={() => setShowCreatorPopup(false)}
+          onHeartClick={handleHeartClick}
+        />
+      )}
+
+      {/* Heart Rain */}
+      {showHeartRain && <HeartRain />}
     </footer>
   );
 };

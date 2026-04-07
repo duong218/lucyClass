@@ -281,5 +281,14 @@
     "notFound": "😢 Chưa đúng, thử lại nhé!",
     "redirecting": "Đang chuyển trang...",
     "backHome": "🏠 Quay về trang chủ"
+  },
+  "creator": {
+    "link": "Người tạo trang web",
+    "title": "✨ WEB ĐƯỢC TẠO BỞI ✨",
+    "contact": "📱 KẾT NỐI VỚI TÔI 📱",
+    "info": "Sinh viên Học Viện Nông Nghiệp Việt Nam",
+    "heartBtn": "❤️ GỬI YÊU THƯƠNG ❤️",
+    "badge": "Đang học tập và phát triển",
+    "note": "Đây là sản phẩm đầu tay, mong mọi người góp ý 💖"
   }
 }
