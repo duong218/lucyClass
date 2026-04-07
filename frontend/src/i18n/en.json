@@ -278,12 +278,14 @@
   },
   "game": {
     "title": "🔍 Find Lucy!",
-    "lives": "Remaining: {{count}}/5",
+    "lives": "Lives",
     "hint": "Hint",
-    "won": "🎉 You found Lucy! Let's go home...",
-    "lost": "Game Over! Lucy is still hiding...",
+    "won": "🎉 Found Lucy! Going home...",
+    "lost": "Out of lives! Lucy is still hiding...",
     "retry": "Try Again",
     "found": "🎉 Found Lucy!",
-    "notFound": "😢 Not here, try again!"
+    "notFound": "😢 Not here, try again!",
+    "redirecting": "Redirecting...",
+    "backHome": "🏠 Back to Home"
   }
 }

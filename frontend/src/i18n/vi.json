@@ -272,12 +272,14 @@
   },
   "game": {
     "title": "🔍 Tìm Lucy nào!",
-    "lives": "Số lần thử: {{count}}/5",
+    "lives": "Tim còn lại",
     "hint": "Gợi ý",
     "won": "🎉 Tìm thấy Lucy! Về trang chủ thôi...",
     "lost": "Hết lượt! Lucy vẫn đang trốn...",
     "retry": "Thử lại",
     "found": "🎉 Tìm thấy Lucy!",
-    "notFound": "😢 Chưa đúng, thử lại nhé!"
+    "notFound": "😢 Chưa đúng, thử lại nhé!",
+    "redirecting": "Đang chuyển trang...",
+    "backHome": "🏠 Quay về trang chủ"
   }
 }

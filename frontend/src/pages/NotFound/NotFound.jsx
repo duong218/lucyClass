@@ -14,9 +14,13 @@ const HOTSPOTS = [
 ];
 
 const NotFound = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [isContainerShaking, setIsContainerShaking] = useState(false);
+
+  const toggleLang = () => {
+    i18n.changeLanguage(i18n.language === "en" ? "vi" : "en");
+  };
 
   const {
     lives,
@@ -28,6 +32,7 @@ const NotFound = () => {
     triggerHint,
     restartGame
   } = useLucyGame(HOTSPOTS.length);
+
 
   // Trigger container shake when a wrong guess happens
   const onWrongGuess = (index) => {
@@ -64,17 +69,27 @@ const NotFound = () => {
       {/* Game Header */}
       <div className="game-header">
         <div className="lives-container">
+          <span className="lives-text">{t('game.lives')}:</span>
           {renderHearts()}
         </div>
         
-        <button 
-          className="hint-button" 
-          onClick={triggerHint}
-          aria-label={t('game.hint')}
-          disabled={gameStatus !== 'playing'}
-        >
-          <img src="/model-transform/GoiY.png" alt="Hint" />
-        </button>
+        <div className="header-actions">
+          <button
+            onClick={toggleLang}
+            className="lang-switcher-btn"
+          >
+            {i18n.language.toUpperCase()}
+          </button>
+
+          <button 
+            className="hint-button" 
+            onClick={triggerHint}
+            aria-label={t('game.hint')}
+            disabled={gameStatus !== 'playing'}
+          >
+            <img src="/model-transform/GoiY.png" alt="Hint" />
+          </button>
+        </div>
       </div>
 
       <h1 className="game-title">
@@ -133,7 +148,7 @@ const NotFound = () => {
           <h2 className="game-message animate-bounce">
             {t('game.won')}
           </h2>
-          <p>{t('redirecting')}</p>
+          <p>{t('game.redirecting')}</p>
         </div>
       )}
 
@@ -148,11 +163,10 @@ const NotFound = () => {
               {t('game.retry')}
             </button>
             <button 
-              className="btn-primary" 
-              style={{ background: '#666' }} 
+              className="btn-back-home" 
               onClick={() => navigate('/')}
             >
-              {t('back_home')}
+              {t('game.backHome')}
             </button>
           </div>
         </div>
@@ -161,11 +175,10 @@ const NotFound = () => {
       {/* Static Footer CTA */}
       <div style={{ marginTop: '2rem' }}>
         <button 
-          className="back-home-btn"
-          style={{ background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+          className="btn-back-home"
           onClick={() => navigate('/')}
         >
-          {t('back_home')}
+          {t('game.backHome')}
         </button>
       </div>
     </div>
