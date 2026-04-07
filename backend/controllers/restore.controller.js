@@ -10,7 +10,7 @@ const fs = require('fs').promises;
  * List backups from Google Drive
  * Requires Admin Auth
  */
-exports.listBackups = async (req, res) => {
+exports.listBackups = async (req, res, next) => {
   try {
     const tokenData = await GoogleToken.findOne();
     if (!tokenData) return res.status(401).json({ message: 'Google account not connected' });
@@ -26,7 +26,7 @@ exports.listBackups = async (req, res) => {
     let response;
     try {
       response = await drive.files.list({
-        q: `'${folderId}' in parents and trashed = false and mimeType = 'application/zip'`,
+        q: `'${folderId}' in parents and trashed = false and (mimeType = 'application/zip' or name contains '.zip.enc')`,
         fields: 'files(id, name, createdTime, size)',
         orderBy: 'createdTime desc'
       });
@@ -37,7 +37,14 @@ exports.listBackups = async (req, res) => {
       throw err;
     }
 
-    res.json({ success: true, data: response.data.files });
+    const files = (response.data.files || []).map(file => ({
+      ...file,
+      // Add a cleaner display name for the UI by stripping .enc if present
+      displayName: file.name.endsWith('.enc') ? file.name.slice(0, -4) : file.name,
+      isEncrypted: file.name.endsWith('.enc')
+    }));
+
+    res.json({ success: true, data: files });
   } catch (error) {
     console.error('[RESTORE:LIST] Error:', error.response?.data || error.message);
     
@@ -48,7 +55,7 @@ exports.listBackups = async (req, res) => {
       });
     }
 
-    res.status(500).json({ success: false, message: 'Failed to retrieve backups' });
+    next(error);
   }
 };
 
@@ -56,7 +63,7 @@ exports.listBackups = async (req, res) => {
  * Trigger Database Restore
  * Restricted to ADMIN only
  */
-exports.restoreBackup = async (req, res) => {
+exports.restoreBackup = async (req, res, next) => {
   const { fileId, confirm } = req.body;
 
   // 1. Security: Identity Check
@@ -88,15 +95,27 @@ exports.restoreBackup = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Storage initialization failed' });
   }
 
-  const tempZipPath = path.join(BACKUP_DIR, `restore-temp-${Date.now()}.zip`);
+  // const tempZipPath = path.join(BACKUP_DIR, `restore-temp-${Date.now()}.zip`);
 
   try {
     console.log(`[RESTORE:SECURE] Admin ${req.user.username} initiated restore for fileId: ${fileId}`);
 
-    // A. Download (Must await before starting restore)
+    // A. Fetch file metadata to get the correct extension
+    const tokenData = await GoogleToken.findOne();
+    if (!tokenData) throw new Error('Google account not connected');
+    oauth2Client.setCredentials(tokenData);
+    const drive = google.drive({ version: 'v3', auth: oauth2Client });
+    
+    const fileMetadata = await drive.files.get({ fileId, fields: 'name' });
+    const fileName = fileMetadata.data.name;
+    const extension = fileName.endsWith('.enc') ? '.zip.enc' : '.zip';
+    
+    const tempZipPath = path.join(BACKUP_DIR, `restore-temp-${Date.now()}${extension}`);
+
+    // B. Download (Must await before starting restore)
     await restoreService.downloadFileFromDrive(fileId, tempZipPath);
 
-    // B. Background Restore (Non-blocking)
+    // C. Background Restore (Non-blocking)
     restoreService.performRestore(tempZipPath)
       .then(async () => {
         console.log('[RESTORE:SUCCESS] Background task finished.');
@@ -140,7 +159,7 @@ exports.restoreBackup = async (req, res) => {
       });
     }
 
-    res.status(500).json({ success: false, message: error.message || 'Restoration initiation failed' });
+    next(error);
   }
 };
 

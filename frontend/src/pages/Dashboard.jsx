@@ -273,7 +273,7 @@ const Dashboard = () => {
                 <tbody>
                   {backups.slice(0, visibleBackupCount).map(file => (
                     <tr key={file.id} className="border-b last:border-0 hover:bg-gray-50">
-                      <td className="py-3">📦 {file.name}</td>
+                      <td className="py-3">📦 {file.displayName || file.name}</td>
                       <td className="py-3 text-xs text-gray-500">{new Date(file.createdTime).toLocaleString()} ({formatBytes(file.size)})</td>
                       <td className="py-3 text-right">
                         <button onClick={() => setSelectedBackup(file)} className="bg-red-50 text-red-600 px-3 py-1 rounded-lg text-xs font-bold hover:bg-red-600 hover:text-white border border-red-100 transition-all">Restore</button>

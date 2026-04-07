@@ -4,17 +4,17 @@ const { logAction } = require('../utils/logger');
 const logAdminAction = require('../utils/logAdminAction');
 
 // GET /api/feedback
-exports.getAll = async (req, res) => {
+exports.getAll = async (req, res, next) => {
   try {
     const feedbacks = await Feedback.find({ isDeleted: { $ne: true } }).sort({ createdAt: -1 });
     res.json({ success: true, data: feedbacks });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 };
 
 // GET /api/feedback/:id
-exports.getById = async (req, res) => {
+exports.getById = async (req, res, next) => {
   try {
     const { id } = req.params;
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -24,7 +24,7 @@ exports.getById = async (req, res) => {
     if (!fb) return res.status(404).json({ success: false, message: 'Feedback not found' });
     res.json({ success: true, data: fb });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 
@@ -89,7 +89,7 @@ exports.update = async (req, res) => {
 };
 
 // DELETE /api/feedback/:id
-exports.remove = async (req, res) => {
+exports.remove = async (req, res, next) => {
   try {
     const { id } = req.params;
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -112,6 +112,6 @@ exports.remove = async (req, res) => {
     });
     res.json({ success: true, message: 'Feedback deleted successfully' });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };

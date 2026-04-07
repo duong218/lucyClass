@@ -8,6 +8,7 @@ const { spawn, execSync } = require('child_process');
 
 const GoogleToken = require('../models/GoogleToken');
 const backupService = require('./backup.service');
+const { decryptFile } = require('../utils/encryptionUtils');
 
 // 🔒 Global State (In-Memory Lock & Progress)
 let isRestoring = false;
@@ -159,12 +160,31 @@ exports.performRestore = async (zipFilePath) => {
 
   const BACKUP_DIR = path.resolve(B_PATH);
   const extractPath = path.join(BACKUP_DIR, `temp-extract-${Date.now()}`);
+  let workingZipPath = zipFilePath;
+  let decryptedPath = null;
 
   try {
-    // 1. Validation: ZIP Integrity
-    if (!(await exists(zipFilePath))) throw new Error('Source ZIP not found');
-    const zipStats = await fs.stat(zipFilePath);
-    if (zipStats.size === 0) throw new Error('Source ZIP is empty/corrupted');
+    // 1. Validation: ZIP/ENC Integrity
+    if (!(await exists(zipFilePath))) throw new Error('Source backup file not found');
+    const fileStats = await fs.stat(zipFilePath);
+    if (fileStats.size === 0) throw new Error('Source backup file is empty/corrupted');
+
+    // 1.1 Decryption if needed
+    if (zipFilePath.endsWith('.zip.enc')) {
+      console.log("[RESTORE:SECURE] Milestone: Decrypting backup file...");
+      const encryptionKey = process.env.BACKUP_ENCRYPTION_KEY;
+      if (!encryptionKey) {
+        throw new Error('BACKUP_ENCRYPTION_KEY is missing in .env. Cannot decrypt backup.');
+      }
+      
+      decryptedPath = zipFilePath.replace('.enc', '.dec.zip');
+      try {
+        await decryptFile(zipFilePath, decryptedPath, encryptionKey);
+        workingZipPath = decryptedPath;
+      } catch (decErr) {
+        throw new Error(`Decryption failed: ${decErr.message}. Ensure your BACKUP_ENCRYPTION_KEY is correct.`);
+      }
+    }
 
     // 2. Phase: Safety Backup
     console.log("[RESTORE:SECURE] Milestone: Creating safety backup before destructive changes...");
@@ -174,7 +194,7 @@ exports.performRestore = async (zipFilePath) => {
     // 3. Phase: Unzip
     console.log("[RESTORE:SECURE] Milestone: Extracting backup ZIP...");
     try {
-      const zip = new AdmZip(zipFilePath);
+      const zip = new AdmZip(workingZipPath);
       const extractBase = path.resolve(extractPath);
 
       zip.getEntries().forEach(entry => {
@@ -289,6 +309,7 @@ exports.performRestore = async (zipFilePath) => {
     isRestoring = false;
     // CRITICAL: Cleanup MUST always run
     if (await exists(zipFilePath)) await fs.rm(zipFilePath, { force: true }).catch(console.error);
+    if (decryptedPath && await exists(decryptedPath)) await fs.rm(decryptedPath, { force: true }).catch(console.error);
     if (await exists(extractPath)) await fs.rm(extractPath, { recursive: true, force: true }).catch(console.error);
     console.log("[RESTORE:CLEANUP] Maintenance artifacts removed.");
   }

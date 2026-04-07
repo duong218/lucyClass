@@ -25,7 +25,7 @@ const DAY_NAMES = { 1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday', 5:
  * GET /api/timetable?weekDate=2024-03-25T00:00:00.000Z
  * Returns all rows (sorted by order) with cells mapped by dayOfWeek.
  */
-exports.getTimetable = async (req, res) => {
+exports.getTimetable = async (req, res, next) => {
   try {
     const { weekDate } = req.query;
 
@@ -66,7 +66,7 @@ exports.getTimetable = async (req, res) => {
     res.json({ success: true, weekDate: monday.toISOString(), data });
   } catch (error) {
     console.error('[Timetable] getTimetable error:', error.message);
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 };
 
@@ -174,7 +174,7 @@ exports.updateRow = async (req, res) => {
  * Expects an array of row IDs in the desired order.
  * Updates the 'order' field for each row sequentially.
  */
-exports.updateRowOrder = async (req, res) => {
+exports.updateRowOrder = async (req, res, next) => {
   try {
     const { rowIds } = req.body;
 
@@ -204,7 +204,7 @@ exports.updateRowOrder = async (req, res) => {
     res.json({ success: true, message: 'Rows reordered successfully' });
   } catch (error) {
     console.error('[Timetable] updateRowOrder error:', error.message);
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 };
 
@@ -214,7 +214,7 @@ exports.updateRowOrder = async (req, res) => {
  * DELETE /api/timetable/rows/:id
  * Deletes the row AND all associated cells to prevent orphan data.
  */
-exports.deleteRow = async (req, res) => {
+exports.deleteRow = async (req, res, next) => {
   try {
     const { id } = req.params;
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -239,7 +239,7 @@ exports.deleteRow = async (req, res) => {
     res.json({ success: true, message: 'Row and related cells deleted successfully' });
   } catch (error) {
     console.error('[Timetable] deleteRow error:', error.message);
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 };
 
@@ -316,7 +316,7 @@ exports.upsertCell = async (req, res) => {
  * GET /api/timetable/export?weekDate=2024-03-25
  * Exports the timetable for a specific week as an .xlsx file.
  */
-exports.exportTimetable = async (req, res) => {
+exports.exportTimetable = async (req, res, next) => {
   try {
     const { weekDate } = req.body;
     if (!weekDate) {
@@ -405,6 +405,6 @@ exports.exportTimetable = async (req, res) => {
 
   } catch (error) {
     console.error('[Timetable] exportTimetable error:', error.message);
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 };

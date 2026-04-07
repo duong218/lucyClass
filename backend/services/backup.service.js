@@ -5,6 +5,7 @@ const { spawn } = require('child_process');
 const { google } = require('googleapis');
 const oauth2Client = require('../config/google');
 const GoogleToken = require('../models/GoogleToken');
+const { encryptFile } = require('../utils/encryptionUtils');
 
 /**
  * PRODUCTION-READY BACKUP SERVICE
@@ -142,33 +143,52 @@ exports.runBackup = async (options = {}) => {
 
     // 5. Upload to Drive if requested
     if (uploadToDrive) {
-      console.log(`[BackupService] Uploading to Google Drive...`);
+      console.log(`[BackupService] Preparing to upload to Google Drive...`);
+      
+      const encryptionKey = process.env.BACKUP_ENCRYPTION_KEY;
+      if (!encryptionKey) {
+        throw new Error('BACKUP_ENCRYPTION_KEY is missing in .env. Cannot encrypt for Google Drive upload.');
+      }
+
       const tokenData = await GoogleToken.findOne();
       if (!tokenData) throw new Error('Google Drive account not connected');
       
       oauth2Client.setCredentials(tokenData);
       const drive = google.drive({ version: 'v3', auth: oauth2Client });
-      
+
+      const encryptedFileName = zipFileName + '.enc';
+      const encryptedFilePath = zipFilePath + '.enc';
+
       try {
+        // Encrypt ZIP before upload
+        console.log(`[BackupService] Encrypting ${zipFileName} -> ${encryptedFileName}...`);
+        await encryptFile(zipFilePath, encryptedFilePath, encryptionKey);
+
         const driveResponse = await drive.files.create({
           requestBody: {
-            name: zipFileName,
-            mimeType: 'application/zip',
+            name: encryptedFileName,
+            mimeType: 'application/octet-stream',
             parents: [targetFolderId]
           },
           media: {
-            mimeType: 'application/zip',
-            body: fs.createReadStream(zipFilePath),
+            mimeType: 'application/octet-stream',
+            body: fs.createReadStream(encryptedFilePath),
           },
         });
+        
         driveFileId = driveResponse.data.id;
         console.log(`[BackupService] Uploaded to Drive. FileID: ${driveFileId}`);
       } catch (err) {
-        console.error('[BackupService] Drive upload error:', err.response?.data || err.message);
+        console.error('[BackupService] Drive upload/encryption error:', err.response?.data || err.message);
         if (err.response?.data?.error === 'invalid_grant') {
           throw new Error('GOOGLE_TOKEN_EXPIRED');
         }
         throw err;
+      } finally {
+        // Always clean up the encrypted temporary file 
+        if (fs.existsSync(encryptedFilePath)) {
+          fs.unlinkSync(encryptedFilePath);
+        }
       }
     }
 

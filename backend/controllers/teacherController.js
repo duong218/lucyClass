@@ -4,17 +4,17 @@ const { logAction } = require('../utils/logger');
 const logAdminAction = require('../utils/logAdminAction');
 
 // GET /api/teachers
-exports.getAll = async (req, res) => {
+exports.getAll = async (req, res, next) => {
   try {
     const teachers = await Teacher.find({ isDeleted: { $ne: true } }).sort({ createdAt: -1 });
     res.json({ success: true, data: teachers });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 };
 
 // GET /api/teachers/:id
-exports.getById = async (req, res) => {
+exports.getById = async (req, res, next) => {
   try {
     const { id } = req.params;
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -24,7 +24,7 @@ exports.getById = async (req, res) => {
     if (!teacher) return res.status(404).json({ message: 'Teacher not found' });
     res.status(200).json({ success: true, data: teacher });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 };
 
@@ -100,7 +100,7 @@ exports.update = async (req, res) => {
 };
 
 // DELETE /api/teachers/:id
-exports.remove = async (req, res) => {
+exports.remove = async (req, res, next) => {
   try {
     const { id } = req.params;
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -123,6 +123,6 @@ exports.remove = async (req, res) => {
     });
     res.json({ success: true, message: 'Teacher deleted successfully' });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 };

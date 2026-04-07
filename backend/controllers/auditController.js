@@ -2,7 +2,7 @@ const AuditLog = require('../models/AuditLog');
 const { Parser } = require('json2csv');
 
 // GET /api/admin/history
-exports.getHistory = async (req, res) => {
+exports.getHistory = async (req, res, next) => {
   try {
     const { page = 1, limit = 10, action, startDate, endDate } = req.query;
     const query = {};
@@ -44,12 +44,12 @@ exports.getHistory = async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 };
 
 // GET /api/admin/history/stats
-exports.getStats = async (req, res) => {
+exports.getStats = async (req, res, next) => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -82,12 +82,12 @@ exports.getStats = async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 };
 
 // GET /api/admin/history/export
-exports.exportCSV = async (req, res) => {
+exports.exportCSV = async (req, res, next) => {
   try {
     const logs = await AuditLog.find().sort({ createdAt: -1 });
     
@@ -116,6 +116,6 @@ exports.exportCSV = async (req, res) => {
     res.setHeader('Content-Disposition', 'attachment; filename=admin_activity_history.csv');
     res.status(200).send(csvContent);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };

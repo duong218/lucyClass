@@ -1,4 +1,17 @@
 const express = require('express');
+const systemLogger = require('./utils/systemLogger');
+
+// 🛑 GLOBAL PROCESS EXCEPTION HANDLERS
+process.on('uncaughtException', (err) => {
+  systemLogger.error(`UNCAUGHT EXCEPTION! 💥 Shutting down...`, { error: err.message, stack: err.stack });
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (err) => {
+  systemLogger.error(`UNHANDLED REJECTION! 💥 Shutting down...`, { error: err.message, stack: err.stack });
+  // In production, we might want to close the server first
+  process.exit(1);
+});
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const path = require('path');
@@ -245,9 +258,13 @@ app.post('/api/submit', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[SUBMIT] Error:', error.message);
-    res.status(500).json({ success: false, message: 'Server Internal Error', detail: error.message });
+    console.error('[SUBMIT] Error:', error);
+    res.status(500).json({ success: false, message: 'Server Internal Error'});
   }
+});
+
+app.get('/api/test-error', (req, res) => {
+  throw new Error('This is a sensitive internal error message');
 });
 
 app.get('/api/health', (req, res) => res.json({ status: 'OK' }));

@@ -39,6 +39,7 @@ const errorHandler = (err, req, res, next) => {
     res.status(status).json({
         success: false,
         message: (isDev || isClientError) ? message : 'Một lỗi hệ thống đã xảy ra. Vui lòng thử lại sau.',
+        code: status,
         error: isDev ? (err.message || err.name || 'Unknown Error') : undefined
     });
 };

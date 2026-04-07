@@ -14,7 +14,7 @@ const escapeStringRegexp = (string) => {
 };
 
 // GET /api/registrations
-exports.getAll = async (req, res) => {
+exports.getAll = async (req, res, next) => {
   try {
     const { search, status, page = 1, limit = 10 } = req.query;
     let query = {};
@@ -47,18 +47,18 @@ exports.getAll = async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 };
 
 // GET /api/registrations/:id
-exports.getById = async (req, res) => {
+exports.getById = async (req, res, next) => {
   try {
     const reg = await Registration.findById(req.params.id).populate('courseId', 'name');
     if (!reg) return res.status(404).json({ success: false, message: 'Registration not found' });
     res.json({ success: true, data: reg });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 };
 
@@ -343,18 +343,18 @@ exports.update = async (req, res) => {
 };
 
 // DELETE /api/registrations/:id
-exports.remove = async (req, res) => {
+exports.remove = async (req, res, next) => {
   try {
     const reg = await Registration.findByIdAndDelete(req.params.id);
     if (!reg) return res.status(404).json({ success: false, message: 'Registration not found' });
     res.json({ success: true, message: 'Registration deleted successfully' });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 
 // GET /api/courses/:id/students
-exports.getStudentsByCourse = async (req, res) => {
+exports.getStudentsByCourse = async (req, res, next) => {
   try {
     const students = await Registration.find({
       courseId: req.params.id,
@@ -367,12 +367,12 @@ exports.getStudentsByCourse = async (req, res) => {
 
     res.json({ success: true, data: students });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 };
 
 // PUT /api/students/:id/remove
-exports.removeStudent = async (req, res) => {
+exports.removeStudent = async (req, res, next) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -409,14 +409,14 @@ exports.removeStudent = async (req, res) => {
     res.json({ success: true, message: 'Đã cho học sinh nghỉ' });
   } catch (error) {
     try { await session.abortTransaction(); } catch (_) { /* already aborted */ }
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   } finally {
     session.endSession();
   }
 };
 
 // GET /api/registrations/export-excel
-exports.exportExcel = async (req, res) => {
+exports.exportExcel = async (req, res, next) => {
   try {
     const registrations = await Registration.find().populate('courseId', 'name').sort({ createdAt: -1 });
 
@@ -479,6 +479,6 @@ exports.exportExcel = async (req, res) => {
     res.setHeader('Content-Length', buffer.length);
     res.send(buffer);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };

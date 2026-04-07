@@ -92,7 +92,7 @@ const path = require('path');
 const backupService = require('../services/backup.service');
 
 // (3) backupToDrive
-exports.backupToDrive = async (req, res) => {
+exports.backupToDrive = async (req, res, next) => {
   try {
     const result = await backupService.runBackup({ uploadToDrive: true });
 
@@ -130,7 +130,7 @@ exports.backupToDrive = async (req, res) => {
       });
     }
 
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 };
 
