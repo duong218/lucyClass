@@ -16,7 +16,7 @@ import StudentManagement from './pages/StudentManagement';
 import CourseStudentList from './pages/CourseStudentList';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
-import NotFound from './pages/NotFound';
+import NotFound from './pages/NotFound/NotFound';
 import ProtectedRoute from './components/ProtectedRoute';
 
 

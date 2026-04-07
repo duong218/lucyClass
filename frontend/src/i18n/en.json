@@ -275,5 +275,15 @@
     "all": "All Announcements",
     "back_latest": "Back to Latest",
     "newest": "Newest"
+  },
+  "game": {
+    "title": "🔍 Find Lucy!",
+    "lives": "Remaining: {{count}}/5",
+    "hint": "Hint",
+    "won": "🎉 You found Lucy! Let's go home...",
+    "lost": "Game Over! Lucy is still hiding...",
+    "retry": "Try Again",
+    "found": "🎉 Found Lucy!",
+    "notFound": "😢 Not here, try again!"
   }
 }
