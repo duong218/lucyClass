@@ -46,11 +46,11 @@ const parseOrigins = (envVar) => {
 };
 
 const allowedOrigins = parseOrigins(
-  process.env.CORS_ORIGINS || process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:5173'
+  process.env.CORS_ORIGINS || process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:5173,https://lucy-class.vercel.app'
 );
 
 const isDev = process.env.NODE_ENV === 'development';
-app.use(cors({
+/*  app.use(cors({
   origin: function (origin, callback) {
     if (!origin) {
       if (isDev) {
@@ -73,8 +73,14 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-csrf-token']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token']
+})); */
+
+app.use(cors({
+  origin: true,
+  credentials: true
 }));
+
 
 // --- 🛡️ CUSTOM CSRF PROTECTION ---
 //app.use(verifyCSRF); chatgpt sửa lỗi 11:14 07/04
