@@ -14,6 +14,9 @@ const api = axios.create({
   withCredentials: true // gửi refreshToken cookie
 });
 
+// ✅ 🛡️ CSRF PROTECTION HEADER
+api.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
+
 // ==============================
 // 🔐 ACCESS TOKEN MANAGEMENT (In-Memory)
 // ==============================

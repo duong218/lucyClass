@@ -79,6 +79,9 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'x-csrf-token']
 }));
 
+// --- 🛡️ CUSTOM CSRF PROTECTION ---
+app.use(verifyCSRF);
+
 // 4. Body Parsing
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
@@ -104,6 +107,7 @@ const timetableRoutes = require('./routes/timetableRoutes');
 const initCronJobs = require('./config/cron');
 const userIdentifier = require('./middlewares/userIdentifier');
 const { apiLimiter } = require('./middlewares/rateLimiter');
+const { verifyCSRF } = require('./middlewares/securityMiddleware');
 const errorHandler = require('./middlewares/errorHandler');
 
 // 7. Global Logic
