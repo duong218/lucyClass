@@ -58,10 +58,13 @@ const loginLimiter = rateLimit({
 /**
  * 3. Registration Limiter
  * Protection against form spam
+ * PROD: 5 attempts / 1 hour
+ * DEV: 10000 attempts / 1 minute
  */
 const registerLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000,
-  max: 20,
+  windowMs: isProduction ? 60 * 60 * 1000 : 60 * 1000,
+  max: isProduction ? 5 : 10000,
+  skipSuccessfulRequests: true,
   skip: (req) => req.user?.role === 'admin',
   handler: rateLimitHandler,
   standardHeaders: true,
