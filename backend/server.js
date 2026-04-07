@@ -77,7 +77,16 @@ app.use(cors({
 }));
 
 // --- 🛡️ CUSTOM CSRF PROTECTION ---
-app.use(verifyCSRF);
+//app.use(verifyCSRF); chatgpt sửa lỗi 11:14 07/04
+app.use((req, res, next) => {
+  const safeMethods = ['GET', 'HEAD', 'OPTIONS'];
+
+  if (safeMethods.includes(req.method.toUpperCase())) {
+    return next();
+  }
+
+  verifyCSRF(req, res, next);
+});
 
 // 4. Body Parsing
 app.use(express.json({ limit: '1mb' }));
