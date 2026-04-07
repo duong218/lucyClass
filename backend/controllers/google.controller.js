@@ -34,8 +34,8 @@ exports.redirectToGoogle = (req, res) => {
 
   const url = oauth2Client.generateAuthUrl({
     access_type: 'offline',
-    scope: ['https://www.googleapis.com/auth/drive.file'],
     prompt: 'consent',
+    scope: ['https://www.googleapis.com/auth/drive.file'],
     state
   });
 
@@ -69,13 +69,25 @@ exports.handleGoogleCallback = async (req, res) => {
     }
 
     // Save tokens in MongoDB (upsert so we only have one set of credentials)
-    await GoogleToken.findOneAndUpdate({}, tokens, {
-      upsert: true,
-      new: true,
-      setDefaultsOnInsert: true
-    });
+    await GoogleToken.findOneAndUpdate({},
+      {
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token || existing?.refresh_token, // 🔥 giữ token cũ
+        expiry_date: tokens.expiry_date,
+        scope: tokens.scope,
+        token_type: tokens.token_type,
+      },
+      {
+        upsert: true,
+        new: true,
+        setDefaultsOnInsert: true
+      });
 
-    oauth2Client.setCredentials(tokens);
+    oauth2Client.setCredentials({
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token || existing?.refresh_token,
+      expiry_date: tokens.expiry_date,
+    });
 
     // Success redirect
     res.clearCookie('google_oauth_state'); //chatgpt đã thêm lúc 4:16 24/

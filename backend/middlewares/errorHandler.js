@@ -1,12 +1,7 @@
 const systemLogger = require('../utils/systemLogger');
 
 const errorHandler = (err, req, res, next) => {
-    console.error(`[Error] ${err.name}: ${err.message}`);
     const isDev = process.env.NODE_ENV === 'development';
-    
-    if (isDev) {
-        console.error(err.stack);
-    }
 
     let status = err.status || 500;
     let message = err.message || 'Internal Server Error';
@@ -25,6 +20,7 @@ const errorHandler = (err, req, res, next) => {
 
     if (isServerError) {
         systemLogger.error('Server Error', {
+            name: err.name,
             message: err.message,
             stack: err.stack,
             url: req.originalUrl,
@@ -33,16 +29,19 @@ const errorHandler = (err, req, res, next) => {
         });
     }
 
-    let finalMessage = message;
-    if (!isDev && isServerError) {
-        finalMessage = 'Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.';
+    if (isDev) {
+        console.error(`[Error] ${err.name}: ${err.message}`);
+        console.error(err.stack);
     }
 
     res.status(status).json({
         success: false,
-        message: finalMessage,
+        message: (!isDev && isServerError)
+            ? 'Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.'
+            : message,
         code: status
     });
 };
 
 module.exports = errorHandler;
+

@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const axios = require('axios');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const systemLogger = require('../utils/systemLogger');
 
 // Helper to delay response
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -37,7 +38,7 @@ const generateTokens = (user) => {
   const refreshTokenSecret = process.env.REFRESH_TOKEN_SECRET;
 
   if (!jwtSecret || !refreshTokenSecret) {
-    console.error('[Auth] Error: JWT_SECRET or REFRESH_TOKEN_SECRET is not defined!');
+    systemLogger.error('[Auth] JWT_SECRET or REFRESH_TOKEN_SECRET is not defined!');
   }
 
   const accessToken = jwt.sign(
@@ -124,7 +125,7 @@ exports.login = async (req, res) => {
       user: { id: user._id, username: user.username, email: user.email, role: user.role }
     });
   } catch (error) {
-    console.error('[Login] Error:', error.message);
+    systemLogger.error('[Login] Error', { message: error.message, stack: error.stack });
     res.status(500).json({ message: 'Hệ thống gặp sự cố' });
   }
 };
@@ -191,7 +192,7 @@ exports.refreshToken = async (req, res) => {
       accessToken
     });
   } catch (error) {
-    console.error(`[Refresh] Error: ${error.message}`);
+    systemLogger.error('[Refresh] Error', { message: error.message });
     const options = getCookieOptions();
     res.clearCookie('refreshToken', options);
     res.clearCookie('sessionId', options);
@@ -253,7 +254,7 @@ exports.forgotPassword = async (req, res) => {
     await transporter.sendMail({ from: `"Lucy's Class" <${process.env.EMAIL_USER}>`, to: user.email, subject: 'Yêu cầu đặt lại mật khẩu', html: `<p>Nhấn vào <a href="${process.env.FRONTEND_URL}/reset-password/${resetToken}">đây</a> để đặt lại mật khẩu.</p>` });
     res.json({ success: true, message: 'Link reset đã được gửi' });
   } catch (error) { 
-    console.error('[ForgotPassword] Error:', error.message);
+    systemLogger.error('[ForgotPassword] Error', { message: error.message });
     res.status(500).json({ message: 'Lỗi gửi email' }); 
   }
 };

@@ -49,17 +49,22 @@ const allowedOrigins = parseOrigins(
   process.env.CORS_ORIGINS || process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:5173'
 );
 
+const isDev = process.env.NODE_ENV === 'development';
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) {
-      console.log(`[CORS] No origin`);
+      if (isDev) {
+        console.log(`[CORS] No origin`);
+      }
       return callback(null, true);
     }
 
     const normalizedOrigin = origin.trim().replace(/\/$/, '');
 
     if (allowedOrigins.includes(normalizedOrigin)) {
-      console.log(`[CORS] Allowed origin: ${normalizedOrigin}`);
+      if (isDev) {
+        console.log(`[CORS] Allowed origin: ${normalizedOrigin}`);
+      }
       return callback(null, true);
     }
 
@@ -254,7 +259,7 @@ app.post('/api/submit', async (req, res) => {
 
   } catch (error) {
     console.error('[SUBMIT] Error:', error);
-    res.status(500).json({ success: false, message: 'Server Internal Error'});
+    res.status(500).json({ success: false, message: 'Server Internal Error' });
   }
 });
 
