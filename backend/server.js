@@ -37,38 +37,29 @@ app.set("trust proxy", 1);
 app.use(cookieParser(process.env.COOKIE_SECRET));
 
 // 3. CORS Configuration
-const allowedOrigins = (process.env.CORS_ORIGINS || process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:5173')
-  .split(',')
-  .map(o => o.trim().replace(/\/$/, ''));
+const parseOrigins = (envVar) => {
+  if (!envVar) return [];
+  return envVar
+    .split(',')
+    .map(o => o.trim().replace(/\/$/, ''))
+    .filter(o => o.length > 0);
+};
 
-/*app.use(cors({
-  origin: function (origin, callback) {
-    console.log("Origin request:", origin);
-    console.log("Allowed:", allowedOrigins);
-    // Allow requests with no origin (server-to-server, curl, mobile apps)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    console.warn(`[CORS] Blocked origin: ${origin}`);
-    return callback(new Error('Not allowed by CORS'));
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-csrf-token']
-})); */   //code 
+const allowedOrigins = parseOrigins(
+  process.env.CORS_ORIGINS || process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:5173'
+);
 
-//chatgpt sửa
 app.use(cors({
   origin: function (origin, callback) {
-    console.log("Origin request:", origin);
-    console.log("Allowed:", allowedOrigins);
+    if (!origin) {
+      console.log(`[CORS] No origin`);
+      return callback(null, true);
+    }
 
-    if (
-      !origin ||
-      allowedOrigins.includes(origin) ||
-      origin.endsWith(".vercel.app")
-    ) {
+    const normalizedOrigin = origin.trim().replace(/\/$/, '');
+
+    if (allowedOrigins.includes(normalizedOrigin)) {
+      console.log(`[CORS] Allowed origin: ${normalizedOrigin}`);
       return callback(null, true);
     }
 
