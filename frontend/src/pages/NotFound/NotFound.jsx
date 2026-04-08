@@ -3,23 +3,40 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useLucyGame } from './GameLogic';
 import bg404 from '../../assets/404.png';
+import bg404Mobile from '../../assets/404-9x16.png';
 import './NotFound.css';
-
-// Hotspot definitions (Percentages for responsive positioning)
-const HOTSPOTS = [
-  { id: 'desk', name: 'Teacher Desk', top: '70%', left: '20%' },
-  { id: 'bookshelf', name: 'Bookshelf', top: '45%', left: '45%' },
-  { id: 'chair', name: 'Student Chair', top: '75%', left: '80%' },
-  { id: 'blackboard', name: 'Blackboard', top: '30%', left: '55%' },
-];
 
 const NotFound = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  
+  // Game States
   const [isContainerShaking, setIsContainerShaking] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const [isProcessingClick, setIsProcessingClick] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [lucyImg, setLucyImg] = useState('/model-transform/LucyClass.png');
+  const containerRef = React.useRef(null);
 
-  const toggleLang = () => {
-    i18n.changeLanguage(i18n.language === "en" ? "vi" : "en");
+  // Sound Refs (Stable)
+  const correctSound = React.useRef(new Audio('/sounds/correct.mp3'));
+  const wrongSound = React.useRef(new Audio('/sounds/wrong.mp3'));
+  const hintSound = React.useRef(new Audio('/sounds/hint.mp3'));
+  const nearSound = React.useRef(new Audio('/sounds/near.mp3'));
+
+  // Preload sounds
+  useEffect(() => {
+    [correctSound, wrongSound, hintSound, nearSound].forEach(ref => {
+      if (ref.current) ref.current.load();
+    });
+  }, []);
+
+  const playSound = (audioRef, volume = 1) => {
+    if (!audioRef.current) return;
+    audioRef.current.pause();
+    audioRef.current.currentTime = 0;
+    audioRef.current.volume = volume;
+    audioRef.current.play().catch(() => {});
   };
 
   const {
@@ -27,19 +44,49 @@ const NotFound = () => {
     gameStatus,
     lucyPos,
     hintActive,
-    wrongGuesses,
+    hintCooldown,
     handleGuess,
     triggerHint,
     restartGame
-  } = useLucyGame(HOTSPOTS.length);
+  } = useLucyGame();
 
+  // Mobile Detection
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
-  // Trigger container shake when a wrong guess happens
-  const onWrongGuess = (index) => {
-    handleGuess(index);
-    if (index === -1 || (index !== lucyPos && !wrongGuesses.includes(index))) {
+  const toggleLang = () => {
+    i18n.changeLanguage(i18n.language === "en" ? "vi" : "en");
+  };
+
+  const handleClick = (e) => {
+    if (isProcessingClick || gameStatus !== 'playing' || !containerRef.current) return;
+
+    setIsProcessingClick(true);
+    setTimeout(() => setIsProcessingClick(false), 100);
+
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+
+    const threshold = isMobile ? 7 : 5;
+    const result = handleGuess(x, y, threshold);
+
+    if (result === 'win') {
+      playSound(correctSound);
+    } else if (result === 'near') {
+      playSound(nearSound, 0.7);
+    } else if (result === 'miss') {
+      playSound(wrongSound);
       setIsContainerShaking(true);
     }
+  };
+
+  const onHintClick = () => {
+    const success = triggerHint();
+    if (success) playSound(hintSound);
   };
 
   // Redirect to home after winning
@@ -75,6 +122,14 @@ const NotFound = () => {
         
         <div className="header-actions">
           <button
+            onClick={() => setShowHelp(true)}
+            className="help-btn"
+            aria-label="Help"
+          >
+            ?
+          </button>
+
+          <button
             onClick={toggleLang}
             className="lang-switcher-btn"
           >
@@ -82,12 +137,13 @@ const NotFound = () => {
           </button>
 
           <button 
-            className="hint-button" 
-            onClick={triggerHint}
+            className={`hint-button ${hintCooldown ? 'cooldown' : ''}`} 
+            onClick={onHintClick}
             aria-label={t('game.hint')}
-            disabled={gameStatus !== 'playing'}
+            disabled={gameStatus !== 'playing' || hintCooldown}
           >
             <img src="/model-transform/GoiY.png" alt="Hint" />
+            {hintCooldown && <div className="cooldown-overlay" />}
           </button>
         </div>
       </div>
@@ -98,48 +154,38 @@ const NotFound = () => {
 
       {/* Main Game Container */}
       <div 
-        className={`game-container ${isContainerShaking ? 'container-shake' : ''}`}
-        style={{ backgroundImage: `url(${bg404})` }}
+        ref={containerRef}
+        className={`game-container ${
+          isContainerShaking 
+            ? (lives <= 2 ? 'container-shake-heavy' : 'container-shake') 
+            : ''
+        }`}
+        style={{ backgroundImage: `url(${isMobile ? bg404Mobile : bg404})` }}
         onAnimationEnd={() => setIsContainerShaking(false)}
+        onClick={handleClick}
       >
-        {/* Background Click Area (Wrong Guess) */}
-        <div 
-          className="hotspot-background-click" 
-          onClick={() => onWrongGuess(-1)}
-          aria-hidden="true"
-        />
-
-        {HOTSPOTS.map((spot, index) => (
-          <button
-            key={spot.id}
-            className={`hotspot 
-              ${wrongGuesses.includes(index) ? 'shake' : ''} 
-              ${hintActive && index === lucyPos ? 'hint-highlight' : ''}`
-            }
-            style={{ top: spot.top, left: spot.left }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onWrongGuess(index);
-            }}
-            aria-label={`Search ${spot.name}`}
-            role="button"
-            disabled={gameStatus !== 'playing' || wrongGuesses.includes(index)}
-          />
-        ))}
-
-        {/* Lucy Cat (Visible only when found) */}
-        {lucyPos !== null && (
-          <img 
-            src="/model-transform/LucyCat.png" 
-            alt="Lucy" 
-            className={`lucy-character ${gameStatus === 'won' ? 'visible' : ''}`}
+        {/* Hint Highlight Circle */}
+        {hintActive && (
+          <div 
+            className="hint-circle"
             style={{ 
-              top: HOTSPOTS[lucyPos].top, 
-              left: HOTSPOTS[lucyPos].left,
-              transform: 'translate(-50%, -80%)' // Center over hotspot
+              left: `${lucyPos.x}%`, 
+              top: `${lucyPos.y}%` 
             }}
           />
         )}
+
+        {/* Lucy Character (Visible only when found) */}
+        <img 
+          src={lucyImg} 
+          alt="Lucy" 
+          className={`lucy-character ${gameStatus === 'won' ? 'visible' : ''} ${isMobile ? 'mobile' : ''}`}
+          style={{ 
+            top: `${lucyPos.y}%`, 
+            left: `${lucyPos.x}%`
+          }}
+          onError={() => setLucyImg('/model-transform/LucyCat.png')}
+        />
       </div>
 
       {/* Win Overlay */}
@@ -172,15 +218,22 @@ const NotFound = () => {
         </div>
       )}
 
-      {/* Static Footer CTA */}
-      <div style={{ marginTop: '2rem' }}>
-        <button 
-          className="btn-back-home"
-          onClick={() => navigate('/')}
-        >
-          {t('game.backHome')}
-        </button>
-      </div>
+      {/* Help Modal */}
+      {showHelp && (
+        <div className="game-overlay help-overlay" onClick={() => setShowHelp(false)}>
+          <div className="help-modal" onClick={e => e.stopPropagation()}>
+            <h3>{t('game.howToPlay')}</h3>
+            <ul>
+              <li>{t('game.help1')}</li>
+              <li>{t('game.help2')}</li>
+              <li>{t('game.help3')}</li>
+            </ul>
+            <button className="btn-primary" onClick={() => setShowHelp(false)}>
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

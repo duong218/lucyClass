@@ -114,6 +114,47 @@
   justify-content: center;
   transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   pointer-events: auto;
+  position: relative;
+  overflow: hidden;
+}
+
+.hint-button.cooldown {
+  opacity: 0.6;
+  filter: grayscale(1);
+  cursor: not-allowed;
+}
+
+.cooldown-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.2);
+  animation: cooldown-fill 5s linear forwards;
+}
+
+@keyframes cooldown-fill {
+  from { height: 100%; }
+  to { height: 0%; }
+}
+
+.help-btn {
+  background: #ffeb3b;
+  color: #c2185b;
+  border: none;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  font-size: 1.8rem;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
+}
+
+.help-btn:hover {
+  transform: scale(1.1) rotate(-10deg);
 }
 
 .hint-button:hover {
@@ -138,61 +179,43 @@
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
   border: 4px solid #fff;
   overflow: hidden;
+  cursor: crosshair;
 }
 
-/* Hotspots */
-.hotspot {
+/* Hint Indicator */
+.hint-circle {
   position: absolute;
-  width: 10%;
-  height: 18%;
-  background: rgba(255, 255, 255, 0);
-  border-radius: 50%;
-  border: 2px dashed transparent;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  transform: translate(-50%, -50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10;
-}
-
-.hotspot:hover, .hotspot:focus {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.5);
-  transform: translate(-50%, -50%) scale(1.1);
-  outline: none;
-  z-index: 10;
-}
-
-.hotspot-background-click {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  cursor: pointer;
-  pointer-events: all;
-  background: transparent;
-}
-
-.hotspot.hint-highlight {
-  animation: pulse-hotspot 0.5s repeat(4);
+  width: 60px;
+  height: 60px;
   border: 4px solid #ffeb3b;
-  box-shadow: 0 0 20px #ffeb3b;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 20px #ffeb3b, inset 0 0 10px #ffeb3b;
+  pointer-events: none;
+  z-index: 15;
+  animation: pulse-hotspot 0.8s ease-in-out infinite;
 }
 
 /* Lucy Character */
 .lucy-character {
   position: absolute;
-  width: 80px;
+  width: 120px; /* Small scale roughly ~0.3 of original large assets */
   height: auto;
   pointer-events: none;
   z-index: 20;
-  display: none;
+  transform: translate(-50%, -50%) scale(0.3);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.3));
+}
+
+.lucy-character.mobile {
+  transform: translate(-50%, -50%) scale(0.4);
 }
 
 .lucy-character.visible {
-  display: block;
-  animation: tada 1s ease-in-out;
+  opacity: 1;
+  animation: tada 1s ease-in-out forwards;
 }
 
 /* UI States */
@@ -208,6 +231,36 @@
   color: white;
   z-index: 100;
   text-align: center;
+  animation: fadeIn 0.3s ease;
+}
+
+.help-modal {
+  background: white;
+  color: #374151;
+  padding: 2rem;
+  border-radius: 20px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+  border: 4px solid #ff4081;
+}
+
+.help-modal h3 {
+  color: #c2185b;
+  margin-top: 0;
+  font-family: 'Comic Neue', cursive;
+  font-size: 1.8rem;
+}
+
+.help-modal ul {
+  text-align: left;
+  margin: 1.5rem 0;
+  padding-left: 1.2rem;
+}
+
+.help-modal li {
+  margin-bottom: 0.8rem;
+  font-weight: 500;
 }
 
 .game-message {
@@ -279,11 +332,21 @@
   animation: shake-container 0.4s ease-in-out;
 }
 
+.container-shake-heavy {
+  animation: shake-container-heavy 0.5s ease-in-out;
+}
+
 @keyframes shake-container {
   0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-8px) rotate(-1deg); }
-  50% { transform: translateX(8px) rotate(1deg); }
-  75% { transform: translateX(-8px) rotate(-1deg); }
+  25% { transform: translateX(-8px) rotate(-0.5deg); }
+  50% { transform: translateX(8px) rotate(0.5deg); }
+  75% { transform: translateX(-8px) rotate(-0.5deg); }
+}
+
+@keyframes shake-container-heavy {
+  0%, 100% { transform: translate(0, 0); }
+  10%, 30%, 50%, 70%, 90% { transform: translate(-12px, -5px) rotate(-2deg); }
+  20%, 40%, 60%, 80% { transform: translate(12px, 5px) rotate(2deg); }
 }
 
 @keyframes bounce-slow {
@@ -315,11 +378,8 @@
 @media (max-width: 768px) {
   .game-container {
     width: 95%;
-  }
-  
-  .hotspot {
-    width: 20%;
-    height: 25%;
+    aspect-ratio: 9 / 16;
+    max-height: 80vh;
   }
 
   .game-message {
