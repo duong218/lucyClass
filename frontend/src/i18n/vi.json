@@ -282,7 +282,11 @@
     "found": "🎉 Tìm thấy Lucy!",
     "notFound": "😢 Chưa đúng, thử lại nhé!",
     "redirecting": "Đang chuyển trang...",
-    "backHome": "🏠 Quay về trang chủ"
+    "backHome": "🏠 Quay về trang chủ",
+    "howToPlay": "Cách chơi",
+    "help1": "🖱️ Click vào bức tranh để tìm Lucy đang ẩn",
+    "help2": "💡 Nhấn nút bóng đèn để xem gợi ý vị trí",
+    "help3": "❤️ Bạn có 5 lượt đoán sai, hết tim là thua!"
   },
   "creator": {
     "link": "Người tạo trang web",

@@ -111,12 +111,28 @@ const NotFound = () => {
     ));
   };
 
+  // ✅ Lỗi 3 fix: fallback text phòng trường hợp i18n key chưa có
+  // Thêm các key này vào file JSON translation của bạn (xem hướng dẫn bên dưới)
+  const isVi = i18n.language === 'vi';
+  const helpTexts = {
+    howToPlay: t('game.howToPlay', isVi ? 'Cách chơi' : 'How to Play'),
+    help1: t('game.help1', isVi
+      ? '🖱️ Click vào bức tranh để tìm Lucy đang ẩn'
+      : '🖱️ Click on the image to find hidden Lucy'),
+    help2: t('game.help2', isVi
+      ? '💡 Nhấn nút bóng đèn để xem gợi ý vị trí'
+      : '💡 Press the hint button to reveal her location'),
+    help3: t('game.help3', isVi
+      ? '❤️ Bạn có 5 lượt đoán sai, hết tim là thua!'
+      : '❤️ You have 5 wrong guesses before game over!'),
+  };
+
   return (
     <div className="not-found-game">
       {/* Game Header */}
       <div className="game-header">
         <div className="lives-container">
-          <span className="lives-text">{t('game.lives')}:</span>
+          <span className="lives-text">{t('game.lives', isVi ? 'Tìm còn lại' : 'Lives')}:</span>
           {renderHearts()}
         </div>
         
@@ -139,7 +155,7 @@ const NotFound = () => {
           <button 
             className={`hint-button ${hintCooldown ? 'cooldown' : ''}`} 
             onClick={onHintClick}
-            aria-label={t('game.hint')}
+            aria-label={t('game.hint', 'Hint')}
             disabled={gameStatus !== 'playing' || hintCooldown}
           >
             <img src="/model-transform/GoiY.png" alt="Hint" />
@@ -149,7 +165,7 @@ const NotFound = () => {
       </div>
 
       <h1 className="game-title">
-        {t('game.title')}
+        {t('game.title', isVi ? '🔍 Tìm Lucy nào!' : '🔍 Find Lucy!')}
       </h1>
 
       {/* Main Game Container */}
@@ -175,7 +191,7 @@ const NotFound = () => {
           />
         )}
 
-        {/* Lucy Character (Visible only when found) */}
+        {/* ✅ Lỗi 1 fix: Lucy hiện mờ 10% để người chơi thấy nhân vật cần tìm */}
         <img 
           src={lucyImg} 
           alt="Lucy" 
@@ -192,9 +208,9 @@ const NotFound = () => {
       {gameStatus === 'won' && (
         <div className="game-overlay">
           <h2 className="game-message animate-bounce">
-            {t('game.won')}
+            {t('game.won', isVi ? '🎉 Tìm thấy Lucy rồi!' : '🎉 You found Lucy!')}
           </h2>
-          <p>{t('game.redirecting')}</p>
+          <p>{t('game.redirecting', isVi ? 'Đang về trang chủ...' : 'Redirecting to home...')}</p>
         </div>
       )}
 
@@ -202,31 +218,31 @@ const NotFound = () => {
       {gameStatus === 'lost' && (
         <div className="game-overlay">
           <h2 className="game-message">
-            {t('game.lost')}
+            {t('game.lost', isVi ? '😢 Hết lượt rồi!' : '😢 Game Over!')}
           </h2>
           <div style={{ display: 'flex', gap: '15px' }}>
             <button className="btn-primary" onClick={restartGame}>
-              {t('game.retry')}
+              {t('game.retry', isVi ? 'Thử lại' : 'Try Again')}
             </button>
             <button 
               className="btn-back-home" 
               onClick={() => navigate('/')}
             >
-              {t('game.backHome')}
+              {t('game.backHome', isVi ? '🏠 Về trang chủ' : '🏠 Back Home')}
             </button>
           </div>
         </div>
       )}
 
-      {/* Help Modal */}
+      {/* ✅ Lỗi 3 fix: Help Modal dùng helpTexts với fallback */}
       {showHelp && (
         <div className="game-overlay help-overlay" onClick={() => setShowHelp(false)}>
           <div className="help-modal" onClick={e => e.stopPropagation()}>
-            <h3>{t('game.howToPlay')}</h3>
+            <h3>{helpTexts.howToPlay}</h3>
             <ul>
-              <li>{t('game.help1')}</li>
-              <li>{t('game.help2')}</li>
-              <li>{t('game.help3')}</li>
+              <li>{helpTexts.help1}</li>
+              <li>{helpTexts.help2}</li>
+              <li>{helpTexts.help3}</li>
             </ul>
             <button className="btn-primary" onClick={() => setShowHelp(false)}>
               OK

@@ -288,7 +288,11 @@
     "found": "🎉 Found Lucy!",
     "notFound": "😢 Not here, try again!",
     "redirecting": "Redirecting...",
-    "backHome": "🏠 Back to Home"
+    "backHome": "🏠 Back to Home",
+    "howToPlay": "How to Play",
+    "help1": "🖱️ Click on the image to find hidden Lucy",
+    "help2": "💡 Press the hint button to reveal her location",
+    "help3": "❤️ You have 5 wrong guesses before game over!"
   },
   "creator": {
     "link": "Website Creator",
