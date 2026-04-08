@@ -25,7 +25,7 @@ const RegistrationForm = () => {
   const [captchaToken, setCaptchaToken] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [status, setStatus] = useState({ loading: false });
-  const [duplicateConfirm, setDuplicateConfirm] = useState(null); // { message, data }
+  const [duplicateConfirm, setDuplicateConfirm] = useState(null);
   const recaptchaRef = useRef(null);
 
   useEffect(() => {
@@ -55,7 +55,6 @@ const RegistrationForm = () => {
   const handleSubmit = async (e, ignoreDuplicate = false) => {
     if (e) e.preventDefault();
 
-    // Always get fresh token from ref (prevents stale/expired token issues)
     const freshToken = recaptchaRef.current?.getValue();
     if (!freshToken && !ignoreDuplicate) {
       toast.warning(t("form.captcha_required"));
@@ -67,16 +66,15 @@ const RegistrationForm = () => {
 
     try {
       const courseName = selectedCourse ? selectedCourse.name : '';
-      const res = await api.post('/registrations', { 
-        ...formData, 
-        captchaToken: freshToken || captchaToken, 
+      const res = await api.post('/registrations', {
+        ...formData,
+        captchaToken: freshToken || captchaToken,
         courseName,
-        ignoreDuplicate 
+        ignoreDuplicate
       });
 
       if (res.data.warning && res.data.type === 'DUPLICATE_WARN') {
         setDuplicateConfirm({ message: res.data.message, data: formData });
-        // Reset captcha so user gets a fresh token for retry
         recaptchaRef.current?.reset();
         setCaptchaToken(null);
         setStatus({ loading: false });
@@ -92,16 +90,38 @@ const RegistrationForm = () => {
       setCaptchaToken(null);
       setDuplicateConfirm(null);
       setStatus({ loading: false });
-    } catch (err) {
-      const data = err.response?.data;
-      const msg = data?.message || err.message || "Đăng ký thất bại";
 
-      if (err.response?.status === 429) {
-        toast.error(t("form.rateLimit"));
-      } else if (msg === 'captcha_invalid' || msg === 'captcha_required') {
-        toast.error('Captcha hết hạn, vui lòng xác nhận lại');
-      } else if (msg === 'CLASS_FULL') {
-        toast.error(t("form.CLASS_FULL"));
+    } catch (err) {
+      const data = err?.response?.data || err;
+      const msg = data?.message || err?.message || '';
+      const status = err?.response?.status || err?.status;
+
+      // ✅ 429 — Rate limit
+      if (status === 429) {
+        toast.error(
+          t("form.rateLimit", "⏳ Bạn đã đăng ký quá nhiều lần. Vui lòng thử lại sau 1 giờ."),
+          { autoClose: 6000, icon: "⏳" }
+        );
+
+        // ✅ 403 — CSRF hoặc security policy
+      } else if (status === 403) {
+        toast.error(
+          t("form.securityError", "🔒 Phiên làm việc đã hết hạn. Vui lòng tải lại trang và thử lại."),
+          { autoClose: 8000, icon: "🔒" }
+        );
+
+        // ✅ Captcha hết hạn
+      } else if (msg === 'captcha_invalid' || msg === 'captcha_required' || msg?.includes('captcha')) {
+        toast.error(
+          t("form.captchaExpired", "🤖 Captcha đã hết hạn, vui lòng xác nhận lại."),
+          { autoClose: 5000 }
+        );
+
+        // ✅ Lớp đầy
+      } else if (msg === 'CLASS_FULL' || msg?.includes('CLASS_FULL')) {
+        toast.error(t("form.CLASS_FULL"), { autoClose: 5000 });
+
+        // ✅ Validation errors từ backend
       } else {
         const backendErrors = data?.errors;
         if (backendErrors && Array.isArray(backendErrors)) {
@@ -111,7 +131,7 @@ const RegistrationForm = () => {
           });
           setFieldErrors(errorMap);
           toast.error(t("form.validationError") || t("form.unknownError"));
-          
+
           setTimeout(() => {
             const firstErrorField = backendErrors[0].path || backendErrors[0].field;
             const element = document.getElementsByName(firstErrorField)[0];
@@ -121,9 +141,14 @@ const RegistrationForm = () => {
             }
           }, 100);
         } else {
-          toast.error(msg);
+          // ✅ Lỗi chung — không hiện technical message cho user
+          toast.error(
+            t("form.genericError", "😕 Đã có lỗi xảy ra. Vui lòng thử lại sau ít phút."),
+            { autoClose: 5000 }
+          );
         }
       }
+
       recaptchaRef.current?.reset();
       setCaptchaToken(null);
       setStatus({ loading: false });
@@ -140,7 +165,7 @@ const RegistrationForm = () => {
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute top-20 right-20 text-4xl opacity-60 text-yellow-400">⭐</motion.div>
 
       {/* Hero Illustration */}
-      <motion.div 
+      <motion.div
         initial={{ x: -100, opacity: 0 }}
         whileInView={{ x: 0, opacity: 1 }}
         viewport={{ once: true }}
@@ -153,111 +178,123 @@ const RegistrationForm = () => {
           {t('registration.leftDesc')}
         </p>
         <div className="mt-4 flex justify-center md:justify-start w-full">
-          <img 
-            src="/kids.png" 
-            alt="Kids pointing" 
+          <img
+            src="/kids.png"
+            alt="Kids pointing"
             className="w-[420px] object-contain drop-shadow-2xl transition-transform duration-500 hover:scale-105"
           />
         </div>
       </motion.div>
 
       {/* Registration Form Card */}
-      <motion.div 
+      <motion.div
         initial={{ y: 50, opacity: 0 }}
         whileInView={{ y: 0, opacity: 1 }}
         viewport={{ once: true }}
         className="bg-white rounded-[3rem] p-8 md:p-10 w-full max-w-xl shadow-[12px_12px_0_#FDE047] border-4 border-[#FDE047] relative z-10"
       >
         <h2 className="text-4xl font-display font-black text-text-main mb-8 text-center">{t('registration.title')}</h2>
-        
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Parent Name */}
             <div className="group">
               <label className="block font-bold text-text-main mb-2 ml-1 text-sm">{t('registration.parentName')}</label>
               <div className="relative">
-                <span className="absolute left-4 top-3.5 text-xl group-focus-within:scale-110 transition-transform">👨</span>
-                <input 
+                <span className="absolute left-4 top-3.5 text-xl group-focus-within:scale-110 transition-transform">👤</span>
+                <input
                   name="parentName"
-                  type="text" value={formData.parentName} 
+                  type="text"
+                  value={formData.parentName}
                   onChange={e => handleChange('parentName', e.target.value)}
-                  className={`w-full bg-[#FDF0C6] rounded-full py-3.5 pl-12 pr-6 text-sm outline-none border-2 transition-all placeholder-gray-400 font-semibold shadow-inner ${
-                    fieldErrors.parentName ? 'border-red-500 bg-red-50' : 'border-transparent focus:border-yellow-400 focus:bg-white'
-                  }`}
-                  placeholder={t('registration.placeholderName')}
+                  className={`w-full bg-[#D0EAF9] rounded-full py-3.5 pl-12 pr-6 text-sm outline-none border-2 transition-all placeholder-gray-400 font-semibold shadow-inner ${fieldErrors.parentName ? 'border-red-500 bg-red-50' : 'border-transparent focus:border-blue-400 focus:bg-white'
+                    }`}
+                  placeholder={t('registration.parentNamePlaceholder')}
                 />
+                <AnimatePresence>
+                  {fieldErrors.parentName && (
+                    <motion.p
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      className="text-red-500 text-[11px] font-bold mt-1 ml-4"
+                    >
+                      ⚠️ {t(fieldErrors.parentName)}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
               </div>
-              <AnimatePresence>
-                {fieldErrors.parentName && (
-                  <motion.p initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="text-red-500 text-[10px] font-bold mt-1 ml-4 italic">
-                    {t(fieldErrors.parentName)}
-                  </motion.p>
-                )}
-              </AnimatePresence>
             </div>
-            
-            {/* Phone Number */}
+
+            {/* Phone */}
             <div className="group">
               <label className="block font-bold text-text-main mb-2 ml-1 text-sm">{t('registration.phone')}</label>
               <div className="relative">
                 <span className="absolute left-4 top-3.5 text-xl group-focus-within:scale-110 transition-transform">📞</span>
-                <input 
+                <input
                   name="phone"
-                  type="tel" value={formData.phone} 
+                  type="tel"
+                  value={formData.phone}
                   onChange={e => handleChange('phone', e.target.value)}
-                  className={`w-full bg-[#FDF0C6] rounded-full py-3.5 pl-12 pr-6 text-sm outline-none border-2 transition-all placeholder-gray-400 font-semibold shadow-inner ${
-                    fieldErrors.phone ? 'border-red-500 bg-red-50' : 'border-transparent focus:border-yellow-400 focus:bg-white'
-                  }`}
-                  placeholder={t('registration.placeholderPhone')}
+                  className={`w-full bg-[#D0EAF9] rounded-full py-3.5 pl-12 pr-6 text-sm outline-none border-2 transition-all placeholder-gray-400 font-semibold shadow-inner ${fieldErrors.phone ? 'border-red-500 bg-red-50' : 'border-transparent focus:border-blue-400 focus:bg-white'
+                    }`}
+                  placeholder={t('registration.phonePlaceholder')}
                 />
+                <AnimatePresence>
+                  {fieldErrors.phone && (
+                    <motion.p
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      className="text-red-500 text-[11px] font-bold mt-1 ml-4"
+                    >
+                      ⚠️ {t(fieldErrors.phone)}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
               </div>
-              <AnimatePresence>
-                {fieldErrors.phone && (
-                  <motion.p initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="text-red-500 text-[10px] font-bold mt-1 ml-4 italic">
-                    {t(fieldErrors.phone)}
-                  </motion.p>
-                )}
-              </AnimatePresence>
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Child Name */}
             <div className="group">
               <label className="block font-bold text-text-main mb-2 ml-1 text-sm">{t('registration.childName')}</label>
               <div className="relative">
-                <span className="absolute left-4 top-3.5 text-xl group-focus-within:scale-110 transition-transform">👶</span>
-                <input 
+                <span className="absolute left-4 top-3.5 text-xl group-focus-within:scale-110 transition-transform">🧒</span>
+                <input
                   name="childName"
-                  type="text" value={formData.childName} 
+                  type="text"
+                  value={formData.childName}
                   onChange={e => handleChange('childName', e.target.value)}
-                  className={`w-full bg-[#FDF0C6] rounded-full py-3.5 pl-12 pr-6 text-sm outline-none border-2 transition-all placeholder-gray-400 font-semibold shadow-inner ${
-                    fieldErrors.childName ? 'border-red-500 bg-red-50' : 'border-transparent focus:border-yellow-400 focus:bg-white'
-                  }`}
-                  placeholder={t('registration.placeholderChild')}
+                  className={`w-full bg-[#D0EAF9] rounded-full py-3.5 pl-12 pr-6 text-sm outline-none border-2 transition-all placeholder-gray-400 font-semibold shadow-inner ${fieldErrors.childName ? 'border-red-500 bg-red-50' : 'border-transparent focus:border-blue-400 focus:bg-white'
+                    }`}
+                  placeholder={t('registration.childNamePlaceholder')}
                 />
+                <AnimatePresence>
+                  {fieldErrors.childName && (
+                    <motion.p
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      className="text-red-500 text-[11px] font-bold mt-1 ml-4"
+                    >
+                      ⚠️ {t(fieldErrors.childName)}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
               </div>
-              <AnimatePresence>
-                {fieldErrors.childName && (
-                  <motion.p initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="text-red-500 text-[10px] font-bold mt-1 ml-4 italic">
-                    {t(fieldErrors.childName)}
-                  </motion.p>
-                )}
-              </AnimatePresence>
             </div>
-            
+
             {/* Child Age */}
             <div className="group">
               <label className="block font-bold text-text-main mb-2 ml-1 text-sm">{t('registration.childAge')}</label>
               <div className="relative">
                 <span className="absolute left-4 top-3.5 text-xl group-focus-within:scale-110 transition-transform">📅</span>
-                <select 
+                <select
                   name="childAge"
-                  value={formData.childAge} 
+                  value={formData.childAge}
                   onChange={e => handleChange('childAge', Number(e.target.value))}
-                  className={`w-full bg-[#D0EAF9] rounded-full py-3.5 pl-12 pr-10 text-sm outline-none border-2 transition-all font-semibold appearance-none shadow-inner ${
-                    fieldErrors.childAge ? 'border-red-500 bg-red-50' : 'border-transparent focus:border-blue-400 focus:bg-white'
-                  }`}
+                  className={`w-full bg-[#D0EAF9] rounded-full py-3.5 pl-12 pr-10 text-sm outline-none border-2 transition-all font-semibold appearance-none shadow-inner ${fieldErrors.childAge ? 'border-red-500 bg-red-50' : 'border-transparent focus:border-blue-400 focus:bg-white'
+                    }`}
                 >
                   <option value={5}>4-6 {t('admin.age')}</option>
                   <option value={7}>6-9 {t('admin.age')}</option>
@@ -273,13 +310,12 @@ const RegistrationForm = () => {
             <label className="block font-bold text-text-main mb-2 ml-1 text-sm">{t('registration.courseSelect')}</label>
             <div className="relative">
               <span className="absolute left-4 top-3.5 text-xl group-focus-within:scale-110 transition-transform">📖</span>
-              <select 
+              <select
                 name="courseId"
-                value={formData.courseId} 
+                value={formData.courseId}
                 onChange={e => handleChange('courseId', e.target.value)}
-                className={`w-full bg-[#FDF0C6] rounded-full py-3.5 pl-12 pr-10 text-sm outline-none border-2 transition-all font-semibold appearance-none shadow-inner ${
-                  fieldErrors.courseId ? 'border-red-500 bg-red-50' : 'border-transparent focus:border-yellow-400 focus:bg-white'
-                }`}
+                className={`w-full bg-[#FDF0C6] rounded-full py-3.5 pl-12 pr-10 text-sm outline-none border-2 transition-all font-semibold appearance-none shadow-inner ${fieldErrors.courseId ? 'border-red-500 bg-red-50' : 'border-transparent focus:border-yellow-400 focus:bg-white'
+                  }`}
               >
                 <option value="" disabled>{t('registration.selectCourse')}</option>
                 {courses.map(c => {
@@ -297,14 +333,14 @@ const RegistrationForm = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-             {/* Parent Email */}
+            {/* Parent Email */}
             <div className="group">
               <label className="block font-bold text-text-main mb-2 ml-1 text-sm">{t('registration.email')}</label>
               <div className="relative">
                 <span className="absolute left-4 top-3.5 text-xl group-focus-within:scale-110 transition-transform">✉️</span>
-                <input 
+                <input
                   name="email"
-                  type="email" value={formData.email} 
+                  type="email" value={formData.email}
                   onChange={e => handleChange('email', e.target.value)}
                   className="w-full bg-[#FDF0C6] rounded-full py-3.5 pl-12 pr-6 text-sm outline-none border-2 border-transparent focus:border-yellow-400 focus:bg-white transition-all placeholder-gray-400 font-semibold shadow-inner"
                   placeholder={t('registration.optional')}
@@ -315,17 +351,17 @@ const RegistrationForm = () => {
             {/* Message/Note */}
             <div className="group">
               <label className="block font-bold text-text-main mb-2 ml-1 text-sm">
-                {t('registration.message')} 
+                {t('registration.message')}
                 <span className={`ml-2 text-[10px] ${formData.message.length >= 180 ? 'text-red-500' : 'text-gray-400'}`}>
                   ({formData.message.length}/200)
                 </span>
               </label>
               <div className="relative">
                 <span className="absolute left-4 top-3.5 text-xl group-focus-within:scale-110 transition-transform">💬</span>
-                <textarea 
+                <textarea
                   name="message"
                   rows="1"
-                  value={formData.message} 
+                  value={formData.message}
                   onChange={e => handleChange('message', e.target.value)}
                   className="w-full bg-[#FDF0C6] rounded-2xl py-3.5 pl-12 pr-6 text-sm outline-none border-2 border-transparent focus:border-yellow-400 focus:bg-white transition-all placeholder-gray-400 font-semibold shadow-inner resize-none min-h-[50px]"
                   placeholder={t('registration.optional')}
@@ -347,14 +383,13 @@ const RegistrationForm = () => {
 
           {/* Submit Button */}
           <div className="flex justify-center flex-col items-center gap-4">
-            <motion.button 
+            <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              type="submit" 
+              type="submit"
               disabled={status.loading || !captchaToken || isFull}
-              className={`bg-[#4CAF50] text-white px-12 py-4 rounded-full text-xl font-display font-black transition-all shadow-[0_8px_0_#2E7D32] active:shadow-none active:translate-y-2 border-2 border-[#2E7D32] flex items-center justify-center gap-3 ${
-                (status.loading || !captchaToken || isFull) ? 'opacity-60 cursor-not-allowed grayscale pointer-events-none' : ''
-              }`}
+              className={`bg-[#4CAF50] text-white px-12 py-4 rounded-full text-xl font-display font-black transition-all shadow-[0_8px_0_#2E7D32] active:shadow-none active:translate-y-2 border-2 border-[#2E7D32] flex items-center justify-center gap-3 ${(status.loading || !captchaToken || isFull) ? 'opacity-60 cursor-not-allowed grayscale pointer-events-none' : ''
+                }`}
             >
               {status.loading ? (
                 <>
@@ -377,7 +412,7 @@ const RegistrationForm = () => {
       <AnimatePresence>
         {duplicateConfirm && (
           <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
@@ -391,13 +426,13 @@ const RegistrationForm = () => {
                 "Có vẻ học sinh này đã tồn tại, bạn có muốn tiếp tục đăng ký?"
               </p>
               <div className="flex gap-4">
-                <button 
+                <button
                   onClick={() => setDuplicateConfirm(null)}
                   className="flex-1 py-4 rounded-2xl bg-gray-100 font-bold hover:bg-gray-200 transition-all text-text-main"
                 >
                   {t('admin.cancel')}
                 </button>
-                <button 
+                <button
                   onClick={() => {
                     const token = recaptchaRef.current?.getValue();
                     if (!token) {
