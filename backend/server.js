@@ -70,7 +70,7 @@ const parseOrigins = (envVar) => {
 const allowedOrigins = parseOrigins(
   process.env.CORS_ORIGINS || process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:5173,https://lucy-class.vercel.app'
 );
-
+console.log('[CORS] Allowed origins:', allowedOrigins);
 const isDev = process.env.NODE_ENV === 'development';
 app.use(cors({
   origin: function (origin, callback) {
