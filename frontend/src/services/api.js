@@ -11,7 +11,8 @@ export const BASE_URL = (envUrl.includes('localhost:5000') || envUrl.includes('1
 // ✅ Axios instance
 const api = axios.create({
   baseURL: `${BASE_URL}/api`,
-  withCredentials: true // gửi refreshToken cookie
+  withCredentials: true, // gửi refreshToken cookie
+  timeout: 10000 // ✅ 10 giây timeout cho mọi request
 });
 
 // ✅ 🛡️ CSRF PROTECTION HEADER

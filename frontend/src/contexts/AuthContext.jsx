@@ -31,7 +31,12 @@ export const AuthProvider = ({ children }) => {
     initRef.current = true;
 
     const initializeAuth = async () => {
-      try {
+      // ✅ Timeout 8 giây — nếu BE không response thì vẫn thoát ra, tránh treo vô hạn
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Init timeout after 8s')), 8000)
+      );
+
+      const authFlow = async () => {
         console.log('[Auth] Initializing...');
 
         await fetchCsrfToken();
@@ -52,7 +57,7 @@ export const AuthProvider = ({ children }) => {
 
           // 2. If /me fails, check if we expected a session
           const hasSession = localStorage.getItem('hasSession') === 'true';
-          
+
           if (hasSession) {
             console.log('[Auth] Session expected, attempting refresh...');
             try {
@@ -80,9 +85,17 @@ export const AuthProvider = ({ children }) => {
             setUser(null);
           }
         }
+      };
+
+      try {
+        await Promise.race([authFlow(), timeoutPromise]);
       } catch (err) {
-        console.warn('[Auth] Init error:', err.message);
+        // ✅ Dù timeout hay lỗi bất kỳ → clear session, không treo
+        console.warn('[Auth] Init error or timeout:', err.message);
+        localStorage.removeItem('hasSession');
+        setUser(null);
       } finally {
+        // ✅ Luôn chạy dù timeout hay lỗi → ProtectedRoute sẽ redirect đúng
         setLoading(false);
         setIsInitialized(true);
       }
@@ -107,7 +120,7 @@ export const AuthProvider = ({ children }) => {
     // ✅ LISTEN SESSION CONFLICT EVENT
     const handleSessionConflict = () => {
       if (conflictHandledRef.current) return;
-      
+
       // 🎯 Only show popup if user was previously authenticated
       if (user) {
         console.warn('[Auth] Session conflict detected for active user');
@@ -219,18 +232,18 @@ export const AuthProvider = ({ children }) => {
           <div style={modalStyle}>
             <div style={iconContainerStyle}>
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                <line x1="12" y1="9" x2="12" y2="13"/>
-                <line x1="12" y1="17" x2="12.01" y2="17"/>
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
               </svg>
             </div>
             <h2 style={titleStyle}>Phiên đăng nhập bị gián đoạn</h2>
             <p style={messageStyle}>
-              Tài khoản của bạn đã được đăng nhập từ thiết bị khác. 
+              Tài khoản của bạn đã được đăng nhập từ thiết bị khác.
               Vui lòng đăng nhập lại.
             </p>
-            <button 
-              onClick={handleConflictDismiss} 
+            <button
+              onClick={handleConflictDismiss}
               style={buttonStyle}
               onMouseOver={(e) => e.target.style.background = '#2563eb'}
               onMouseOut={(e) => e.target.style.background = '#3b82f6'}
