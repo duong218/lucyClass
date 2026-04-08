@@ -11,6 +11,126 @@ const { encryptFile } = require('../utils/encryptionUtils');
  * PRODUCTION-READY BACKUP SERVICE
  */
 
+const ensureDir = (dirPath) => {
+  fs.mkdirSync(dirPath, { recursive: true });
+};
+
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+const uploadToDriveWithRetry = async ({ drive, encryptedFilePath, encryptedFileName, targetFolderId, attempts = 3 }) => {
+  let lastErr = null;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    console.log(`[BackupService] Upload attempt ${attempt}/${attempts}: ${encryptedFileName}`);
+    try {
+      const driveResponse = await drive.files.create({
+        requestBody: {
+          name: encryptedFileName,
+          mimeType: 'application/octet-stream',
+          parents: [targetFolderId]
+        },
+        media: {
+          mimeType: 'application/octet-stream',
+          body: fs.createReadStream(encryptedFilePath),
+        },
+      });
+      return driveResponse;
+    } catch (err) {
+      lastErr = err;
+      console.error(`[BackupService] Upload attempt ${attempt} failed:`, err.response?.data || err.message);
+      if (attempt < attempts) {
+        await sleep(1000 * attempt);
+      }
+    }
+  }
+  throw lastErr;
+};
+
+const resolveBackupRoot = () => {
+  const B_PATH = process.env.BACKUP_PATH;
+  if (!B_PATH) throw new Error('BACKUP_PATH not defined in .env');
+  return path.resolve(B_PATH);
+};
+
+const listUploadingFilesRecursive = (dir) => {
+  if (!fs.existsSync(dir)) return [];
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  const results = [];
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...listUploadingFilesRecursive(full));
+    } else if (entry.isFile() && entry.name.endsWith('.uploading')) {
+      results.push(full);
+    }
+  }
+  return results;
+};
+
+/**
+ * On startup: retry any interrupted uploads (files ending with .uploading)
+ */
+exports.retryPendingUploads = async () => {
+  const BACKUP_DIR = resolveBackupRoot();
+  ensureDir(BACKUP_DIR);
+
+  const pending = listUploadingFilesRecursive(BACKUP_DIR);
+  if (pending.length === 0) {
+    console.log('[BackupService] Startup scan: no .uploading backups found');
+    return;
+  }
+
+  console.log(`[BackupService] Startup scan: found ${pending.length} .uploading file(s), retrying upload...`);
+
+  const tokenData = await GoogleToken.findOne();
+  if (!tokenData) {
+    console.warn('[BackupService] Startup retry skipped: Google Drive account not connected');
+    return;
+  }
+
+  const encryptionKey = process.env.BACKUP_ENCRYPTION_KEY;
+  if (!encryptionKey) {
+    console.warn('[BackupService] Startup retry skipped: BACKUP_ENCRYPTION_KEY missing');
+    return;
+  }
+
+  oauth2Client.setCredentials(tokenData);
+  const drive = google.drive({ version: 'v3', auth: oauth2Client });
+  const targetFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID || '1grfEjnjRM-HlGHqhlHtbJyEY8tSdv41m';
+
+  for (const uploadingPath of pending) {
+    const baseName = path.basename(uploadingPath);
+    const encryptedFileName = baseName + '.enc';
+    const encryptedFilePath = uploadingPath + '.enc';
+
+    console.log(`[BackupService] Retrying upload for: ${baseName}`);
+    try {
+      console.log(`[BackupService] Encrypting for retry: ${baseName} -> ${encryptedFileName}`);
+      await encryptFile(uploadingPath, encryptedFilePath, encryptionKey);
+
+      const driveResponse = await uploadToDriveWithRetry({
+        drive,
+        encryptedFilePath,
+        encryptedFileName,
+        targetFolderId,
+        attempts: 3
+      });
+
+      console.log(`[BackupService] Retry upload success. FileID: ${driveResponse.data.id}. Deleting local: ${baseName}`);
+      try { fs.unlinkSync(uploadingPath); } catch (_) {}
+    } catch (err) {
+      console.error('[BackupService] Retry upload failed (file kept):', err.response?.data || err.message);
+      if (err.response?.data?.error === 'invalid_grant') {
+        console.error('[BackupService] Retry upload aborted: GOOGLE_TOKEN_EXPIRED');
+        break;
+      }
+    } finally {
+      if (fs.existsSync(encryptedFilePath)) {
+        try { fs.unlinkSync(encryptedFilePath); } catch (_) {}
+      }
+    }
+  }
+};
+
 /**
  * Core function to run a database and uploads backup
  * @param {Object} options 
@@ -26,32 +146,23 @@ exports.runBackup = async (options = {}) => {
     targetFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID || '1grfEjnjRM-HlGHqhlHtbJyEY8tSdv41m' 
   } = options;
 
-  console.log(`[BackupService] Starting ${fileNamePrefix} process...`);
+  console.log(`[BackupService] Start backup: ${fileNamePrefix}`);
 
   const now = new Date();
   const timestamp = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}-${now.getHours().toString().padStart(2, '0')}-${now.getMinutes().toString().padStart(2, '0')}`;
   const zipFileName = `${fileNamePrefix}-${timestamp}.zip`;
   
-  const U_PATH = process.env.UPLOAD_PATH;
-  const B_PATH = process.env.BACKUP_PATH;
-
-  if (!U_PATH || !B_PATH) {
-    throw new Error('UPLOAD_PATH or BACKUP_PATH not defined in .env');
-  }
-
-  const BACKUP_DIR = path.resolve(B_PATH);
-  const UPLOADS_DIR_LOCAL = path.resolve(U_PATH);
+  const BACKUP_DIR = resolveBackupRoot();
   
   if (fileNamePrefix === 'safety') {
     const safetyDir = path.join(BACKUP_DIR, 'safety');
-    if (!fs.existsSync(safetyDir)) fs.mkdirSync(safetyDir, { recursive: true });
+    ensureDir(safetyDir);
   } else {
-    if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
+    ensureDir(BACKUP_DIR);
   }
 
   const tempDir = path.join(BACKUP_DIR, `temp-${timestamp}`);
   const dbDir = path.join(tempDir, 'db');
-  const uploadsDirInZip = path.join(tempDir, 'uploads');
   const zipFilePath = path.join(BACKUP_DIR, fileNamePrefix === 'safety' ? 'safety' : '', zipFileName);
 
   try {
@@ -100,29 +211,7 @@ exports.runBackup = async (options = {}) => {
     });
 
     // 3. Copy uploads
-    if (fs.existsSync(UPLOADS_DIR_LOCAL)) {
-      console.log(`[BackupService] Copying uploads...`);
-      if (!fs.existsSync(uploadsDirInZip)) fs.mkdirSync(uploadsDirInZip, { recursive: true });
-      
-      const copyRecursive = (src, dest) => {
-        try {
-          const stats = fs.statSync(src);
-          if (stats.isDirectory()) {
-            if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
-            fs.readdirSync(src).forEach(child => {
-              copyRecursive(path.join(src, child), path.join(dest, child));
-            });
-          } else {
-            fs.copyFileSync(src, dest);
-          }
-        } catch (copyErr) {
-          console.error(`[BackupService] Failed to copy ${src}:`, copyErr.message);
-          // Continue with other files
-        }
-      };
-
-      copyRecursive(UPLOADS_DIR_LOCAL, uploadsDirInZip);
-    }
+    // Images are now stored in Cloudinary and are NOT part of backup
 
     // 4. Create ZIP
     console.log(`[BackupService] Creating ZIP: ${zipFileName}...`);
@@ -157,29 +246,42 @@ exports.runBackup = async (options = {}) => {
       const drive = google.drive({ version: 'v3', auth: oauth2Client });
 
       const encryptedFileName = zipFileName + '.enc';
-      const encryptedFilePath = zipFilePath + '.enc';
+      const uploadingZipPath = zipFilePath + '.uploading';
+      const encryptedFilePath = uploadingZipPath + '.enc';
+
+      // Mark local file as "in-flight" before upload (crash-safe)
+      try {
+        fs.renameSync(zipFilePath, uploadingZipPath);
+      } catch (err) {
+        console.error('[BackupService] Failed to mark backup as .uploading:', err.message);
+        throw err;
+      }
 
       try {
         // Encrypt ZIP before upload
-        console.log(`[BackupService] Encrypting ${zipFileName} -> ${encryptedFileName}...`);
-        await encryptFile(zipFilePath, encryptedFilePath, encryptionKey);
+        console.log(`[BackupService] Encrypting ${path.basename(uploadingZipPath)} -> ${encryptedFileName}...`);
+        await encryptFile(uploadingZipPath, encryptedFilePath, encryptionKey);
 
-        const driveResponse = await drive.files.create({
-          requestBody: {
-            name: encryptedFileName,
-            mimeType: 'application/octet-stream',
-            parents: [targetFolderId]
-          },
-          media: {
-            mimeType: 'application/octet-stream',
-            body: fs.createReadStream(encryptedFilePath),
-          },
+        const driveResponse = await uploadToDriveWithRetry({
+          drive,
+          encryptedFilePath,
+          encryptedFileName,
+          targetFolderId,
+          attempts: 3
         });
         
         driveFileId = driveResponse.data.id;
-        console.log(`[BackupService] Uploaded to Drive. FileID: ${driveFileId}`);
+        console.log(`[BackupService] Upload success. FileID: ${driveFileId}`);
+
+        // Upload succeeded -> delete local uploading file
+        try {
+          fs.unlinkSync(uploadingZipPath);
+          console.log(`[BackupService] Deleted local backup: ${path.basename(uploadingZipPath)}`);
+        } catch (err) {
+          console.error('[BackupService] Failed to delete local backup after upload:', err.message);
+        }
       } catch (err) {
-        console.error('[BackupService] Drive upload/encryption error:', err.response?.data || err.message);
+        console.error('[BackupService] Upload failed (file kept for retry):', err.response?.data || err.message);
         if (err.response?.data?.error === 'invalid_grant') {
           throw new Error('GOOGLE_TOKEN_EXPIRED');
         }

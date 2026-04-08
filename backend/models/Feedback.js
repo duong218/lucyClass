@@ -34,6 +34,10 @@ const feedbackSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  photoPublicId: {
+    type: String,
+    default: null
+  },
   isDeleted: {
     type: Boolean,
     default: false

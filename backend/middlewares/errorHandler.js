@@ -1,7 +1,7 @@
 const systemLogger = require('../utils/systemLogger');
 
 const errorHandler = (err, req, res, next) => {
-    const isDev = process.env.NODE_ENV === 'development';
+    const isProd = process.env.NODE_ENV === 'production';
 
     let status = err.status || 500;
     let message = err.message || 'Internal Server Error';
@@ -29,17 +29,15 @@ const errorHandler = (err, req, res, next) => {
         });
     }
 
-    if (isDev) {
+    if (!isProd) {
         console.error(`[Error] ${err.name}: ${err.message}`);
-        console.error(err.stack);
+        if (err.stack) console.error(err.stack);
     }
 
-    res.status(status).json({
+    // Standardized response (no stack trace returned)
+    return res.status(status).json({
         success: false,
-        message: (!isDev && isServerError)
-            ? 'Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.'
-            : message,
-        code: status
+        message: message || 'Internal Server Error'
     });
 };
 

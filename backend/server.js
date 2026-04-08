@@ -1,6 +1,20 @@
 const express = require('express');
 const systemLogger = require('./utils/systemLogger');
 
+// 9. GRACEFUL SHUTDOWN (defined early so process handlers can reference it)
+let server;
+const gracefulShutdown = () => {
+  console.log('🛑 Shutting down...');
+  if (server) {
+    server.close(() => {
+      console.log('✅ All connections closed');
+      process.exit(0);
+    });
+  } else {
+    process.exit(0);
+  }
+};
+
 // 🛑 GLOBAL PROCESS EXCEPTION HANDLERS
 process.on('uncaughtException', (err) => {
   systemLogger.error(`UNCAUGHT EXCEPTION! 💥 Shutting down...`, { error: err.message, stack: err.stack });
@@ -8,15 +22,23 @@ process.on('uncaughtException', (err) => {
 });
 
 process.on('unhandledRejection', (err) => {
-  systemLogger.error(`UNHANDLED REJECTION! 💥 Shutting down...`, { error: err.message, stack: err.stack });
-  // In production, we might want to close the server first
-  process.exit(1);
+  systemLogger.error(`UNHANDLED REJECTION! 💥 Shutting down gracefully...`, { error: err.message, stack: err.stack });
+  gracefulShutdown();
 });
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 require('dotenv').config();
+
+// 🚨 ENV VALIDATION
+const requiredEnvs = ['MONGO_URI', 'BACKUP_PATH', 'CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET', 'BACKUP_ENCRYPTION_KEY', 'RECAPTCHA_SECRET_KEY'];
+const missingEnvs = requiredEnvs.filter(env => !process.env[env]);
+if (missingEnvs.length > 0) {
+  console.error(`🚨 FATAL ERROR: Missing required environment variables: ${missingEnvs.join(', ')}`);
+  process.exit(1);
+}
+
 const axios = require('axios');
 const Registration = require('./models/Registration');
 const Course = require('./models/Course');
@@ -50,34 +72,17 @@ const allowedOrigins = parseOrigins(
 );
 
 const isDev = process.env.NODE_ENV === 'development';
-/*  app.use(cors({
+app.use(cors({
   origin: function (origin, callback) {
-    if (!origin) {
-      if (isDev) {
-        console.log(`[CORS] No origin`);
-      }
-      return callback(null, true);
-    }
+    if (!origin) return callback(null, true);
 
     const normalizedOrigin = origin.trim().replace(/\/$/, '');
-
     if (allowedOrigins.includes(normalizedOrigin)) {
-      if (isDev) {
-        console.log(`[CORS] Allowed origin: ${normalizedOrigin}`);
-      }
       return callback(null, true);
     }
-
-    console.warn(`[CORS] Blocked origin: ${origin}`);
-    return callback(new Error('Not allowed by CORS'));
+    console.warn(`Blocked by CORS: ${normalizedOrigin}`);
+    return callback(null, false);
   },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token']
-})); */
-
-app.use(cors({
-  origin: true,
   credentials: true
 }));
 
@@ -91,15 +96,43 @@ app.use((req, res, next) => {
     return next();
   }
 
-  verifyCSRF(req, res, next);
+  try {
+    verifyCSRF(req, res, (err) => {
+      if (err) {
+        return res.status(403).json({
+          success: false,
+          message: "Invalid CSRF token"
+        });
+      }
+      return next();
+    });
+  } catch (err) {
+    return res.status(403).json({
+      success: false,
+      message: "Invalid CSRF token"
+    });
+  }
 });
 
 // 4. Body Parsing
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // 5. Security & Sanitize
-app.use(helmet({ crossOriginResourcePolicy: false, crossOriginEmbedderPolicy: false }));
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+  crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: {
+    useDefaults: true,
+    directives: {
+      "img-src": ["'self'", "data:", "https://res.cloudinary.com"],
+      "script-src": ["'self'", "'unsafe-inline'", "https://www.google.com/recaptcha/", "https://www.gstatic.com/recaptcha/"],
+      "frame-src": ["'self'", "https://www.google.com/recaptcha/"],
+      "connect-src": ["'self'", "https://api.cloudinary.com", "https://www.google.com/recaptcha/"]
+    }
+  },
+  hsts: process.env.NODE_ENV === 'production' ? { maxAge: 31536000, includeSubDomains: true } : false
+}));
 app.use(mongoSanitize());
 app.use(xss());
 
@@ -117,6 +150,7 @@ const restoreRoutes = require('./routes/restoreRoutes');
 const announcementRoutes = require('./routes/announcementRoutes');
 const timetableRoutes = require('./routes/timetableRoutes');
 const initCronJobs = require('./config/cron');
+const backupService = require('./services/backup.service');
 const userIdentifier = require('./middlewares/userIdentifier');
 const { apiLimiter } = require('./middlewares/rateLimiter');
 const errorHandler = require('./middlewares/errorHandler');
@@ -130,15 +164,12 @@ app.get('/api/csrf-token', csrfProtection, (req, res) => {
   res.json({ csrfToken: req.csrfToken() });
 });
 
-const uploadDir = path.resolve(process.env.UPLOAD_PATH || './uploads');
 const backupDir = path.resolve(process.env.BACKUP_PATH || './backups');
-[uploadDir, backupDir].forEach(dir => { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }); });
+if (!fs.existsSync(backupDir)) {
+  fs.mkdirSync(backupDir, { recursive: true });
+}
 
-app.use('/uploads', express.static(uploadDir, {
-  setHeaders: (res) => {
-    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
-  }
-}));
+// ⚠️ '/uploads' static route REMOVED as images are served via Cloudinary
 
 app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
@@ -154,118 +185,117 @@ app.use('/api/announcements', announcementRoutes);
 app.use('/api/timetable', timetableRoutes);
 
 // --- 📊 GOOGLE SHEETS SUBMISSION ENDPOINT ---
+// Helpers for /api/submit
+const verifyCaptcha = async (captchaToken) => {
+  if (!captchaToken || typeof captchaToken !== 'string') {
+    throw new Error('Captcha không hợp lệ');
+  }
+  const recaptchaRes = await axios.post(
+    'https://www.google.com/recaptcha/api/siteverify',
+    new URLSearchParams({
+      secret: process.env.RECAPTCHA_SECRET_KEY,
+      response: captchaToken
+    }),
+    { timeout: 5000 }
+  );
+  if (!recaptchaRes.data.success) {
+    throw new Error('Xác thực captcha thất bại, vui lòng thử lại');
+  }
+};
+
+const sanitizeData = (raw) => {
+  return {
+    parentName: String(raw.parentName || '').trim().replace(/[<>]/g, ''),
+    childName: String(raw.childName || '').trim().replace(/[<>]/g, ''),
+    phone: String(raw.phone || '').trim(),
+    email: String(raw.email || '').trim().toLowerCase(),
+    message: String(raw.message || '').trim().replace(/[<>]/g, ''),
+    course: String(raw.course || '').trim(),
+    childAge: Number(raw.childAge)
+  };
+};
+
+const validateInput = (sanitized) => {
+  if (!sanitized.parentName || !sanitized.phone) {
+    throw new Error('Thiếu thông tin bắt buộc');
+  }
+  const phoneRegex = /^(0|\+84)(3|5|7|8|9)\d{8}$/;
+  if (!phoneRegex.test(sanitized.phone)) {
+    throw new Error('Số điện thoại không hợp lệ');
+  }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (sanitized.email && !emailRegex.test(sanitized.email)) {
+    throw new Error('Email không hợp lệ');
+  }
+  if (sanitized.parentName.length > 100) throw new Error('Tên phụ huynh quá dài');
+  if (sanitized.childName.length > 100) throw new Error('Tên học sinh quá dài');
+  if (sanitized.message.length > 1000) throw new Error('Tin nhắn quá dài');
+  if (sanitized.childAge && (isNaN(sanitized.childAge) || sanitized.childAge < 3 || sanitized.childAge > 18)) {
+    throw new Error('Tuổi phải từ 3-18');
+  }
+};
+
+const saveRegistration = async (sanitized) => {
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+  const existingRegistration = await Registration.findOne({
+    phone: sanitized.phone,
+    createdAt: { $gte: fiveMinutesAgo }
+  });
+
+  if (existingRegistration) {
+    const err = new Error('Bạn đã gửi đăng ký trước đó, vui lòng chờ 5 phút');
+    err.status = 429;
+    throw err;
+  }
+
+  let courseId = null;
+  if (sanitized.course) {
+    const courseDoc = await Course.findOne({ name: sanitized.course });
+    if (courseDoc) courseId = courseDoc._id;
+  }
+
+  return await Registration.create({
+    parentName: sanitized.parentName,
+    phone: sanitized.phone,
+    childName: sanitized.childName,
+    childAge: sanitized.childAge || null,
+    courseId,
+    email: sanitized.email,
+    message: sanitized.message,
+    status: 'not_contacted'
+  });
+};
+
+// --- 📊 GOOGLE SHEETS SUBMISSION ENDPOINT ---
 app.post('/api/submit', async (req, res) => {
   try {
-    // 🔐 LỚP BẢO MẬT 1: Lấy data và captchaToken
-    // 🔐 LỚP BẢO MẬT 1: Lấy data và captchaToken
-    const { parentName, phone, childName, childAge, course, email, message, captchaToken } = req.body;
-
-    // 🔐 LỚP BẢO MẬT 2: Kiểm tra captcha
-    if (!captchaToken || typeof captchaToken !== 'string') {
-      return res.status(400).json({ success: false, message: 'Captcha không hợp lệ' });
+    try {
+      await verifyCaptcha(req.body.captchaToken);
+    } catch (err) {
+      return res.status(400).json({ success: false, message: err.message });
     }
 
-    // 🔐 LỚP BẢO MẬT 3: Xác thực reCAPTCHA với Google
-    const recaptchaRes = await axios.post(
-      'https://www.google.com/recaptcha/api/siteverify',
-      new URLSearchParams({
-        secret: process.env.RECAPTCHA_SECRET_KEY,
-        response: captchaToken
-      }),
-      { timeout: 5000 }
-    );
-
-    if (!recaptchaRes.data.success) {
-      return res.status(400).json({ success: false, message: 'Xác thực captcha thất bại, vui lòng thử lại' });
+    let sanitizedData;
+    try {
+      sanitizedData = sanitizeData(req.body);
+      validateInput(sanitizedData);
+    } catch (err) {
+      return res.status(400).json({ success: false, message: err.message });
     }
 
-    // 🔐 LỚP BẢO MẬT 4: Kiểm tra required fields
-    if (!parentName || !phone) {
-      return res.status(400).json({ success: false, message: 'Thiếu thông tin bắt buộc' });
+    let savedRecord;
+    try {
+      savedRecord = await saveRegistration(sanitizedData);
+    } catch (err) {
+      if (err.status === 429) {
+        return res.status(429).json({ success: false, message: err.message });
+      }
+      throw err;
     }
-
-    // 🔐 LỚP BẢO MẬT 5: Sanitize input (chống XSS)
-    const sanitizedParentName = String(parentName || '').trim().replace(/[<>]/g, '');
-    const sanitizedChildName = String(childName || '').trim().replace(/[<>]/g, '');
-    const sanitizedPhone = String(phone || '').trim();
-    const sanitizedEmail = String(email || '').trim().toLowerCase();
-    const sanitizedMessage = String(message || '').trim().replace(/[<>]/g, '');
-    const sanitizedCourse = String(course || '').trim();
-
-    // 🔐 LỚP BẢO MẬT 6: Validate số điện thoại Việt Nam
-    const phoneRegex = /^(0|\+84)(3|5|7|8|9)\d{8}$/;
-    if (!phoneRegex.test(sanitizedPhone)) {
-      return res.status(400).json({ success: false, message: 'Số điện thoại không hợp lệ' });
-    }
-
-    // 🔐 LỚP BẢO MẬT 7: Validate email (nếu có)
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (sanitizedEmail && !emailRegex.test(sanitizedEmail)) {
-      return res.status(400).json({ success: false, message: 'Email không hợp lệ' });
-    }
-
-    // 🔐 LỚP BẢO MẬT 8: Validate độ dài
-    if (sanitizedParentName.length > 100) {
-      return res.status(400).json({ success: false, message: 'Tên phụ huynh quá dài' });
-    }
-    if (sanitizedChildName.length > 100) {
-      return res.status(400).json({ success: false, message: 'Tên học sinh quá dài' });
-    }
-    if (sanitizedMessage.length > 1000) {
-      return res.status(400).json({ success: false, message: 'Tin nhắn quá dài' });
-    }
-
-    // 🔐 LỚP BẢO MẬT 9: Kiểm tra age (nếu có)
-    const ageNum = Number(childAge);
-    if (childAge && (isNaN(ageNum) || ageNum < 3 || ageNum > 18)) {
-      return res.status(400).json({ success: false, message: 'Tuổi phải từ 3-18' });
-    }
-
-    // 🔐 LỚP BẢO MẬT 10: Chống spam - kiểm tra duplicate trong 5 phút
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-    const existingRegistration = await Registration.findOne({
-      phone: sanitizedPhone,
-      createdAt: { $gte: fiveMinutesAgo }
-    });
-
-    if (existingRegistration) {
-      return res.status(429).json({
-        success: false,
-        message: 'Bạn đã gửi đăng ký trước đó, vui lòng chờ 5 phút'
-      });
-    }
-
-    // 1. Basic Validation - redundant but kept for flow
-    if (!sanitizedParentName || !sanitizedPhone) {
-      return res.status(400).json({ success: false, message: 'Missing required field: parentName or phone' });
-    }
-
-    // 2. Data Lookup (Map course name to courseId if needed)
-    let courseId = null;
-    if (sanitizedCourse) {
-      const courseDoc = await Course.findOne({ name: sanitizedCourse });
-      if (courseDoc) courseId = courseDoc._id;
-    }
-
-    // 3. Save to MongoDB
-    const registrationData = {
-      parentName: sanitizedParentName,
-      phone: sanitizedPhone,
-      childName: sanitizedChildName,
-      childAge: ageNum || null,
-      courseId,
-      email: sanitizedEmail,
-      message: sanitizedMessage,
-      status: 'not_contacted'
-    };
-
-    const savedRecord = await Registration.create(registrationData);
 
     // 4. Record to Google Sheets (DO NOT await - non-blocking)
-    // We pass the full body (including course name) to appendToSheet
-    appendToSheet(req.body).catch(err => console.error('[Sheets] Background Sync Failed:', err));
+    appendToSheet(sanitizedData).catch(err => console.error('[Sheets] Background Sync Failed:', err));
 
-    // 5. Success response
     res.status(201).json({
       success: true,
       message: 'Registration successful',
@@ -278,17 +308,28 @@ app.post('/api/submit', async (req, res) => {
   }
 });
 
-app.get('/api/test-error', (req, res) => {
-  throw new Error('This is a sensitive internal error message');
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.get('/api/health', (req, res) => res.json({ status: 'OK' }));
+// 2. GLOBAL ERROR HANDLER (CRITICAL)
 app.use(errorHandler);
 
-console.log("CORS_ORIGINS:", process.env.CORS_ORIGINS);
-
 const PORT = process.env.PORT || 5000;
+
+process.on('SIGINT', gracefulShutdown);
+process.on('SIGTERM', gracefulShutdown);
+
 connectDB().then(() => {
+  // Retry any interrupted backup uploads on startup
+  (async () => {
+    try {
+      await backupService.retryPendingUploads();
+      console.log('[Startup] Pending backup uploads retried');
+    } catch (err) {
+      console.error('[Startup] Retry pending backups failed:', err.message);
+    }
+  })();
   initCronJobs();
-  app.listen(PORT, () => console.log(`🚀 Lucy's Class Server running on port ${PORT}`));
+  server = app.listen(PORT, () => console.log(`🚀 Lucy's Class Server running on port ${PORT}`));
 });

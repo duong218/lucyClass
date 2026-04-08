@@ -2,14 +2,14 @@ const Course = require('../models/Course');
 const mongoose = require('mongoose');
 const { logAction } = require('../utils/logger');
 const logAdminAction = require('../utils/logAdminAction');
+const { uploadImageBuffer, deleteImageFromCloudinary } = require('../utils/cloudinary');
 
 // GET /api/courses
 exports.getAll = async (req, res, next) => {
   try {
     const Registration = require('../models/Registration');
     const courses = await Course.find({ isDeleted: { $ne: true } }).populate('teacher').sort({ createdAt: -1 });
-    
-    // Get active student counts for each course
+
     const counts = await Registration.aggregate([
       { $match: { status: 'registered', isActive: true } },
       { $group: { _id: '$courseId', count: { $sum: 1 } } }
@@ -26,7 +26,7 @@ exports.getAll = async (req, res, next) => {
       return courseObj;
     });
 
-    res.json({ success: true, data: enrichedCourses });
+    return res.json({ success: true, data: enrichedCourses });
   } catch (error) {
     next(error);
   }
@@ -40,100 +40,179 @@ exports.getById = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Invalid ID format' });
     }
     const course = await Course.findOne({ _id: id, isDeleted: { $ne: true } }).populate('teacher');
-    if (!course) return res.status(404).json({ message: 'Course not found' });
-    res.json({ success: true, data: course });
+    if (!course) return res.status(404).json({ success: false, message: 'Course not found' });
+    return res.json({ success: true, data: course });
   } catch (error) {
     next(error);
   }
 };
 
+// Helper: parse & validate highlights
+const parseHighlights = (highlights) => {
+  if (!highlights) return undefined;
+  let arr = typeof highlights === 'string'
+    ? highlights.split(',').map(h => h.trim()).filter(h => h)
+    : Array.isArray(highlights)
+      ? highlights.map(h => h.trim()).filter(h => h)
+      : [];
+  if (arr.some(h => h.length > 40)) {
+    throw Object.assign(new Error('Each highlight max 40 characters'), { status: 400 });
+  }
+  return arr;
+};
+
 // POST /api/courses
 exports.create = async (req, res) => {
+  let uploadResult = null;
   try {
     const { name, description, highlights, teacher, ageGroup, duration, classSize } = req.body;
-    
+
     // Validation
     if (name?.length > 40) return res.status(400).json({ success: false, message: 'Course name max 40 characters' });
     const size = parseInt(classSize);
     if (isNaN(size) || size < 1 || size > 100) return res.status(400).json({ success: false, message: 'Class size must be between 1 and 100' });
 
-    const data = { name, description, highlights, teacher, ageGroup, duration, classSize: size };
+    const data = { name, description, teacher: teacher || null, ageGroup, duration, classSize: size };
 
-    console.log("[Create Course] data:", data);
-    if (!data.teacher) data.teacher = null;
-    if (data.highlights) {
-      if (typeof data.highlights === 'string') {
-        data.highlights = data.highlights.split(',').map(h => h.trim()).filter(h => h);
-      } else if (Array.isArray(data.highlights)) {
-        data.highlights = data.highlights.map(h => h.trim()).filter(h => h);
-      }
-      if (data.highlights.some(h => h.length > 40)) {
-        return res.status(400).json({ success: false, message: 'Each highlight max 40 characters' });
-      }
+    try {
+      const parsed = parseHighlights(highlights);
+      if (parsed !== undefined) data.highlights = parsed;
+    } catch (err) {
+      return res.status(400).json({ success: false, message: err.message });
     }
-    if (req.file) {
-      data.image = req.file.filename;
+
+    if (req.file && req.file.buffer) {
+      try {
+        uploadResult = await uploadImageBuffer(req.file.buffer, "courses");
+      } catch (err) {
+        return res.status(500).json({ success: false, message: 'Image upload failed' });
+      }
+      data.image = uploadResult.secure_url;
+      data.imagePublicId = uploadResult.public_id;
     }
+
     const course = await Course.create(data);
     await logAdminAction({
-      adminId: req.admin.id,
-      adminName: req.admin.username,
+      adminId: req.admin?.id || null,
+      adminName: req.admin?.username || 'system',
       action: 'CREATE_COURSE',
       targetType: 'course',
       targetId: course._id,
       description: `Created course: ${course.name}`,
       req
     });
-    res.status(201).json({ success: true, data: course, message: 'Course created successfully' });
+    return res.status(201).json({ success: true, data: course, message: 'Course created successfully' });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    if (uploadResult?.public_id) {
+      try { await deleteImageFromCloudinary(uploadResult.public_id); } catch (_) {}
+    }
+    const isValidationError = error?.name === 'ValidationError' || error?.name === 'CastError';
+    if (isValidationError) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+    return res.status(500).json({ success: false, message: 'Failed to create course' });
   }
 };
 
 // PUT /api/courses/:id
 exports.update = async (req, res) => {
+  let uploadResult = null;
+  let dbUpdated = false;
   try {
     const { name, description, highlights, teacher, ageGroup, duration, classSize } = req.body;
-    
-    // Validation
-    if (name?.length > 40) return res.status(400).json({ success: false, message: 'Course name max 40 characters' });
-    const size = parseInt(classSize);
-    if (isNaN(size) || size < 1 || size > 100) return res.status(400).json({ success: false, message: 'Class size must be between 1 and 100' });
 
-    const data = { name, description, highlights, teacher, ageGroup, duration, classSize: size };
-    console.log("[Update Course] data:", data);
-    if (!data.teacher) data.teacher = null;
-    if (data.highlights) {
-      if (typeof data.highlights === 'string') {
-        data.highlights = data.highlights.split(',').map(h => h.trim()).filter(h => h);
-      } else if (Array.isArray(data.highlights)) {
-        data.highlights = data.highlights.map(h => h.trim()).filter(h => h);
-      }
-      if (data.highlights.some(h => h.length > 40)) {
-        return res.status(400).json({ success: false, message: 'Each highlight max 40 characters' });
-      }
+    // Validation
+    if (name !== undefined && typeof name === 'string' && name.trim().length === 0) {
+      return res.status(400).json({ success: false, message: 'Course name cannot be empty' });
     }
-    if (req.file) {
-      data.image = req.file.filename;
+    if (description !== undefined && typeof description === 'string' && description.trim().length === 0) {
+      return res.status(400).json({ success: false, message: 'Description cannot be empty' });
     }
+    if (ageGroup !== undefined && typeof ageGroup === 'string' && ageGroup.trim().length === 0) {
+      return res.status(400).json({ success: false, message: 'Age group cannot be empty' });
+    }
+    if (duration !== undefined && typeof duration === 'string' && duration.trim().length === 0) {
+      return res.status(400).json({ success: false, message: 'Duration cannot be empty' });
+    }
+    if (name !== undefined && name?.length > 40) return res.status(400).json({ success: false, message: 'Course name max 40 characters' });
+    let size;
+    if (classSize !== undefined) {
+      size = parseInt(classSize);
+      if (isNaN(size) || size < 1 || size > 100) return res.status(400).json({ success: false, message: 'Class size must be between 1 and 100' });
+    }
+
     const { id } = req.params;
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ success: false, message: 'Invalid ID format' });
     }
-    const course = await Course.findOneAndUpdate({ _id: id, isDeleted: { $ne: true } }, data, { new: true });
-    if (!course) return res.status(404).json({ message: 'Course not found' });
-    await logAdminAction({
-      adminId: req.admin.id,
-      adminName: req.admin.username,
-      action: 'UPDATE_COURSE',
-      targetType: 'course',
-      targetId: course._id,
-      description: `Updated course: ${course.name}`,
-      req
-    });
-    res.json({ success: true, data: course, message: 'Course updated successfully' });
+
+    const existing = await Course.findOne({ _id: id, isDeleted: { $ne: true } });
+    if (!existing) return res.status(404).json({ success: false, message: 'Course not found' });
+
+    const data = {};
+    if (name !== undefined) data.name = name;
+    if (description !== undefined) data.description = description;
+    if (teacher !== undefined) data.teacher = teacher || null;
+    if (ageGroup !== undefined) data.ageGroup = ageGroup;
+    if (duration !== undefined) data.duration = duration;
+    if (classSize !== undefined) data.classSize = size;
+
+    try {
+      if (highlights !== undefined) {
+        const parsed = parseHighlights(highlights);
+        if (parsed !== undefined) data.highlights = parsed;
+      }
+    } catch (err) {
+      return res.status(400).json({ success: false, message: err.message });
+    }
+
+    if (req.file && req.file.buffer) {
+      try {
+        uploadResult = await uploadImageBuffer(req.file.buffer, "courses");
+      } catch (err) {
+        return res.status(500).json({ success: false, message: 'Image upload failed' });
+      }
+      data.image = uploadResult.secure_url;
+      data.imagePublicId = uploadResult.public_id;
+    }
+
+    let course;
+    try {
+      course = await Course.findByIdAndUpdate(id, data, { new: true, runValidators: true });
+      dbUpdated = true;
+    } catch (dbError) {
+      if (uploadResult?.public_id) {
+        try { await deleteImageFromCloudinary(uploadResult.public_id); } catch (_) {}
+      }
+      throw dbError;
+    }
+
+    // Delete old image ONLY after DB update succeeds
+    if (uploadResult && existing.imagePublicId) {
+      try { await deleteImageFromCloudinary(existing.imagePublicId); } catch (_) {}
+    }
+
+    try {
+      await logAdminAction({
+        adminId: req.admin?.id || null,
+        adminName: req.admin?.username || 'system',
+        action: 'UPDATE_COURSE',
+        targetType: 'course',
+        targetId: course._id,
+        description: `Updated course: ${course.name}`,
+        req
+      });
+    } catch (_) {}
+    return res.json({ success: true, data: course, message: 'Course updated successfully' });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    if (!dbUpdated && uploadResult?.public_id) {
+      try { await deleteImageFromCloudinary(uploadResult.public_id); } catch (_) {}
+    }
+    const isValidationError = error?.name === 'ValidationError' || error?.name === 'CastError';
+    if (isValidationError) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+    return res.status(500).json({ success: false, message: 'Failed to update course' });
   }
 };
 
@@ -149,17 +228,23 @@ exports.remove = async (req, res, next) => {
       { isDeleted: true, deletedAt: new Date() },
       { new: true }
     );
-    if (!course) return res.status(404).json({ message: 'Course not found' });
+    if (!course) return res.status(404).json({ success: false, message: 'Course not found' });
+
+    // Delete image from Cloudinary after soft-delete
+    if (course.imagePublicId) {
+      try { await deleteImageFromCloudinary(course.imagePublicId); } catch (_) {}
+    }
+
     await logAdminAction({
-      adminId: req.admin.id,
-      adminName: req.admin.username,
+      adminId: req.admin?.id || null,
+      adminName: req.admin?.username || 'system',
       action: 'DELETE_COURSE',
       targetType: 'course',
       targetId: course._id,
       description: `Deleted course: ${course.name}`,
       req
     });
-    res.json({ success: true, message: 'Course deleted successfully' });
+    return res.json({ success: true, message: 'Course deleted successfully' });
   } catch (error) {
     next(error);
   }

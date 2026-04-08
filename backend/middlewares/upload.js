@@ -1,7 +1,5 @@
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
-const { v4: uuidv4 } = require('uuid');
 const FileType = require('file-type');
 
 const storage = multer.memoryStorage();
@@ -56,25 +54,6 @@ const validateMagicNumber = async (req, res, next) => {
         message: 'File extension does not match actual file type.'
       });
     }
-
-    const UPLOAD_PATH = process.env.UPLOAD_PATH;
-    if (!UPLOAD_PATH) {
-      return next(new Error('UPLOAD_PATH not defined in .env'));
-    }
-    const uploadDir = path.resolve(UPLOAD_PATH);
-
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-
-    const safeExt = `.${type.ext}`;
-    const filename = `${uuidv4()}${safeExt}`;
-    const fullPath = path.join(uploadDir, filename);
-
-    fs.writeFileSync(fullPath, req.file.buffer);
-
-    req.file.filename = filename;
-    req.file.path = fullPath;
 
     next();
   } catch (error) {

@@ -74,6 +74,25 @@ exports.create = async (req, res) => {
     return res.status(400).json({ success: false, message: 'INVALID_COURSE_ID' });
   }
 
+  // Trim all string inputs early to prevent abuse/spam payloads
+  for (const [key, value] of Object.entries(req.body)) {
+    if (typeof value === 'string') req.body[key] = value.trim();
+  }
+
+  // Max-length validation (reject oversized payloads)
+  if (req.body.parentName !== undefined && typeof req.body.parentName === 'string' && req.body.parentName.length > 50) {
+    return res.status(400).json({ success: false, message: 'parentName_max_50' });
+  }
+  if (req.body.childName !== undefined && typeof req.body.childName === 'string' && req.body.childName.length > 50) {
+    return res.status(400).json({ success: false, message: 'childName_max_50' });
+  }
+  if (req.body.email !== undefined && typeof req.body.email === 'string' && req.body.email.length > 100) {
+    return res.status(400).json({ success: false, message: 'email_max_100' });
+  }
+  if (req.body.phone !== undefined && typeof req.body.phone === 'string' && req.body.phone.length > 15) {
+    return res.status(400).json({ success: false, message: 'phone_max_15' });
+  }
+
   // 2. reCAPTCHA Verification (external API call — do BEFORE transaction)
   if (process.env.NODE_ENV === 'production') {
     if (!captchaToken) {
@@ -102,10 +121,10 @@ exports.create = async (req, res) => {
   }
 
   // 3. Normalization
-  const normPhone = phone?.replace(/\D/g, '') || '';
-  const normEmail = email?.trim()?.toLowerCase() || '';
-  const normParent = parentName?.trim()?.toLowerCase() || '';
-  const normChild = childName?.trim()?.toLowerCase() || '';
+  const normPhone = req.body.phone?.replace(/\D/g, '') || '';
+  const normEmail = req.body.email?.toLowerCase() || '';
+  const normParent = req.body.parentName?.toLowerCase() || '';
+  const normChild = req.body.childName?.toLowerCase() || '';
 
   // --- TRANSACTION: all DB reads/writes happen here ---
   const session = await mongoose.startSession();
@@ -269,6 +288,13 @@ exports.update = async (req, res) => {
     if (req.body[field] !== undefined) updateData[field] = req.body[field];
   }
 
+  // Reject empty strings after trim (only when explicitly provided)
+  for (const field of ALLOWED) {
+    if (updateData[field] !== undefined && typeof updateData[field] === 'string' && updateData[field].trim().length === 0) {
+      return res.status(400).json({ success: false, message: `${field} cannot be empty` });
+    }
+  }
+
   // ✅ CAPACITY CHECK: If transitioning TO "registered", enforce maxStudents
   const isSettingRegistered = updateData.status === 'registered';
 
@@ -336,9 +362,9 @@ exports.update = async (req, res) => {
       req.params.id, { $set: updateData }, { new: true, runValidators: true }
     );
     if (!reg) return res.status(404).json({ success: false, message: 'Registration not found' });
-    res.json({ success: true, data: reg, message: 'Registration updated successfully' });
+    return res.json({ success: true, data: reg, message: 'Registration updated successfully' });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    return res.status(400).json({ success: false, message: error.message });
   }
 };
 

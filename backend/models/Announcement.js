@@ -5,6 +5,10 @@ const announcementSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  imagePublicId: {
+    type: String,
+    default: null
+  },
   title: {
     type: String,
     required: [true, "Tiêu đề không được để trống"],

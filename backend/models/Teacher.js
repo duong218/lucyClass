@@ -27,6 +27,10 @@ const teacherSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  avatarPublicId: {
+    type: String,
+    default: null
+  },
   isDeleted: {
     type: Boolean,
     default: false

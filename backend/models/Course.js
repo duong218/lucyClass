@@ -42,6 +42,10 @@ const courseSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  imagePublicId: {
+    type: String,
+    default: null
+  },
   isActive: {
     type: Boolean,
     default: true

@@ -1,13 +1,12 @@
 const Announcement = require('../models/Announcement');
 const mongoose = require('mongoose');
-const fs = require('fs');
-const path = require('path');
+const { uploadImageBuffer, deleteImageFromCloudinary } = require('../utils/cloudinary');
 
 /**
  * Standard Success Response
  */
 const sendSuccess = (res, data, message = 'Success', status = 200) => {
-  res.status(status).json({
+  return res.status(status).json({
     success: true,
     message,
     data
@@ -18,79 +17,68 @@ const sendSuccess = (res, data, message = 'Success', status = 200) => {
  * Standard Error Response
  */
 const sendError = (res, message = 'Internal Server Error', error = null, status = 500) => {
-  res.status(status).json({
+  return res.status(status).json({
     success: false,
-    message,
-    error: error?.message || error || null
+    message
   });
-};
-
-// Helper to delete image file safely
-const deleteImage = (imagePath) => {
-  if (!imagePath) return;
-  // Prevent path traversal by only taking the filename
-  const filename = path.basename(imagePath);
-  if (filename && !imagePath.startsWith('http')) {
-    const U_PATH = process.env.UPLOAD_PATH;
-    if (!U_PATH) {
-      console.error('[AnnouncementController] UPLOAD_PATH not defined');
-      return;
-    }
-    const uploadDir = path.resolve(U_PATH);
-    const fullPath = path.join(uploadDir, filename);
-
-    if (fs.existsSync(fullPath)) {
-      try {
-        fs.unlinkSync(fullPath);
-      } catch (err) {
-        console.error('[AnnouncementController] Failed to delete image:', err.message);
-      }
-    }
-  }
 };
 
 // GET /api/announcements
 exports.getAll = async (req, res) => {
   try {
     const announcements = await Announcement.find().sort({ createdAt: -1 }).lean();
-    sendSuccess(res, announcements);
+    return sendSuccess(res, announcements);
   } catch (error) {
-    sendError(res, 'Failed to fetch announcements', error);
+    return sendError(res, 'Failed to fetch announcements', error);
   }
 };
 
 // POST /api/announcements
 exports.create = async (req, res) => {
+  let uploadResult = null;
   try {
     const { title, description } = req.body;
 
     // Modern Moderate Validation
     if (!title || title.trim().length > 100) {
-      if (req.file) deleteImage(req.file.filename);
       return sendError(res, 'Tiêu đề không được để trống và tối đa 100 ký tự', null, 400);
     }
 
     if (!description || description.trim().length > 700) {
-      if (req.file) deleteImage(req.file.filename);
       return sendError(res, 'Description is required and must be under 700 characters', null, 400);
     }
 
-    // Standardize image path: Store ONLY filename
+    if (req.file && req.file.buffer) {
+      try {
+        uploadResult = await uploadImageBuffer(req.file.buffer);
+      } catch (err) {
+        return sendError(res, 'Image upload failed', err, 500);
+      }
+    }
+
     const announcementData = {
       title: title.trim(),
-      description: description.trim(),
-      image: req.file ? req.file.filename : req.body.image
+      description: description.trim()
     };
+
+    if (uploadResult) {
+      announcementData.image = uploadResult.secure_url;
+      announcementData.imagePublicId = uploadResult.public_id;
+    } else if (req.body.image) {
+      announcementData.image = req.body.image;
+    }
 
     if (!announcementData.image) {
       return sendError(res, 'Image is required', null, 400);
     }
 
     const announcement = await Announcement.create(announcementData);
-    sendSuccess(res, announcement, 'Announcement created successfully', 201);
+    return sendSuccess(res, announcement, 'Announcement created successfully', 201);
   } catch (error) {
-    if (req.file) deleteImage(req.file.filename);
-    sendError(res, 'Failed to create announcement', error);
+    if (uploadResult && uploadResult.public_id) {
+      try { await deleteImageFromCloudinary(uploadResult.public_id); } catch (_) {}
+    }
+    return sendError(res, 'Failed to create announcement', error);
   }
 };
 
@@ -99,51 +87,69 @@ exports.update = async (req, res) => {
   try {
     const { id } = req.params;
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      if (req.file) deleteImage(req.file.filename);
       return sendError(res, 'Invalid ID format', null, 400);
     }
     const announcement = await Announcement.findById(id);
     if (!announcement) {
-      if (req.file) deleteImage(req.file.filename);
       return sendError(res, 'Announcement not found', null, 404);
     }
 
     const { title, description } = req.body;
     const updateData = {};
-    if (title !== undefined) updateData.title = title.trim();
-    if (description !== undefined) updateData.description = description.trim();
-
+    
     // Modern Moderate Validation
-    if (title && title.trim().length > 100) {
-      if (req.file) deleteImage(req.file.filename);
+    if (title !== undefined && title.trim().length === 0) {
+      return sendError(res, 'Title cannot be empty', null, 400);
+    }
+    if (description !== undefined && description.trim().length === 0) {
+      return sendError(res, 'Description cannot be empty', null, 400);
+    }
+    if (title !== undefined && title.trim().length > 100) {
       return sendError(res, 'Tiêu đề tối đa 100 ký tự', null, 400);
     }
 
-    if (description && description.trim().length > 700) {
-      if (req.file) deleteImage(req.file.filename);
+    if (description !== undefined && description.trim().length > 700) {
       return sendError(res, 'Description must be under 700 characters', null, 400);
     }
 
     // Only update provided fields
-    if (title) updateData.title = title.trim();
-    if (description) updateData.description = description.trim();
+    if (title !== undefined) updateData.title = title.trim();
+    if (description !== undefined) updateData.description = description.trim();
 
-    if (req.file) {
-      // Clean up old local image
-      deleteImage(announcement.image);
-      updateData.image = req.file.filename;
+    let uploadResult = null;
+    if (req.file && req.file.buffer) {
+      try {
+        uploadResult = await uploadImageBuffer(req.file.buffer);
+      } catch (err) {
+        return sendError(res, 'Image upload failed', err, 500);
+      }
+      
+      updateData.image = uploadResult.secure_url;
+      updateData.imagePublicId = uploadResult.public_id;
     }
 
-    const updatedAnnouncement = await Announcement.findByIdAndUpdate(
-      id,
-      { $set: updateData },
-      { new: true, runValidators: true }
-    );
+    try {
+      const updatedAnnouncement = await Announcement.findByIdAndUpdate(
+        id,
+        { $set: updateData },
+        { new: true, runValidators: true }
+      );
 
-    sendSuccess(res, updatedAnnouncement, 'Announcement updated successfully');
+      // Clean up old image securely ONLY after DB update succeeds
+      if (uploadResult && announcement.imagePublicId) {
+        try { await deleteImageFromCloudinary(announcement.imagePublicId); } catch (_) {}
+      }
+
+      return sendSuccess(res, updatedAnnouncement, 'Announcement updated successfully');
+    } catch (dbError) {
+      // Rollback newly uploaded image if DB update fails
+      if (uploadResult && uploadResult.public_id) {
+        try { await deleteImageFromCloudinary(uploadResult.public_id); } catch (_) {}
+      }
+      return sendError(res, 'Failed to update announcement', dbError);
+    }
   } catch (error) {
-    if (req.file) deleteImage(req.file.filename);
-    sendError(res, 'Failed to update announcement', error);
+    return sendError(res, 'Failed to update announcement', error);
   }
 };
 
@@ -157,11 +163,13 @@ exports.remove = async (req, res) => {
     const announcement = await Announcement.findById(id);
     if (!announcement) return sendError(res, 'Announcement not found', null, 404);
 
-    deleteImage(announcement.image);
+    if (announcement.imagePublicId) {
+      try { await deleteImageFromCloudinary(announcement.imagePublicId); } catch (_) {}
+    }
     await Announcement.findByIdAndDelete(id);
 
-    sendSuccess(res, null, 'Announcement deleted successfully');
+    return sendSuccess(res, null, 'Announcement deleted successfully');
   } catch (error) {
-    sendError(res, 'Failed to delete announcement', error);
+    return sendError(res, 'Failed to delete announcement', error);
   }
 };
