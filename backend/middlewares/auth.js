@@ -18,24 +18,33 @@ const auth = async (req, res, next) => {
     }
     
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // 🎯 SESSION CONFLICT CHECK
-    const cookieSessionId = req.cookies?.sessionId;
-    if (cookieSessionId) {
-      const user = await Admin.findById(decoded.id).select('activeSessionId').lean();
-      if (user && user.activeSessionId && user.activeSessionId !== cookieSessionId) {
-        console.warn(`[Auth Middleware] SESSION_CONFLICT for ${decoded.username}`);
-        return res.status(401).json({
-          code: 'SESSION_CONFLICT',
-          message: 'Tài khoản đã được đăng nhập từ thiết bị khác'
-        });
-      }
+
+    const admin = await Admin.findById(decoded.id).select('_id username role activeSessionId').lean();
+    if (!admin) {
+      return res.status(401).json({ message: 'Unauthorized: User not found' });
     }
 
-    console.log(`[Auth Middleware] Success: Valid token for user: ${decoded.username}`);
-    
-    req.user = decoded;
-    req.admin = decoded; // Keep for backward compatibility
+    // 🎯 SESSION CONFLICT CHECK
+    const cookieSessionId = req.cookies?.sessionId;
+    if (cookieSessionId && admin.activeSessionId && admin.activeSessionId !== cookieSessionId) {
+      console.warn(`[Auth Middleware] SESSION_CONFLICT for ${admin.username || decoded.username}`);
+      return res.status(401).json({
+        code: 'SESSION_CONFLICT',
+        message: 'Tài khoản đã được đăng nhập từ thiết bị khác'
+      });
+    }
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[Auth Middleware] Success: Valid token for user: ${admin.username || decoded.username}`);
+    }
+
+    req.user = {
+      ...decoded,
+      id: String(admin._id),
+      username: admin.username,
+      role: admin.role
+    };
+    req.admin = req.user; // Keep for backward compatibility
     next();
   } catch (error) {
     console.error(`[Auth Middleware] JWT Verify Error: ${error.message}`);

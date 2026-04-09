@@ -149,6 +149,7 @@ const googleRoutes = require('./routes/googleRoutes');
 const restoreRoutes = require('./routes/restoreRoutes');
 const announcementRoutes = require('./routes/announcementRoutes');
 const timetableRoutes = require('./routes/timetableRoutes');
+const rankingRoutes = require('./routes/rankingRoutes');
 const initCronJobs = require('./config/cron');
 const backupService = require('./services/backup.service');
 const userIdentifier = require('./middlewares/userIdentifier');
@@ -183,6 +184,7 @@ app.use('/api/auth/google', googleRoutes);
 app.use('/api/restore', restoreRoutes);
 app.use('/api/announcements', announcementRoutes);
 app.use('/api/timetable', timetableRoutes);
+app.use('/api/rankings', rankingRoutes);
 
 // --- 📊 GOOGLE SHEETS SUBMISSION ENDPOINT ---
 // Helpers for /api/submit

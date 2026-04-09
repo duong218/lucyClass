@@ -1,32 +1,273 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
-import { Users, GraduationCap, Sparkles, ArrowRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
-
-// Import images (Assuming they exist/will be provided)
-import mainIllustration from '../assets/why-us-main.png';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowRight } from 'lucide-react';
 import step1Img from '../assets/why-us-step1.png';
 import step2Img from '../assets/why-us-step2.png';
 import step3Img from '../assets/why-us-step3.png';
 
+// Ranking trophy images
+const rankImages = {
+  1: '/ranking/oneChamp.png',
+  2: '/ranking/top2.png',
+  3: '/ranking/top3.png',
+};
+const rankingAvatars = [
+  '/avatar-ranking/avatar-rank1.png',
+  '/avatar-ranking/avatar-rank2.png',
+  '/avatar-ranking/avatar-rank3.png',
+  '/avatar-ranking/avatar-rank4.png',
+  '/avatar-ranking/avatar-rank5.png',
+];
+
+// Decorative assets
+const decorations = [
+  { src: '/decorate/music-note.png', className: 'absolute top-6 left-4 w-10 h-10 opacity-70', delay: 0,   yRange: [-12, 12],  rotate: [-15, 15] },
+  { src: '/decorate/start-ranking.png', className: 'absolute top-12 right-6 w-8 h-8 opacity-80',  delay: 0.4, yRange: [-8, 8],   rotate: [0, 360] },
+  { src: '/decorate/moon.png',        className: 'absolute bottom-16 right-4 w-9 h-9 opacity-60', delay: 0.8, yRange: [-10, 10], rotate: [-10, 10] },
+  { src: '/decorate/music-note.png',  className: 'absolute bottom-8 left-8 w-7 h-7 opacity-50',  delay: 1.2, yRange: [-6, 14],  rotate: [0, -20] },
+  { src: '/decorate/start-ranking.png',className: 'absolute top-1/2 left-2 w-6 h-6 opacity-60',   delay: 0.6, yRange: [-14, 6],  rotate: [0, 180] },
+];
+
+const truncateSkill = (value, max = 30) => {
+  if (!value || typeof value !== 'string') return '';
+  const text = value.trim();
+  if (text.length <= max) return text;
+  return `${text.slice(0, max)}...`;
+};
+
+// ─── Floating deco item ───────────────────────
+const FloatingDeco = ({ src, className, delay, yRange, rotate }) => (
+  <motion.img
+    src={src}
+    className={className}
+    animate={{ y: yRange, rotate }}
+    transition={{
+      duration: 4 + delay,
+      repeat: Infinity,
+      repeatType: 'mirror',
+      ease: 'easeInOut',
+      delay,
+    }}
+    onError={(e) => { e.target.style.display = 'none'; }}
+  />
+);
+
+// ─── Single rank row ─────────────────────────
+const RankRow = ({ entry, rank, delay }) => {
+  const isTop3 = rank <= 3;
+  const isFirst = rank === 1;
+  const avatarSrc = rankingAvatars[(rank - 1) % rankingAvatars.length];
+  const skillLabel = truncateSkill(entry.skill, 30);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: delay * 0.1 + 0.3, duration: 0.5, type: 'spring', stiffness: 200 }}
+      whileHover={isFirst
+        ? { scale: 1.1, y: -2, boxShadow: '0 18px 45px rgba(255,170,0,0.45)' }
+        : isTop3
+          ? { scale: 1.03, y: -2, boxShadow: '0 12px 30px rgba(107,114,128,0.25)' }
+          : { scale: 1.02, y: -1, boxShadow: '0 10px 24px rgba(15,23,42,0.12)' }
+      }
+      className={`relative flex items-center gap-3 rounded-3xl px-4 py-3.5 transition-all cursor-default overflow-hidden
+        ${isFirst
+          ? 'scale-[1.06] bg-gradient-to-r from-amber-300 via-yellow-200 to-orange-300 border-2 border-amber-400 shadow-xl shadow-amber-200/80'
+          : rank === 2
+            ? 'bg-gradient-to-r from-slate-100 to-zinc-100 border border-slate-200 shadow-md'
+            : rank === 3
+              ? 'bg-gradient-to-r from-gray-100 to-slate-50 border border-gray-200 shadow-md'
+              : 'bg-white border border-gray-100 shadow-sm'
+        }`}
+    >
+      {/* Rank badge / image */}
+      <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center">
+        {isTop3 ? (
+          <motion.img
+            src={rankImages[rank]}
+            alt={`Top ${rank}`}
+            className="w-10 h-10 object-contain drop-shadow-md"
+            animate={isFirst ? { y: [0, -4, 0], rotate: [-3, 3, -3] } : {}}
+            transition={isFirst ? { duration: 2.5, repeat: Infinity, ease: 'easeInOut' } : {}}
+            onError={(e) => { e.target.style.display = 'none'; }}
+          />
+        ) : (
+          <span className="text-sm font-black text-gray-400 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+            #{rank}
+          </span>
+        )}
+      </div>
+
+      {isFirst && (
+        <div className="absolute top-2 right-2 text-sm">👑</div>
+      )}
+
+      {/* Left column: avatar + student + skill */}
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <img
+          src={avatarSrc}
+          alt={`Avatar rank ${rank}`}
+          className="w-11 h-11 rounded-full object-cover flex-shrink-0 border-2 border-white shadow"
+          onError={(e) => { e.target.style.display = 'none'; }}
+        />
+        <div className="min-w-0">
+          <p className={`font-black truncate text-sm ${isFirst ? 'text-amber-900' : 'text-gray-800'}`}>
+            {entry.childName}
+          </p>
+          <p className={`text-[11px] truncate font-semibold ${isFirst ? 'text-amber-700' : 'text-gray-500'}`}>
+            {skillLabel || '—'}
+          </p>
+        </div>
+      </div>
+
+      {/* Right column: course + stars */}
+      <div className="flex flex-col items-end justify-center flex-shrink-0 text-right max-w-[42%]">
+        <p className={`text-[11px] truncate w-full ${isFirst ? 'text-amber-800 font-semibold' : 'text-gray-500'}`}>
+          {entry.courseName || '—'}
+        </p>
+        <div className={`mt-1 inline-flex items-center gap-1 px-2.5 py-1 rounded-full ${isFirst ? 'bg-white/50 text-amber-900' : 'bg-gray-100 text-gray-700'}`}>
+          <span className="text-sm">⭐</span>
+          <span className="font-black text-sm">{entry.stars}</span>
+        </div>
+      </div>
+
+      {/* Gold shimmer for rank 1 */}
+      {isFirst && (
+        <motion.div
+          className="absolute inset-0 rounded-2xl pointer-events-none overflow-hidden"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 0.4, 0] }}
+          transition={{ duration: 2.5, repeat: Infinity, delay: 1 }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/60 to-transparent -skew-x-12 translate-x-[-100%] animate-[shimmer_2.5s_infinite_1s]" />
+        </motion.div>
+      )}
+    </motion.div>
+  );
+};
+
+// ─── Skeleton loader ─────────────────────────
+const SkeletonRow = ({ i }) => (
+  <div className={`flex items-center gap-3 rounded-2xl px-4 py-3 bg-gray-50 border border-gray-100 animate-pulse`} style={{ animationDelay: `${i * 0.1}s` }}>
+    <div className="w-10 h-10 rounded-full bg-gray-200" />
+    <div className="w-9 h-9 rounded-full bg-gray-200" />
+    <div className="flex-1 space-y-1.5">
+      <div className="h-3 bg-gray-200 rounded-full w-2/3" />
+      <div className="h-2 bg-gray-100 rounded-full w-1/2" />
+    </div>
+    <div className="w-8 h-3 bg-gray-200 rounded-full" />
+  </div>
+);
+
+// ─── Ranking Board ───────────────────────────
+const RankingBoard = () => {
+  const [rankings, setRankings] = useState([]);
+  const [loading, setLoading]   = useState(true);
+
+  useEffect(() => {
+    const fetchRankings = async () => {
+      try {
+        // Dynamically import api to avoid import issues
+        const { default: api } = await import('../services/api');
+        const res = await api.get('/rankings/top');
+        if (res.data.success) {
+          setRankings(res.data.data.slice(0, 5));
+        }
+      } catch (err) {
+        console.warn('[Rankings] Failed to load:', err);
+        // Graceful fallback – show empty state
+        setRankings([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchRankings();
+  }, []);
+
+  return (
+    <div className="relative w-full max-w-[420px] mx-auto">
+      {/* Decorative floating elements */}
+      {decorations.map((d, i) => (
+        <FloatingDeco key={i} {...d} />
+      ))}
+
+      {/* Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.7, type: 'spring', stiffness: 120 }}
+        className="bg-white/95 backdrop-blur-md rounded-[2rem] shadow-[0_28px_60px_rgba(15,23,42,0.16)] border border-gray-100/80 overflow-hidden relative z-10 p-1"
+      >
+        {/* Header */}
+        <div className="bg-gradient-to-r from-yellow-400 via-amber-300 to-orange-400 px-6 py-5 relative overflow-hidden">
+          <div className="absolute -top-4 -right-4 w-20 h-20 bg-white/10 rounded-full blur-xl" />
+          <div className="absolute -bottom-4 -left-4 w-16 h-16 bg-white/10 rounded-full blur-xl" />
+          <div className="relative z-10 flex items-center gap-3">
+          <motion.img
+            src="/ranking/cup.png"
+            alt="Ranking Cup"
+            className="w-10 h-10 object-contain"
+            animate={{ rotate: [0, -10, 10, 0], scale: [1, 1.1, 1] }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+          />
+            <div>
+              <h3 className="text-lg font-black text-white leading-none tracking-tight">Học Viên Xuất Sắc</h3>
+              <p className="text-yellow-100 text-xs font-medium mt-0.5">Bảng xếp hạng tháng này</p>
+            </div>
+          </div>
+        </div>
+
+        {/* List */}
+        <div className="p-5 space-y-3">
+          <AnimatePresence mode="sync">
+            {loading ? (
+              [...Array(5)].map((_, i) => <SkeletonRow key={i} i={i} />)
+            ) : rankings.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="py-10 text-center text-gray-300"
+              >
+                <div className="mb-2">
+                  <img
+                    src="/ranking/cup.png"
+                    alt="Ranking Cup"
+                    className="w-10 h-10 object-contain mx-auto grayscale"
+                  />
+                </div>
+                <p className="text-sm font-bold">Chưa có xếp hạng nào</p>
+              </motion.div>
+            ) : (
+              rankings.map((entry, i) => (
+                <RankRow key={entry._id || i} entry={entry} rank={i + 1} delay={i} />
+              ))
+            )}
+          </AnimatePresence>
+        </div>
+      </motion.div>
+
+      {/* Background glow blobs */}
+      <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-amber-200/30 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-200/20 rounded-full blur-3xl pointer-events-none" />
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// 🏠 Main Section
+// ─────────────────────────────────────────────
 const WhyChooseUs = () => {
   const { t } = useTranslation();
 
   const containerVariants = {
-    hidden: { opacity: 0, y: 50 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.8,
-        staggerChildren: 0.2,
-      },
-    },
+    hidden:  { opacity: 0, y: 50 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.8, staggerChildren: 0.2 } },
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, x: 20 },
+    hidden:  { opacity: 0, x: 20 },
     visible: { opacity: 1, x: 0 },
   };
 
@@ -35,34 +276,28 @@ const WhyChooseUs = () => {
       id: '01',
       title: t('whyUs.teachers'),
       desc: t('whyUs.teachersDesc'),
-      icon: <Users className="w-8 h-8 text-[#4A90E2]" />,
       image: step1Img,
       bgColor: 'bg-pastel-blue',
-      accentColor: 'text-[#4A90E2]',
     },
     {
       id: '02',
       title: t('whyUs.funClasses'),
       desc: t('whyUs.funClassesDesc'),
-      icon: <GraduationCap className="w-8 h-8 text-[#56B256]" />,
       image: step2Img,
       bgColor: 'bg-pastel-green',
-      accentColor: 'text-[#56B256]',
     },
     {
       id: '03',
       title: t('whyUs.confidence'),
       desc: t('whyUs.confidenceDesc'),
-      icon: <Sparkles className="w-8 h-8 text-[#E67E22]" />,
       image: step3Img,
       bgColor: 'bg-pastel-orange',
-      accentColor: 'text-[#E67E22]',
     },
   ];
 
   return (
     <section className="py-24 px-6 bg-[#F8FAFC] overflow-hidden relative">
-      {/* Decorative Background Elements */}
+      {/* Decorative Background */}
       <div className="absolute top-20 -left-20 w-64 h-64 bg-pastel-blue/30 rounded-full blur-3xl" />
       <div className="absolute bottom-20 -right-20 w-80 h-80 bg-pastel-yellow/30 rounded-full blur-3xl" />
 
@@ -70,9 +305,10 @@ const WhyChooseUs = () => {
         className="max-w-7xl mx-auto"
         initial="hidden"
         whileInView="visible"
-        viewport={{ once: true, margin: "-100px" }}
+        viewport={{ once: true, margin: '-100px' }}
         variants={containerVariants}
       >
+        {/* Section title */}
         <div className="text-center mb-16">
           <motion.span
             className="inline-block px-4 py-1.5 bg-primary-100 text-primary-600 rounded-full text-sm font-bold tracking-wider uppercase mb-4"
@@ -89,46 +325,14 @@ const WhyChooseUs = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-          {/* Left: Illustration Area */}
-          <motion.div
-            className="relative"
-            variants={itemVariants}
-          >
-            {/* Main Illustration with Float Animation */}
-            <motion.div
-              animate={{
-                y: [0, -15, 0],
-              }}
-              transition={{
-                duration: 6,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
-              className="relative z-10"
-            >
-              <img
-                src={mainIllustration}
-                alt="Educational Illustration"
-                className="w-full max-w-xl mx-auto drop-shadow-2xl rounded-3xl"
-              />
-            </motion.div>
 
-            {/* Decorative Floating Dots/Icons */}
-            <motion.div
-              className="absolute -top-10 -right-5 w-20 h-20 bg-pastel-orange/40 rounded-3xl -rotate-12 blur-lg"
-              animate={{ rotate: [0, 360], scale: [1, 1.1, 1] }}
-              transition={{ duration: 15, repeat: Infinity }}
-            />
-            <motion.div
-              className="absolute -bottom-10 -left-5 w-24 h-24 bg-pastel-green/40 rounded-full blur-lg"
-              animate={{ y: [0, 20, 0] }}
-              transition={{ duration: 8, repeat: Infinity }}
-            />
+          {/* ── Left: Ranking Board ── */}
+          <motion.div variants={itemVariants}>
+            <RankingBoard />
           </motion.div>
 
-          {/* Right: Step Journey */}
+          {/* ── Right: Step Journey ── */}
           <div className="space-y-8 relative">
-            {/* Vertical Line Connection */}
             <div className="absolute left-6 top-8 bottom-8 w-1 border-l-2 border-dashed border-primary-200 hidden md:block" />
 
             {steps.map((step, index) => (
@@ -138,12 +342,10 @@ const WhyChooseUs = () => {
                 whileHover={{ scale: 1.02, x: 10 }}
                 className="relative flex gap-6"
               >
-                {/* Step Marker */}
                 <div className="relative z-10 hidden md:flex flex-shrink-0 w-12 h-12 rounded-full bg-white border-4 border-primary-100 shadow-md items-center justify-center font-display font-black text-primary-500">
                   {step.id}
                 </div>
 
-                {/* Card */}
                 <div className="flex-grow bg-white p-6 rounded-3xl shadow-sm border border-gray-100/50 hover:shadow-card-hover transition-all group">
                   <div className="flex flex-col md:flex-row gap-6 items-center">
                     <div className={`w-20 h-20 md:w-24 md:h-24 ${step.bgColor} rounded-2xl flex items-center justify-center flex-shrink-0 transition-all group-hover:rotate-3`}>
@@ -151,47 +353,28 @@ const WhyChooseUs = () => {
                         src={step.image}
                         alt={step.title}
                         className="w-16 h-16 md:w-20 md:h-20 object-contain"
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                          e.target.nextSibling.style.display = 'flex';
-                        }}
+                        onError={(e) => { e.target.style.display = 'none'; }}
                       />
-                      <div className="hidden items-center justify-center">
-                        {step.icon}
-                      </div>
                     </div>
-
                     <div className="text-center md:text-left">
-                      <h4 className="text-xl font-bold text-text-main mb-2 font-display">
-                        {step.title}
-                      </h4>
-                      <p className="text-gray-500 text-sm leading-relaxed">
-                        {step.desc}
-                      </p>
+                      <h4 className="text-xl font-bold text-text-main mb-2 font-display">{step.title}</h4>
+                      <p className="text-gray-500 text-sm leading-relaxed">{step.desc}</p>
                     </div>
                   </div>
                 </div>
               </motion.div>
             ))}
 
-            {/* CTA Button */}
-            <motion.div
-              className="pt-6 md:pl-20"
-              variants={itemVariants}
-            >
+            {/* CTA */}
+            <motion.div className="pt-6 md:pl-20" variants={itemVariants}>
               <button
                 onClick={() => {
-                  const el = document.getElementById("courses");
-                  if (el) {
-                    window.scrollTo({
-                      top: el.offsetTop - 80, // tránh bị header che
-                      behavior: "smooth"
-                    });
-                  }
+                  const el = document.getElementById('courses');
+                  if (el) window.scrollTo({ top: el.offsetTop - 80, behavior: 'smooth' });
                 }}
                 className="inline-flex items-center gap-3 bg-primary-500 hover:bg-primary-600 text-white px-8 py-4 rounded-full font-bold shadow-button hover:translate-y-1 transition-all"
               >
-                <span>{t("whyUs.exploreMore")}</span>
+                <span>{t('whyUs.exploreMore')}</span>
                 <ArrowRight className="w-5 h-5" />
               </button>
             </motion.div>
@@ -203,4 +386,3 @@ const WhyChooseUs = () => {
 };
 
 export default WhyChooseUs;
-
