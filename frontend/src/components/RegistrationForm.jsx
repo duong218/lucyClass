@@ -209,7 +209,7 @@ const RegistrationForm = () => {
                   onChange={e => handleChange('parentName', e.target.value)}
                   className={`w-full bg-[#D0EAF9] rounded-full py-3.5 pl-12 pr-6 text-sm outline-none border-2 transition-all placeholder-gray-400 font-semibold shadow-inner ${fieldErrors.parentName ? 'border-red-500 bg-red-50' : 'border-transparent focus:border-blue-400 focus:bg-white'
                     }`}
-                  placeholder={t('registration.parentNamePlaceholder')}
+                  placeholder={t('registration.placeholderName')}
                 />
                 <AnimatePresence>
                   {fieldErrors.parentName && (
@@ -238,7 +238,7 @@ const RegistrationForm = () => {
                   onChange={e => handleChange('phone', e.target.value)}
                   className={`w-full bg-[#D0EAF9] rounded-full py-3.5 pl-12 pr-6 text-sm outline-none border-2 transition-all placeholder-gray-400 font-semibold shadow-inner ${fieldErrors.phone ? 'border-red-500 bg-red-50' : 'border-transparent focus:border-blue-400 focus:bg-white'
                     }`}
-                  placeholder={t('registration.phonePlaceholder')}
+                  placeholder={t('registration.placeholderPhone')}
                 />
                 <AnimatePresence>
                   {fieldErrors.phone && (
@@ -267,7 +267,7 @@ const RegistrationForm = () => {
                   onChange={e => handleChange('childName', e.target.value)}
                   className={`w-full bg-[#D0EAF9] rounded-full py-3.5 pl-12 pr-6 text-sm outline-none border-2 transition-all placeholder-gray-400 font-semibold shadow-inner ${fieldErrors.childName ? 'border-red-500 bg-red-50' : 'border-transparent focus:border-blue-400 focus:bg-white'
                     }`}
-                  placeholder={t('registration.childNamePlaceholder')}
+                  placeholder={t('registration.placeholderChild')}
                 />
                 <AnimatePresence>
                   {fieldErrors.childName && (
