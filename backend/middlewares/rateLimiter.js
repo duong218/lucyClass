@@ -9,9 +9,9 @@ const isProduction = process.env.NODE_ENV === 'production';
  */
 const rateLimitHandler = (req, res, next, options) => {
   const retryAfter = Math.ceil(options.windowMs / 1000);
-  
-  systemLogger.warn('Rate limit exceeded', { 
-    ip: req.ip, 
+
+  systemLogger.warn('Rate limit exceeded', {
+    ip: req.ip,
     userId: req.user?.id || 'guest',
     url: req.originalUrl,
     retryAfter
@@ -64,7 +64,7 @@ const loginLimiter = rateLimit({
 const registerLimiter = rateLimit({
   windowMs: isProduction ? 60 * 60 * 1000 : 60 * 1000,
   max: isProduction ? 5 : 10000,
-  skipSuccessfulRequests: true,
+  skipSuccessfulRequests: false,
   skip: (req) => req.user?.role === 'admin',
   handler: rateLimitHandler,
   standardHeaders: true,
