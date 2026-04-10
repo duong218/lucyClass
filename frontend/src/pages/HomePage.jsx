@@ -11,12 +11,14 @@ import TestimonialsSection from '../components/TestimonialsSection';
 import RegistrationForm from '../components/RegistrationForm';
 import Fireworks from '../components/Fireworks';
 import AnnouncementSection from '../components/AnnouncementSection';
+import ScrollHintButton from '../components/ScrollHintButton';
 
 const HomePage = () => {
   return (
     <div className="relative font-sans text-text-main bg-white">
       <Fireworks />
       <Navbar />
+      <ScrollHintButton />
 
       {/* Sections order matches home page.png layout logic */}
       <HeroSection />
