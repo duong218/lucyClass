@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 
 const LearningJourney = () => {
   const { t } = useTranslation();
+  const [activeStep, setActiveStep] = useState(0);
 
   const steps = [
     {
@@ -114,12 +115,65 @@ const LearningJourney = () => {
           </motion.p>
         </div>
 
+        {/* Mobile: Compact selector + active content */}
+        <div className="md:hidden">
+          <div className="grid grid-cols-3 gap-3">
+            {steps.map((step, index) => {
+              const isActive = index === activeStep;
+
+              return (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => setActiveStep(index)}
+                  className={[
+                    'bg-white rounded-2xl p-3 transition-all duration-300 flex flex-col items-center text-center',
+                    isActive ? 'opacity-100 scale-105 shadow-md' : 'opacity-50 scale-95',
+                  ].join(' ')}
+                >
+                  <img
+                    src={step.image}
+                    alt=""
+                    className="w-10 h-10 object-contain mb-2 pointer-events-none"
+                    aria-hidden="true"
+                  />
+                  <div
+                    className="text-xs font-black leading-snug line-clamp-2"
+                    style={{ color: step.color }}
+                  >
+                    {step.title}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-6 bg-white rounded-[24px] p-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border-[4px] border-dashed overflow-hidden">
+            <div className="flex items-center justify-center w-full h-[180px]">
+              <img
+                src={steps[activeStep]?.image}
+                alt={steps[activeStep]?.title || ''}
+                className="max-w-[200px] max-h-[180px] w-auto h-auto object-contain pointer-events-none"
+              />
+            </div>
+            <h4
+              className="mt-4 text-lg font-black text-center"
+              style={{ color: steps[activeStep]?.color }}
+            >
+              {steps[activeStep]?.title}
+            </h4>
+            <p className="mt-2 text-gray-500 text-sm leading-relaxed text-center font-medium">
+              {steps[activeStep]?.desc}
+            </p>
+          </div>
+        </div>
+
         <motion.div
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-6"
+          className="hidden md:grid grid-cols-3 gap-6"
         >
           {steps.map((step, index) => (
             <motion.div 
@@ -132,7 +186,7 @@ const LearningJourney = () => {
                 borderColor: step.color
               }}
               style={{ borderColor: `${step.color}88` }} // Semi-transparent border initially
-              className="bg-white rounded-[24px] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-500 relative group flex flex-col items-center text-center border-[4px] border-dashed overflow-hidden"
+              className="bg-white rounded-[24px] p-3 md:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-500 relative group flex flex-col items-center text-center border-[4px] border-dashed overflow-hidden"
             >
               {/* Step Number Badge - high z-index */}
               <div 
@@ -143,7 +197,7 @@ const LearningJourney = () => {
               </div>
 
               {/* Step Image - base z-index */}
-              <div className="relative z-10 mb-8 w-full h-[200px] flex items-center justify-center transform group-hover:rotate-3 transition-transform duration-500">
+              <div className="relative z-10 mb-8 w-full h-[200px] hidden md:flex items-center justify-center transform group-hover:rotate-3 transition-transform duration-500">
                 <img 
                   src={step.image} 
                   alt={step.title}
@@ -159,7 +213,7 @@ const LearningJourney = () => {
                 >
                   {step.title}
                 </h4>
-                <p className="text-gray-500 text-sm leading-relaxed px-2 font-medium">
+                <p className="text-gray-500 text-sm leading-relaxed px-2 font-medium hidden md:block">
                   {step.desc}
                 </p>
               </div>
