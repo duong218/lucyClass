@@ -340,25 +340,25 @@ const WhyChooseUs = () => {
                 key={step.id}
                 variants={itemVariants}
                 whileHover={{ scale: 1.02, x: 10 }}
-                className="relative flex gap-6"
+                className="relative flex gap-3 md:gap-6"
               >
                 <div className="relative z-10 hidden md:flex flex-shrink-0 w-12 h-12 rounded-full bg-white border-4 border-primary-100 shadow-md items-center justify-center font-display font-black text-primary-500">
                   {step.id}
                 </div>
 
-                <div className="flex-grow bg-white p-6 rounded-3xl shadow-sm border border-gray-100/50 hover:shadow-card-hover transition-all group">
-                  <div className="flex flex-col md:flex-row gap-6 items-center">
-                    <div className={`w-20 h-20 md:w-24 md:h-24 ${step.bgColor} rounded-2xl flex items-center justify-center flex-shrink-0 transition-all group-hover:rotate-3`}>
+                <div className="flex-grow bg-white p-4 md:p-6 rounded-3xl shadow-sm hover:shadow-md transition border border-gray-100/50 group">
+                  <div className="flex flex-col md:flex-row gap-3 md:gap-6 items-center">
+                    <div className={`w-14 h-14 md:w-20 md:h-20 ${step.bgColor} rounded-2xl flex items-center justify-center flex-shrink-0 transition-all group-hover:rotate-3`}>
                       <img
                         src={step.image}
                         alt={step.title}
-                        className="w-16 h-16 md:w-20 md:h-20 object-contain"
+                        className="w-10 h-10 md:w-16 md:h-16 object-contain"
                         onError={(e) => { e.target.style.display = 'none'; }}
                       />
                     </div>
                     <div className="text-center md:text-left">
-                      <h4 className="text-xl font-bold text-text-main mb-2 font-display">{step.title}</h4>
-                      <p className="text-gray-500 text-sm leading-relaxed">{step.desc}</p>
+                      <h4 className="text-base md:text-xl font-bold text-text-main mb-2 font-display">{step.title}</h4>
+                      <p className="text-gray-500 text-xs md:text-sm leading-relaxed line-clamp-1 md:line-clamp-none">{step.desc}</p>
                     </div>
                   </div>
                 </div>
