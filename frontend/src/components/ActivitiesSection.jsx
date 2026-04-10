@@ -14,6 +14,7 @@ import ActivityPopup from './ActivityPopup';
 const ActivitiesSection = () => {
   const { t } = useTranslation();
   const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
   // Activity data based on the redesign plan
   const activities = [
@@ -26,6 +27,8 @@ const ActivitiesSection = () => {
     { key: 'musicTime', nameKey: 'activities.musicTime', image: '/images/activities/activity_musicTime.png' },
     { key: 'crafting', nameKey: 'activities.crafting', image: '/images/activities/activity_crafting.png' },
   ];
+
+  const visibleActivities = showAll ? activities : activities.slice(0, 4);
 
   // Handler for CTA button
   const handleViewSchedule = () => {
@@ -51,8 +54,8 @@ const ActivitiesSection = () => {
         </div>
 
         {/* Activities Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
-          {activities.map((act) => (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8 transition-all duration-300">
+          {visibleActivities.map((act) => (
             <div
               key={act.key}
               className="group flex flex-col items-center cursor-pointer"
@@ -72,6 +75,18 @@ const ActivitiesSection = () => {
             </div>
           ))}
         </div>
+
+        {activities.length > 4 && (
+          <div className="mt-6 text-center">
+            <button
+              type="button"
+              onClick={() => setShowAll((prev) => !prev)}
+              className="text-blue-500 font-semibold text-sm hover:underline"
+            >
+              {showAll ? t('activities.showLess') : t('activities.showMore')}
+            </button>
+          </div>
+        )}
 
         {/* CTA Button */}
         <div className="mt-12 md:mt-16 text-center animate-fadeInUp stagger-3">
