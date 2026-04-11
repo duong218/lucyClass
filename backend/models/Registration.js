@@ -47,6 +47,7 @@ const registrationSchema = new mongoose.Schema({
 
 // Optimization: Faster lookups for duplicate checks and filtering
 registrationSchema.index({ email: 1, phone: 1, courseId: 1 });
+registrationSchema.index({ phone: 1, isActive: 1 });
 registrationSchema.index({ courseId: 1, status: 1, isActive: 1 });
 
 // Auto-delete old registrations after 1 year to keep DB lean

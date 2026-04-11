@@ -121,8 +121,15 @@ exports.create = async (req, res) => {
   }
 
   // 3. Normalization
-  const normPhone = req.body.phone?.replace(/\D/g, '') || '';
-  const normEmail = req.body.email?.toLowerCase() || '';
+  const rawPhone = req.body.phone || '';
+
+  let normPhone = rawPhone.replace(/\D/g, '');
+
+  if (normPhone.startsWith('84')) {
+    normPhone = '0' + normPhone.slice(2);
+  }
+
+  const normEmail = req.body.email?.toLowerCase().trim() || '';
   const normParent = req.body.parentName?.toLowerCase() || '';
   const normChild = req.body.childName?.toLowerCase() || '';
 
@@ -149,7 +156,23 @@ exports.create = async (req, res) => {
         throw { statusCode: 429, message: 'LIMIT_REACHED' };
       }
 
-      // 5. STRICT Duplicate Validation
+      const MAX_ACTIVE_COURSES =
+        process.env.NODE_ENV === 'production'
+          ? Number(process.env.MAX_ACTIVE_COURSES) || 4
+          : 100;
+      const activeCourseCount = await Registration.countDocuments({
+        phone: normPhone,
+        isActive: true
+      }).session(session);
+
+      if (activeCourseCount >= MAX_ACTIVE_COURSES) {
+        throw {
+          statusCode: 400,
+          message: `Số điện thoại này đã đạt tối đa ${MAX_ACTIVE_COURSES} khóa học đang hoạt động`
+        };
+      }
+
+      // 5. STRICT Duplicate Validation (active registrations only)
       if (!ignoreDuplicate) {
         // CASE 1: Full Match
         const existingFullMatch = await Registration.findOne({
@@ -157,7 +180,8 @@ exports.create = async (req, res) => {
           phone: normPhone,
           ...(normEmail && { email: normEmail }),
           parentName: normParent,
-          childName: normChild
+          childName: normChild,
+          isActive: true
         }).session(session);
 
         if (existingFullMatch) {
@@ -167,6 +191,7 @@ exports.create = async (req, res) => {
         // CASE 2 & 3: Check email/phone and parent count
         const contactMatches = await Registration.find({
           courseId,
+          isActive: true,
           $or: [
             { phone: normPhone },
             ...(normEmail ? [{ email: normEmail }] : [])
@@ -217,6 +242,11 @@ exports.create = async (req, res) => {
       for (const field of ALLOWED_FIELDS) {
         if (req.body[field] !== undefined) filteredData[field] = req.body[field];
       }
+
+      filteredData.phone = normPhone;
+      filteredData.email = normEmail;
+      filteredData.parentName = req.body.parentName?.trim();
+      filteredData.childName = req.body.childName?.trim();
 
       reg = new Registration(filteredData);
       await reg.save({ session });
@@ -384,7 +414,8 @@ exports.getStudentsByCourse = async (req, res, next) => {
   try {
     const students = await Registration.find({
       courseId: req.params.id,
-      status: 'registered'
+      status: 'registered',
+      isActive: true
     })
     .populate('courseId', 'name')
     .select('childName childAge parentName phone email isActive courseId')
