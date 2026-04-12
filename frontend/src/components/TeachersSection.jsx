@@ -242,8 +242,10 @@ const TeachersSection = () => {
 
   const [rotation, setRotation] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isInteracting, setIsInteracting] = useState(false);
+  const [isUserInteracting, setIsUserInteracting] = useState(false);
   const [showAllModal, setShowAllModal] = useState(false);
+  
+  const interactionTimeoutRef = useRef(null);
 
   const BASE_ANGLES = useMemo(() => [-60, -30, 0, 30, 60], []);
   const normalize = useCallback((deg) => ((deg % 360) + 360) % 360, []);
@@ -336,37 +338,46 @@ const TeachersSection = () => {
     { id: 'rated', icon: '⭐', labelKey: 'teachersSection.trust.rated' },
   ];
 
+  // Interaction handler for pausing auto-behaviors
+  const handleUserInteraction = useCallback(() => {
+    setIsUserInteracting(true);
+    if (interactionTimeoutRef.current) clearTimeout(interactionTimeoutRef.current);
+    interactionTimeoutRef.current = setTimeout(() => {
+      setIsUserInteracting(false);
+    }, 3000);
+  }, []);
+
   // Main card auto-switch (2 seconds)
   useEffect(() => {
-    if (showAllModal || selectedTeacher || window.innerWidth >= 768) return;
+    if (showAllModal || selectedTeacher || window.innerWidth >= 768 || isUserInteracting) return;
     
     const interval = setInterval(() => {
       setCurrentIndex(prev => (prev + 1) % displayTeachers.length);
     }, 2000);
     
     return () => clearInterval(interval);
-  }, [displayTeachers.length, showAllModal, selectedTeacher]);
+  }, [displayTeachers.length, showAllModal, selectedTeacher, isUserInteracting]);
 
   // Continuous background ring rotation drift
   useEffect(() => {
+    if (isUserInteracting || selectedTeacher || showAllModal || window.innerWidth >= 768) return;
+    
     let raf;
     let last = performance.now();
 
     const animate = (now) => {
-      if (!isInteracting && !selectedTeacher && !showAllModal && window.innerWidth < 768) {
-        const delta = now - last;
-        setRotation(prev => prev + delta * 0.02);
-      }
+      const delta = now - last;
+      setRotation(prev => prev + delta * 0.02);
       last = now;
       raf = requestAnimationFrame(animate);
     };
 
     raf = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(raf);
-  }, [isInteracting, selectedTeacher, showAllModal]);
+  }, [isUserInteracting, selectedTeacher, showAllModal]);
 
   const handleMobileNav = (direction) => {
-    setIsInteracting(true);
+    handleUserInteraction();
     if (direction === 'next') {
       setCurrentIndex(prev => (prev + 1) % displayTeachers.length);
       setRotation(prev => prev + 30);
@@ -374,9 +385,6 @@ const TeachersSection = () => {
       setCurrentIndex(prev => (prev - 1 + displayTeachers.length) % displayTeachers.length);
       setRotation(prev => prev - 30);
     }
-    
-    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
-    resumeTimerRef.current = setTimeout(() => setIsInteracting(false), 2000);
   };
 
   return (
@@ -489,11 +497,9 @@ const TeachersSection = () => {
                   className="absolute"
                   style={{ left: 0, top: 0 }}
                   onClick={() => {
-                    setIsInteracting(true);
+                    handleUserInteraction();
                     setSelectedTeacher(teacher);
                     setSelectedIndex(i % displayTeachers.length);
-                    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
-                    resumeTimerRef.current = setTimeout(() => setIsInteracting(false), 2000);
                   }}
                 >
                   <div className="w-14 h-14 rounded-full border-2 border-white bg-white overflow-hidden shadow-md">
