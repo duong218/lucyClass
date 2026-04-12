@@ -1,8 +1,52 @@
 const Teacher = require('../models/Teacher');
 const mongoose = require('mongoose');
-const { logAction } = require('../utils/logger');
 const logAdminAction = require('../utils/logAdminAction');
 const { uploadImageBuffer, deleteImageFromCloudinary } = require('../utils/cloudinary');
+
+/** Basic HTML entity escape for stored text (XSS mitigation). */
+function escapeHtml(str) {
+  if (str == null || typeof str !== 'string') return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function pickTeacherInput(body) {
+  if (!body || typeof body !== 'object') return {};
+  return {
+    name: body.name,
+    specialization: body.specialization,
+    experience: body.experience,
+    description: body.description,
+    feedback: body.feedback,
+    rating: body.rating
+  };
+}
+
+function trimStr(v) {
+  return typeof v === 'string' ? v.trim() : v;
+}
+
+function parseRatingOrDefault(raw, fallback = 5) {
+  if (raw === undefined || raw === null || (typeof raw === 'string' && raw.trim() === '')) {
+    return fallback;
+  }
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1 || n > 5) return null;
+  return n;
+}
+
+function parseRatingStrict(raw) {
+  if (raw === undefined || raw === null || (typeof raw === 'string' && raw.trim() === '')) {
+    return null;
+  }
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1 || n > 5) return null;
+  return n;
+}
 
 // GET /api/teachers
 exports.getAll = async (req, res, next) => {
@@ -33,16 +77,32 @@ exports.getById = async (req, res, next) => {
 exports.create = async (req, res) => {
   let uploadResult = null;
   try {
-    const { name, specialization, experience, description } = req.body;
+    const raw = pickTeacherInput(req.body);
+    const name = trimStr(raw.name);
+    const specialization = trimStr(raw.specialization);
+    const experienceNum = Number(raw.experience);
+    const descriptionRaw = trimStr(raw.description ?? '');
+    const feedbackRaw = trimStr(raw.feedback ?? '');
 
-    // Validation
-    if (name?.length > 40) return res.status(400).json({ success: false, message: 'Teacher name max 40 characters' });
-    if (specialization?.length > 100) return res.status(400).json({ success: false, message: 'Specialization max 100 characters' });
-    const exp = parseInt(experience);
-    if (isNaN(exp) || exp < 1 || exp > 40) return res.status(400).json({ success: false, message: 'Experience must be 1-40 years' });
-    if (description?.length > 50) return res.status(400).json({ success: false, message: 'Short description max 50 characters' });
+    if (name.length > 40) return res.status(400).json({ success: false, message: 'Teacher name max 40 characters' });
+    if (specialization.length > 100) return res.status(400).json({ success: false, message: 'Specialization max 100 characters' });
+    if (!Number.isInteger(experienceNum) || experienceNum < 1 || experienceNum > 40) {
+      return res.status(400).json({ success: false, message: 'Experience must be 1-40 years' });
+    }
+    if (descriptionRaw.length > 50) return res.status(400).json({ success: false, message: 'Short description max 50 characters' });
+    if (feedbackRaw.length > 500) return res.status(400).json({ success: false, message: 'Feedback max 500 characters' });
 
-    const data = { name, specialization, experience: exp, description };
+    const ratingVal = parseRatingOrDefault(raw.rating, 5);
+    if (ratingVal === null) return res.status(400).json({ success: false, message: 'Rating must be integer 1-5' });
+
+    const data = {
+      name,
+      specialization,
+      experience: experienceNum,
+      description: escapeHtml(descriptionRaw),
+      feedback: feedbackRaw,
+      rating: ratingVal
+    };
 
     if (req.file && req.file.buffer) {
       try {
@@ -83,27 +143,6 @@ exports.update = async (req, res) => {
   let uploadResult = null;
   let dbUpdated = false;
   try {
-    const { name, specialization, experience, description } = req.body;
-
-    // Validation
-    if (name !== undefined && typeof name === 'string' && name.trim().length === 0) {
-      return res.status(400).json({ success: false, message: 'Teacher name cannot be empty' });
-    }
-    if (specialization !== undefined && typeof specialization === 'string' && specialization.trim().length === 0) {
-      return res.status(400).json({ success: false, message: 'Specialization cannot be empty' });
-    }
-    if (description !== undefined && typeof description === 'string' && description.trim().length === 0) {
-      return res.status(400).json({ success: false, message: 'Short description cannot be empty' });
-    }
-    if (name !== undefined && name?.length > 40) return res.status(400).json({ success: false, message: 'Teacher name max 40 characters' });
-    if (specialization !== undefined && specialization?.length > 100) return res.status(400).json({ success: false, message: 'Specialization max 100 characters' });
-    let exp;
-    if (experience !== undefined) {
-      exp = parseInt(experience);
-      if (isNaN(exp) || exp < 1 || exp > 40) return res.status(400).json({ success: false, message: 'Experience must be 1-40 years' });
-    }
-    if (description !== undefined && description?.length > 50) return res.status(400).json({ success: false, message: 'Short description max 50 characters' });
-
     const { id } = req.params;
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ success: false, message: 'Invalid ID format' });
@@ -112,11 +151,46 @@ exports.update = async (req, res) => {
     const existing = await Teacher.findOne({ _id: id, isDeleted: { $ne: true } });
     if (!existing) return res.status(404).json({ success: false, message: 'Teacher not found' });
 
+    const body = req.body;
     const data = {};
-    if (name !== undefined) data.name = name;
-    if (specialization !== undefined) data.specialization = specialization;
-    if (experience !== undefined) data.experience = exp;
-    if (description !== undefined) data.description = description;
+
+    if (Object.prototype.hasOwnProperty.call(body, 'name')) {
+      const name = trimStr(body.name);
+      if (name.length === 0) return res.status(400).json({ success: false, message: 'Teacher name cannot be empty' });
+      if (name.length > 40) return res.status(400).json({ success: false, message: 'Teacher name max 40 characters' });
+      data.name = name;
+    }
+    if (Object.prototype.hasOwnProperty.call(body, 'specialization')) {
+      const specialization = trimStr(body.specialization);
+      if (specialization.length === 0) return res.status(400).json({ success: false, message: 'Specialization cannot be empty' });
+      if (specialization.length > 100) return res.status(400).json({ success: false, message: 'Specialization max 100 characters' });
+      data.specialization = specialization;
+    }
+    if (Object.prototype.hasOwnProperty.call(body, 'experience')) {
+      const experienceNum = Number(body.experience);
+      if (!Number.isInteger(experienceNum) || experienceNum < 1 || experienceNum > 40) {
+        return res.status(400).json({ success: false, message: 'Experience must be 1-40 years' });
+      }
+      data.experience = experienceNum;
+    }
+    if (Object.prototype.hasOwnProperty.call(body, 'description')) {
+      const descriptionRaw = trimStr(body.description ?? '');
+      if (descriptionRaw.length === 0) return res.status(400).json({ success: false, message: 'Short description cannot be empty' });
+      if (descriptionRaw.length > 50) return res.status(400).json({ success: false, message: 'Short description max 50 characters' });
+      data.description = escapeHtml(descriptionRaw);
+    }
+    if (Object.prototype.hasOwnProperty.call(body, 'feedback')) {
+      const feedbackRaw = trimStr(body.feedback ?? '');
+      if (feedbackRaw.length > 500) return res.status(400).json({ success: false, message: 'Feedback max 500 characters' });
+      data.feedback = feedbackRaw;
+    }
+    if (Object.prototype.hasOwnProperty.call(body, 'rating')) {
+      const ratingVal = parseRatingStrict(body.rating);
+      if (ratingVal === null) {
+        return res.status(400).json({ success: false, message: 'Rating must be integer 1-5' });
+      }
+      data.rating = ratingVal;
+    }
 
     if (req.file && req.file.buffer) {
       try {

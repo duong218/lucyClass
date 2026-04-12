@@ -11,7 +11,14 @@ const TeacherManagement = () => {
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [formData, setFormData] = useState({ name: '', specialization: '', experience: '', description: '' });
+  const [formData, setFormData] = useState({
+    name: '',
+    specialization: '',
+    experience: '',
+    description: '',
+    feedback: '',
+    rating: 5
+  });
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState('');
   const [errors, setErrors] = useState({});
@@ -42,7 +49,7 @@ const TeacherManagement = () => {
 
   const openAdd = () => { 
     setEditing(null); 
-    setFormData({ name: '', specialization: '', experience: '', description: '' }); 
+    setFormData({ name: '', specialization: '', experience: '', description: '', feedback: '', rating: 5 }); 
     setAvatarFile(null); 
     setAvatarPreview(''); 
     setErrors({});
@@ -50,7 +57,14 @@ const TeacherManagement = () => {
   };
   const openEdit = (tc) => { 
     setEditing(tc); 
-    setFormData({ name: tc.name, specialization: tc.specialization, experience: tc.experience, description: tc.description }); 
+    setFormData({
+      name: tc.name,
+      specialization: tc.specialization,
+      experience: tc.experience,
+      description: tc.description,
+      feedback: tc.feedback ?? '',
+      rating: tc.rating != null && tc.rating !== '' ? Number(tc.rating) : 5
+    }); 
     setAvatarFile(null); 
     setAvatarPreview(getImageUrl(tc.avatar)); 
     setErrors({});
@@ -71,12 +85,22 @@ const TeacherManagement = () => {
 
     if (formData.description && formData.description.length > 50) newErrors.description = 'Max 50 characters';
 
+    if (formData.feedback && formData.feedback.length > 500) newErrors.feedback = 'Max 500 characters';
+
+    const ratingN = Number(formData.rating);
+    if (!Number.isInteger(ratingN) || ratingN < 1 || ratingN > 5) newErrors.rating = 'Rating must be 1–5';
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleAvatarChange = (e) => {
     const file = e.target.files[0];
+    if (file && file.size > 5 * 1024 * 1024) {
+      showToast.error('Ảnh quá lớn! Vui lòng chọn ảnh dưới 5MB 📸');
+      e.target.value = '';
+      return;
+    }
     setAvatarFile(file);
     if (file) {
       const reader = new FileReader();
@@ -90,7 +114,7 @@ const TeacherManagement = () => {
     if (!validate()) return;
     setIsSubmitting(true);
     const fd = new FormData();
-    Object.entries(formData).forEach(([k, v]) => fd.append(k, v));
+    Object.entries(formData).forEach(([k, v]) => fd.append(k, k === 'rating' ? String(v) : v));
     if (avatarFile) fd.append('avatar', avatarFile);
     try {
       if (editing) { await api.put(`/teachers/${editing._id}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }); }
@@ -234,6 +258,46 @@ const TeacherManagement = () => {
                   className={`w-full px-4 py-2.5 rounded-xl border-2 outline-none text-sm resize-none ${errors.description ? 'border-red-400 focus:border-red-500' : 'border-gray-200 focus:border-primary-400'}`}
                   placeholder="Friendly teacher, well-versed in early education" />
                 {errors.description && <p className="text-red-500 text-[10px] mt-1 font-semibold">{errors.description}</p>}
+              </div>
+
+              <div>
+                <div className="flex justify-between mb-1">
+                  <label className="block text-sm font-semibold text-gray-700">Feedback 💬</label>
+                  <span className={`text-[10px] ${(formData.feedback?.length || 0) > 500 ? 'text-red-500' : 'text-gray-400'}`}>
+                    {formData.feedback?.length || 0}/500
+                  </span>
+                </div>
+                <textarea
+                  value={formData.feedback}
+                  onChange={e => setFormData({ ...formData, feedback: e.target.value.slice(0, 500) })}
+                  rows="3"
+                  className={`w-full px-4 py-2.5 rounded-xl border-2 outline-none text-sm resize-none ${errors.feedback ? 'border-red-400 focus:border-red-500' : 'border-gray-200 focus:border-primary-400'}`}
+                  placeholder="Parent or student feedback (optional)"
+                />
+                {errors.feedback && <p className="text-red-500 text-[10px] mt-1 font-semibold">{errors.feedback}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Rating ⭐</label>
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => {
+                    const active = Number(formData.rating) >= star;
+                    return (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, rating: star })}
+                        className={`text-3xl leading-none p-0.5 rounded-lg transition-transform duration-150 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-1 ${active ? 'text-amber-400 drop-shadow-sm' : 'text-gray-200 hover:text-amber-200'}`}
+                        aria-label={`${star} star${star === 1 ? '' : 's'} out of 5`}
+                        aria-pressed={active}
+                      >
+                        ★
+                      </button>
+                    );
+                  })}
+                  <span className="ml-2 text-xs text-gray-500 font-medium tabular-nums">{Number(formData.rating) || 5}/5</span>
+                </div>
+                {errors.rating && <p className="text-red-500 text-[10px] mt-1 font-semibold">{errors.rating}</p>}
               </div>
 
               <div className="grid grid-cols-2 gap-4">

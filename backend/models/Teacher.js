@@ -23,6 +23,18 @@ const teacherSchema = new mongoose.Schema({
     default: '',
     maxlength: 50
   },
+  feedback: {
+    type: String,
+    default: '',
+    maxlength: 500,
+    trim: true
+  },
+  rating: {
+    type: Number,
+    default: 5,
+    min: 1,
+    max: 5
+  },
   avatar: {
     type: String,
     default: ''

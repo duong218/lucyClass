@@ -21,9 +21,12 @@ const courseValidationRules = [
 ];
 
 const teacherValidationRules = [
-  body('name').trim().notEmpty().withMessage('Teacher name is required').isLength({ max: 50 }).escape(),
-  body('specialization').trim().notEmpty().withMessage('Specialization is required').isLength({ max: 100 }).escape(),
-  body('experience').trim().notEmpty().withMessage('Experience description is required').isLength({ max: 500 }).escape(),
+  body('name').trim().notEmpty().withMessage('Teacher name is required').isLength({ max: 40 }),
+  body('specialization').trim().notEmpty().withMessage('Specialization is required').isLength({ max: 100 }),
+  body('experience').trim().notEmpty().withMessage('Experience is required').isInt({ min: 1, max: 40 }).withMessage('Experience must be 1-40 years'),
+  body('description').optional({ checkFalsy: true }).trim().isLength({ max: 50 }).withMessage('Short description max 50 characters'),
+  body('feedback').optional({ checkFalsy: true }).trim().isLength({ max: 500 }).withMessage('Feedback max 500 characters'),
+  body('rating').optional({ checkFalsy: true }).trim().isInt({ min: 1, max: 5 }).withMessage('Rating must be an integer from 1 to 5'),
 ];
 
 module.exports = {
