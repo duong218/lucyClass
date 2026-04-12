@@ -58,10 +58,26 @@
     "step3Desc": "Kids begin fun English classes with interactive activities"
   },
   "teachersSection": {
+    "badge": "Our Team",
     "title": "Meet Our Amazing Teachers!",
     "subtitle": "Dedicated educators passionate about your child's growth",
-    "yearsExp": "years experience"
+    "yearsExp": "Years experience",
+  "card": {
+    "defaultRole": "English Guide",
+    "yearsExp": "Years experience",
+    "hoverHint": "Hover to see details ✨"
   },
+  "modal": {
+    "reviews": "Reviews",
+    "noReviews": "No reviews yet",
+    "reviewer": "Teacher"
+  },
+  "trust": {
+    "certified": "Certified Teachers",
+    "curriculum": "International Curriculum",
+    "childSafe": "Child-Safe Environment",
+    "rated": "Highly Rated"
+  }},
   "testimonials": {
     "title": "What Parents Say About Us",
     "subtitle": "Real feedback from parents whose children are studying at our center"

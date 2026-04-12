@@ -58,10 +58,26 @@
     "step3Desc": "Các bé bắt đầu lớp tiếng Anh vui nhộn với các hoạt động tương tác"
   },
   "teachersSection": {
+    "badge": "Đội ngũ",
     "title": "Gặp Gỡ Đội Ngũ Giáo Viên!",
     "subtitle": "Những nhà giáo dục tận tâm, đam mê sự phát triển của con bạn",
-    "yearsExp": "năm kinh nghiệm"
+    "yearsExp": "Năm kinh nghiệm",
+    "card": {
+    "defaultRole": "Giáo viên",
+    "yearsExp": "năm kinh nghiệm",
+    "hoverHint": "Di chuột để xem chi tiết ✨"
   },
+  "modal": {
+    "reviews": "Đánh giá",
+    "noReviews": "Chưa có đánh giá",
+    "reviewer": "Giáo viên"
+  },
+  "trust": {
+    "certified": "Giáo viên có chứng chỉ",
+    "curriculum": "Chương trình quốc tế",
+    "childSafe": "Môi trường an toàn",
+    "rated": "Đánh giá cao"
+  }},
   "testimonials": {
     "title": "Phụ Huynh Nói Gì Về Chúng Tôi",
     "subtitle": "Phản hồi thực tế từ phụ huynh có con đang học tại trung tâm"
