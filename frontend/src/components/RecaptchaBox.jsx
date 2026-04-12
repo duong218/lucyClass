@@ -28,65 +28,88 @@ const RecaptchaBox = forwardRef(({ onVerify }, ref) => {
   }), []);
 
   useEffect(() => {
-    let isMounted = true;
+  let isMounted = true;
+  let retryCount = 0;
 
-    const render = () => {
-      // Only render if ready, in DOM, and not already rendered/rendering
-      if (!isReady || !window.grecaptcha || !containerRef.current) return;
-      if (widgetIdRef.current !== null || isRenderingRef.current) return;
+  const render = () => {
+    if (!isMounted) return;
 
-      const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
-      if (!siteKey) {
-        console.warn("[RecaptchaBox] No site key found");
-        return;
+    if (
+      !isReady ||
+      !window.grecaptcha ||
+      !containerRef.current
+    ) {
+      if (retryCount < 10) {
+        retryCount++;
+        setTimeout(render, 300);
       }
+      return;
+    }
 
-      try {
-        isRenderingRef.current = true;
-        
-        // Final DOM safety: ensure container is empty
-        if (containerRef.current) {
-          containerRef.current.innerHTML = '';
-        }
+    if (widgetIdRef.current !== null || isRenderingRef.current) return;
 
-        const id = window.grecaptcha.render(containerRef.current, {
-          sitekey: siteKey,
-          callback: (token) => {
-            if (isMounted && onVerifyRef.current) onVerifyRef.current(token);
-          },
-          'expired-callback': () => {
-            if (isMounted && onVerifyRef.current) onVerifyRef.current(null);
-          },
-          'error-callback': () => {
-            if (isMounted && onVerifyRef.current) onVerifyRef.current(null);
+    const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+    if (!siteKey) {
+      console.warn("[RecaptchaBox] No site key found");
+      return;
+    }
+
+    try {
+      isRenderingRef.current = true;
+
+      containerRef.current.innerHTML = '';
+
+      const id = window.grecaptcha.render(containerRef.current, {
+        sitekey: siteKey,
+        callback: (token) => {
+          if (isMounted && onVerifyRef.current) {
+            onVerifyRef.current(token);
           }
-        });
+        },
+        'expired-callback': () => {
+          if (isMounted && onVerifyRef.current) {
+            onVerifyRef.current(null);
+          }
+        },
+        'error-callback': () => {
+          if (isMounted && onVerifyRef.current) {
+            onVerifyRef.current(null);
+          }
+        }
+      });
 
-        widgetIdRef.current = id;
-      } catch (err) {
-        console.error("[RecaptchaBox] Render failed:", err);
-      } finally {
-        isRenderingRef.current = false;
-      }
-    };
+      widgetIdRef.current = id;
 
-    render();
-
-    return () => {
-      isMounted = false;
-      if (widgetIdRef.current !== null) {
-        const id = widgetIdRef.current;
-        try {
-          window.grecaptcha.reset(id);
-        } catch (e) {}
-        widgetIdRef.current = null;
+    } catch (err) {
+      console.warn("[RecaptchaBox] Retry render:", err);
+      if (retryCount < 10) {
+        retryCount++;
+        setTimeout(render, 500);
       }
-      if (containerRef.current) {
-        containerRef.current.innerHTML = '';
-      }
+    } finally {
       isRenderingRef.current = false;
-    };
-  }, [isReady]);
+    }
+  };
+
+  render();
+
+  return () => {
+    isMounted = false;
+
+    if (widgetIdRef.current !== null) {
+      try {
+        window.grecaptcha.reset(widgetIdRef.current);
+      } catch (e) {}
+      widgetIdRef.current = null;
+    }
+
+    if (containerRef.current) {
+      containerRef.current.innerHTML = '';
+    }
+
+    isRenderingRef.current = false;
+  };
+}, [isReady]);
 
   return (
     <div className="recaptcha-outer flex justify-center py-2 min-h-[78px] z-[1]">
