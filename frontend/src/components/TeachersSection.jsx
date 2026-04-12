@@ -1,5 +1,6 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
 import { getImageUrl } from '../utils/getImageUrl';
 import { openModal, closeModal } from '../utils/modalScrollLock';
@@ -234,6 +235,18 @@ const TeachersSection = () => {
   const [isPaused, setIsPaused] = useState(false);
   const sectionRef = useRef(null);
   const hoverTimerRef = useRef(null);
+  const autoRotateRef = useRef(null);
+  const resumeTimerRef = useRef(null);
+  const frameRef = useRef(null);
+  const lastTimeRef = useRef(performance.now());
+
+  const [rotation, setRotation] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isInteracting, setIsInteracting] = useState(false);
+  const [showAllModal, setShowAllModal] = useState(false);
+
+  const BASE_ANGLES = useMemo(() => [-60, -30, 0, 30, 60], []);
+  const normalize = useCallback((deg) => ((deg % 360) + 360) % 360, []);
 
   const fallbackTeachers = [
     { _id: '1', name: 'Ms. Emily', specialization: 'Phonics & Speaking', experience: 5, rating: 5, description: 'Friendly and creative teacher' },
@@ -317,11 +330,54 @@ const TeachersSection = () => {
     : displayTeachers;
 
   const trustBadges = [
-    { icon: '🎓', labelKey: 'teachersSection.trust.certified' },
-    { icon: '🌍', labelKey: 'teachersSection.trust.curriculum' },
-    { icon: '👶', labelKey: 'teachersSection.trust.childSafe' },
-    { icon: '⭐', labelKey: 'teachersSection.trust.rated' },
+    { id: 'certified', icon: '🎓', labelKey: 'teachersSection.trust.certified' },
+    { id: 'curriculum', icon: '🌍', labelKey: 'teachersSection.trust.curriculum' },
+    { id: 'childSafe', icon: '👶', labelKey: 'teachersSection.trust.childSafe' },
+    { id: 'rated', icon: '⭐', labelKey: 'teachersSection.trust.rated' },
   ];
+
+  // Main card auto-switch (2 seconds)
+  useEffect(() => {
+    if (showAllModal || selectedTeacher || window.innerWidth >= 768) return;
+    
+    const interval = setInterval(() => {
+      setCurrentIndex(prev => (prev + 1) % displayTeachers.length);
+    }, 2000);
+    
+    return () => clearInterval(interval);
+  }, [displayTeachers.length, showAllModal, selectedTeacher]);
+
+  // Continuous background ring rotation drift
+  useEffect(() => {
+    let raf;
+    let last = performance.now();
+
+    const animate = (now) => {
+      if (!isInteracting && !selectedTeacher && !showAllModal && window.innerWidth < 768) {
+        const delta = now - last;
+        setRotation(prev => prev + delta * 0.02);
+      }
+      last = now;
+      raf = requestAnimationFrame(animate);
+    };
+
+    raf = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(raf);
+  }, [isInteracting, selectedTeacher, showAllModal]);
+
+  const handleMobileNav = (direction) => {
+    setIsInteracting(true);
+    if (direction === 'next') {
+      setCurrentIndex(prev => (prev + 1) % displayTeachers.length);
+      setRotation(prev => prev + 30);
+    } else {
+      setCurrentIndex(prev => (prev - 1 + displayTeachers.length) % displayTeachers.length);
+      setRotation(prev => prev - 30);
+    }
+    
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+    resumeTimerRef.current = setTimeout(() => setIsInteracting(false), 2000);
+  };
 
   return (
     <section ref={sectionRef} id="teachers" className="relative py-20 md:py-28 bg-gradient-to-b from-white via-blue-50/30 to-white overflow-hidden">
@@ -365,7 +421,7 @@ const TeachersSection = () => {
 
       {/* ── Marquee carousel — full-width, outside centered container ── */}
       {/* FIX: placed outside max-w-7xl so fade overlays reach true screen edges */}
-      <div className="relative py-4 w-full reveal stagger-3">
+      <div className="relative py-4 w-full reveal stagger-3 hidden md:block">
         {/* Fade left — anchored to viewport edge */}
         <div className="absolute left-0 top-0 bottom-0 w-24 md:w-40 bg-gradient-to-r from-white via-white/90 to-transparent z-10 pointer-events-none" />
         {/* Fade right — anchored to viewport edge */}
@@ -405,26 +461,219 @@ const TeachersSection = () => {
         </div>
       </div>
 
+      {/* ── Mobile Dual-Layer Carousel (md:hidden) ── */}
+      <div className="relative md:hidden h-[450px] w-full overflow-visible my-8 reveal stagger-3 px-6">
+        {/* Layer 1: Rotating Avatar Ring (Decorative Background) */}
+        <div className="absolute left-[-110px] top-1/2 -translate-y-1/2 z-0">
+          {(() => {
+            const LOOP_COUNT = displayTeachers.length < 6 ? 3 : 2;
+            const loopedTeachers = Array.from({ length: LOOP_COUNT }).flatMap(() => displayTeachers);
+            
+            return loopedTeachers.map((teacher, i) => {
+              const baseIndex = i % displayTeachers.length;
+              const baseAngle = BASE_ANGLES[baseIndex] || 0;
+              const groupOffset = Math.floor(i / displayTeachers.length) * (360 / LOOP_COUNT);
+              const angle = baseAngle + rotation + groupOffset;
+              const radius = 170;
+
+              return (
+                <motion.div
+                  key={`mobile-ring-${teacher._id}-${i}`}
+                  initial={false}
+                  animate={{
+                    transform: `translate(-50%, -50%) rotate(${angle}deg) translateY(${radius}px) rotate(${-angle}deg)`,
+                    opacity: 1,
+                    scale: 0.9,
+                  }}
+                  transition={{ type: 'spring', stiffness: 60, damping: 15 }}
+                  className="absolute"
+                  style={{ left: 0, top: 0 }}
+                  onClick={() => {
+                    setIsInteracting(true);
+                    setSelectedTeacher(teacher);
+                    setSelectedIndex(i % displayTeachers.length);
+                    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+                    resumeTimerRef.current = setTimeout(() => setIsInteracting(false), 2000);
+                  }}
+                >
+                  <div className="w-14 h-14 rounded-full border-2 border-white bg-white overflow-hidden shadow-md">
+                    {teacher.avatar ? (
+                      <img src={getImageUrl(teacher.avatar)} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-xl bg-gray-50 text-gray-400">👩‍🏫</div>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            });
+          })()}
+        </div>
+
+        {/* Layer 2: Main Active Card (Primary Foreground) */}
+        <div className="absolute left-[85px] right-20 top-1/2 -translate-y-1/2 h-40 flex items-center">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={displayTeachers[currentIndex]?._id || 'none'}
+              initial={{ opacity: 0, x: 20, scale: 0.95 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: -10, scale: 0.95 }}
+              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              className="bg-white/95 backdrop-blur-md rounded-[2.5rem] p-5 shadow-heavy border border-white flex flex-row items-center gap-5 w-full cursor-pointer"
+              onClick={() => {
+                setSelectedTeacher(displayTeachers[currentIndex]);
+                setSelectedIndex(currentIndex);
+              }}
+            >
+              {/* Card Avatar */}
+              <div className="w-20 h-20 rounded-2xl overflow-hidden shadow-lg ring-4 ring-white shrink-0 bg-gradient-to-br from-primary-100 to-primary-200">
+                {displayTeachers[currentIndex]?.avatar ? (
+                  <img 
+                    src={getImageUrl(displayTeachers[currentIndex].avatar)} 
+                    alt={displayTeachers[currentIndex].name} 
+                    className="w-full h-full object-cover" 
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-3xl">👩‍🏫</div>
+                )}
+              </div>
+
+              {/* Card Text Info */}
+              <div className="min-w-0 pr-2">
+                <h4 className="text-lg font-black text-text-main line-clamp-1 leading-tight mb-0.5">
+                  {displayTeachers[currentIndex]?.name}
+                </h4>
+                <p className="text-xs font-bold text-primary-500 truncate mb-1.5">
+                  {displayTeachers[currentIndex]?.specialization || t('teachersSection.card.defaultRole')}
+                </p>
+                <div className="flex items-center gap-1.5">
+                  <Stars rating={displayTeachers[currentIndex]?.rating} size="text-[10px]" />
+                  <span className="text-[10px] font-bold text-text-light">{Number(displayTeachers[currentIndex]?.rating || 5).toFixed(1)}</span>
+                </div>
+              </div>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* Right side controls */}
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-4 z-50">
+          <button 
+            onClick={() => handleMobileNav('prev')}
+            className="w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center text-xl active:scale-90 transition-transform"
+          >
+            ↑
+          </button>
+          <button 
+            onClick={() => {
+              setSelectedTeacher(displayTeachers[currentIndex]);
+              setSelectedIndex(currentIndex);
+            }}
+            className="w-12 h-12 bg-primary-100 text-primary-600 rounded-full shadow-lg flex items-center justify-center text-xl active:scale-90 transition-transform"
+          >
+            ←
+          </button>
+          <button 
+            onClick={() => handleMobileNav('next')}
+            className="w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center text-xl active:scale-90 transition-transform"
+          >
+            ↓
+          </button>
+        </div>
+
+        {/* View All Button */}
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2">
+          <button 
+            onClick={() => setShowAllModal(true)}
+            className="bg-white/90 backdrop-blur-md px-6 py-3 rounded-full shadow-xl border border-gray-100 font-black text-sm text-primary-600 uppercase tracking-widest active:scale-95 transition-transform"
+          >
+            {t('teachersSection.viewAll')}
+          </button>
+        </div>
+      </div>
+
       {/* ── Trust badges strip — back inside centered container ── */}
       <div className="max-w-7xl mx-auto px-6 text-center">
         <div className="flex flex-wrap justify-center gap-6 md:gap-10 mt-12 reveal stagger-4">
-          {trustBadges.map((item, i) => (
-            <div key={i} className="flex items-center gap-2 text-sm font-semibold text-text-light bg-white/70 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-gray-100">
-              <span className="text-lg">{item.icon}</span>
-              {t(item.labelKey)}
-            </div>
+          {trustBadges
+            .filter(item => {
+              // On mobile, only show "certified"
+              if (window.innerWidth < 768) return item.id === 'certified';
+              return true;
+            })
+            .map((item, i) => (
+              <div key={i} className="flex items-center gap-2 text-sm font-semibold text-text-light bg-white/70 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-gray-100">
+                <span className="text-lg">{item.icon}</span>
+                {t(item.labelKey)}
+              </div>
           ))}
         </div>
       </div>
 
       {/* ── Teacher detail modal ── */}
-      {selectedTeacher && (
-        <TeacherModal
-          teacher={selectedTeacher}
-          index={selectedIndex}
-          onClose={handleCloseModal}
-        />
-      )}
+      <AnimatePresence>
+        {selectedTeacher && (
+          <TeacherModal
+            teacher={selectedTeacher}
+            index={selectedIndex}
+            onClose={handleCloseModal}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ── All teachers list modal (Mobile) ── */}
+      <AnimatePresence>
+        {showAllModal && (
+          <div className="fixed inset-0 z-[10000] flex items-end justify-center p-0 md:hidden">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={() => { setShowAllModal(false); setIsPaused(false); closeModal(); }}
+            />
+            <motion.div 
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="relative bg-white w-full rounded-t-[3rem] shadow-heavy overflow-hidden max-h-[85vh] flex flex-col"
+              onMouseEnter={() => openModal()}
+            >
+              <div className="p-6 pb-20 overflow-y-auto custom-scrollbar">
+                <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6" />
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-2xl font-black text-text-main">{t('teachersSection.viewAll')}</h3>
+                  <button onClick={() => { setShowAllModal(false); setIsPaused(false); closeModal(); }} className="text-2xl">✕</button>
+                </div>
+                <div className="space-y-4">
+                  {displayTeachers.map((teacher, i) => (
+                    <div 
+                      key={teacher._id} 
+                      className="flex items-center gap-4 p-4 rounded-3xl bg-gray-50 border border-gray-100 active:scale-95 transition-transform"
+                      onClick={() => {
+                        setSelectedTeacher(teacher);
+                        setSelectedIndex(i);
+                        setShowAllModal(false);
+                      }}
+                    >
+                      <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white shadow-sm ring-2 ring-white">
+                        {teacher.avatar ? (
+                          <img src={getImageUrl(teacher.avatar)} alt={teacher.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-2xl">👩‍🏫</div>
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-text-main">{teacher.name}</h4>
+                        <p className="text-xs text-text-light">{teacher.specialization}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </section>
   );
 };
