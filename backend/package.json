@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "cross-env NODE_ENV=development nodemon server.js"
+    "dev": "cross-env NODE_ENV=development nodemon server.js",
+    "clean:restore-tmp": "node scripts/cleanRestoreTmp.js"
   },
   "dependencies": {
     "adm-zip": "^0.5.16",

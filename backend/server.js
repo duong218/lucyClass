@@ -333,5 +333,6 @@ connectDB().then(() => {
     }
   })();
   initCronJobs();
+  require('./utils/scheduledTasks');
   server = app.listen(PORT, () => console.log(`🚀 Lucy's Class Server running on port ${PORT}`));
 });
