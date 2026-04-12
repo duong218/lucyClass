@@ -11,12 +11,11 @@ export const useLockBodyScroll = (isOpen) => {
   useLayoutEffect(() => {
     if (!isOpen) return;
 
-    // Save current scroll position
+    // ✅ lưu vào biến thật
     const scrollY = window.scrollY;
     const scrollBarWidth = window.innerWidth - document.documentElement.clientWidth;
 
-    // Apply styles to lock body and prevent jump
-    // Adding left: 0 and right: 0 for extra stability on mobile browsers
+    // lock body
     document.body.style.overflow = 'hidden';
     document.body.style.position = 'fixed';
     document.body.style.top = `-${scrollY}px`;
@@ -25,9 +24,10 @@ export const useLockBodyScroll = (isOpen) => {
     document.body.style.width = '100%';
     document.body.style.paddingRight = `${scrollBarWidth}px`;
 
+    document.body.style.touchAction = 'none';
+
     return () => {
-      // Restore styles
-      const savedScrollY = document.body.style.top;
+      // restore styles
       document.body.style.overflow = '';
       document.body.style.position = '';
       document.body.style.top = '';
@@ -35,9 +35,10 @@ export const useLockBodyScroll = (isOpen) => {
       document.body.style.right = '';
       document.body.style.width = '';
       document.body.style.paddingRight = '';
-      
-      // Restore scroll position
-      window.scrollTo(0, parseInt(savedScrollY || '0') * -1);
+
+      // ✅ dùng scrollY gốc (KHÔNG parse từ style)
+      document.body.style.touchAction = '';
+      window.scrollTo(0, scrollY);
     };
   }, [isOpen]);
 };
