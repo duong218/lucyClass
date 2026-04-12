@@ -7,11 +7,11 @@ import { openModal, closeModal } from '../utils/modalScrollLock';
 
 /* ─── Vivid palette for cards (cycles) ─── */
 const CARD_PALETTES = [
-  { bg: 'bg-gradient-to-br from-sky-200 to-blue-300',      border: 'border-sky-400',     badge: 'bg-sky-500 text-white',       accent: '#0ea5e9' },
-  { bg: 'bg-gradient-to-br from-amber-200 to-yellow-300',  border: 'border-amber-400',   badge: 'bg-amber-500 text-white',     accent: '#f59e0b' },
-  { bg: 'bg-gradient-to-br from-emerald-200 to-green-300', border: 'border-emerald-500', badge: 'bg-emerald-500 text-white',   accent: '#10b981' },
-  { bg: 'bg-gradient-to-br from-pink-200 to-rose-300',     border: 'border-rose-400',    badge: 'bg-rose-500 text-white',      accent: '#f43f5e' },
-  { bg: 'bg-gradient-to-br from-violet-200 to-purple-300', border: 'border-violet-500',  badge: 'bg-violet-500 text-white',    accent: '#8b5cf6' },
+  { bg: 'bg-gradient-to-br from-sky-200 to-blue-300', border: 'border-sky-400', badge: 'bg-sky-500 text-white', accent: '#0ea5e9' },
+  { bg: 'bg-gradient-to-br from-amber-200 to-yellow-300', border: 'border-amber-400', badge: 'bg-amber-500 text-white', accent: '#f59e0b' },
+  { bg: 'bg-gradient-to-br from-emerald-200 to-green-300', border: 'border-emerald-500', badge: 'bg-emerald-500 text-white', accent: '#10b981' },
+  { bg: 'bg-gradient-to-br from-pink-200 to-rose-300', border: 'border-rose-400', badge: 'bg-rose-500 text-white', accent: '#f43f5e' },
+  { bg: 'bg-gradient-to-br from-violet-200 to-purple-300', border: 'border-violet-500', badge: 'bg-violet-500 text-white', accent: '#8b5cf6' },
 ];
 
 const palette = (i) => CARD_PALETTES[i % CARD_PALETTES.length];
@@ -239,12 +239,13 @@ const TeachersSection = () => {
   const resumeTimerRef = useRef(null);
   const frameRef = useRef(null);
   const lastTimeRef = useRef(performance.now());
+  const [isInView, setIsInView] = useState(false);
 
   const [rotation, setRotation] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isUserInteracting, setIsUserInteracting] = useState(false);
   const [showAllModal, setShowAllModal] = useState(false);
-  
+
   const interactionTimeoutRef = useRef(null);
 
   const BASE_ANGLES = useMemo(() => [-60, -30, 0, 30, 60], []);
@@ -278,6 +279,7 @@ const TeachersSection = () => {
       entries.forEach(entry => {
         if (entry.isIntersecting && entry.target) {
           entry.target.classList.add('active');
+          setIsInView(true);
         }
       });
     }, { threshold: 0.1 });
@@ -349,32 +351,45 @@ const TeachersSection = () => {
 
   // Main card auto-switch (2 seconds)
   useEffect(() => {
-    if (showAllModal || selectedTeacher || window.innerWidth >= 768 || isUserInteracting) return;
-    
-    const interval = setInterval(() => {
-      setCurrentIndex(prev => (prev + 1) % displayTeachers.length);
-    }, 2000);
-    
-    return () => clearInterval(interval);
-  }, [displayTeachers.length, showAllModal, selectedTeacher, isUserInteracting]);
+    if (!isInView || showAllModal || selectedTeacher || window.innerWidth >= 768) return;
+    console.log("Starting auto-rotate");
 
-  // Continuous background ring rotation drift
+    const start = setTimeout(() => {
+      const interval = setInterval(() => {
+        setCurrentIndex(prev => (prev + 1) % displayTeachers.length);
+      }, 2000);
+
+      autoRotateRef.current = interval;
+    }, 300)
+    return () => {
+      clearTimeout(start);
+      if (autoRotateRef.current) clearInterval(autoRotateRef.current);
+    };
+  }, [displayTeachers.length, showAllModal, selectedTeacher, isInView]);
+
+  // Continuous background ring rotation drift (Stabilized)
   useEffect(() => {
-    if (isUserInteracting || selectedTeacher || showAllModal || window.innerWidth >= 768) return;
-    
+    if (!isInView || isUserInteracting || selectedTeacher || showAllModal || window.innerWidth >= 768) return;
+
     let raf;
     let last = performance.now();
+    let accumulator = 0;
 
     const animate = (now) => {
       const delta = now - last;
-      setRotation(prev => prev + delta * 0.02);
       last = now;
+      accumulator += delta;
+
+      if (accumulator > 16) {
+        setRotation(prev => prev + accumulator * 0.015);
+        accumulator = 0;
+      }
       raf = requestAnimationFrame(animate);
     };
 
     raf = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(raf);
-  }, [isUserInteracting, selectedTeacher, showAllModal]);
+  }, [isUserInteracting, selectedTeacher, showAllModal, isInView]);
 
   const handleMobileNav = (direction) => {
     handleUserInteraction();
@@ -476,7 +491,7 @@ const TeachersSection = () => {
           {(() => {
             const LOOP_COUNT = displayTeachers.length < 6 ? 3 : 2;
             const loopedTeachers = Array.from({ length: LOOP_COUNT }).flatMap(() => displayTeachers);
-            
+
             return loopedTeachers.map((teacher, i) => {
               const baseIndex = i % displayTeachers.length;
               const baseAngle = BASE_ANGLES[baseIndex] || 0;
@@ -495,7 +510,12 @@ const TeachersSection = () => {
                   }}
                   transition={{ type: 'spring', stiffness: 60, damping: 15 }}
                   className="absolute"
-                  style={{ left: 0, top: 0 }}
+                  style={{
+                    left: 0,
+                    top: 0,
+                    willChange: "transform",
+                    transform: "translateZ(0)"
+                  }}
                   onClick={() => {
                     handleUserInteraction();
                     setSelectedTeacher(teacher);
@@ -524,7 +544,7 @@ const TeachersSection = () => {
               animate={{ opacity: 1, x: 0, scale: 1 }}
               exit={{ opacity: 0, x: -10, scale: 0.95 }}
               transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-              className="bg-white/95 backdrop-blur-md rounded-[2.5rem] p-5 shadow-heavy border border-white flex flex-row items-center gap-5 w-full cursor-pointer"
+              className="bg-gradient-to-br from-blue-50 via-white to-purple-50 border border-blue-200 shadow-[0_10px_30px_rgba(59,130,246,0.15)] rounded-3xl p-5 flex flex-row items-center gap-5 w-full cursor-pointer"
               onClick={() => {
                 setSelectedTeacher(displayTeachers[currentIndex]);
                 setSelectedIndex(currentIndex);
@@ -533,10 +553,10 @@ const TeachersSection = () => {
               {/* Card Avatar */}
               <div className="w-20 h-20 rounded-2xl overflow-hidden shadow-lg ring-4 ring-white shrink-0 bg-gradient-to-br from-primary-100 to-primary-200">
                 {displayTeachers[currentIndex]?.avatar ? (
-                  <img 
-                    src={getImageUrl(displayTeachers[currentIndex].avatar)} 
-                    alt={displayTeachers[currentIndex].name} 
-                    className="w-full h-full object-cover" 
+                  <img
+                    src={getImageUrl(displayTeachers[currentIndex].avatar)}
+                    alt={displayTeachers[currentIndex].name}
+                    className="w-full h-full object-cover"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-3xl">👩‍🏫</div>
@@ -545,6 +565,7 @@ const TeachersSection = () => {
 
               {/* Card Text Info */}
               <div className="min-w-0 pr-2">
+                <div className="h-1 w-16 bg-gradient-to-r from-blue-400 to-pink-400 rounded-full mb-2" />
                 <h4 className="text-lg font-black text-text-main line-clamp-1 leading-tight mb-0.5">
                   {displayTeachers[currentIndex]?.name}
                 </h4>
@@ -562,13 +583,13 @@ const TeachersSection = () => {
 
         {/* Right side controls */}
         <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-4 z-50">
-          <button 
+          <button
             onClick={() => handleMobileNav('prev')}
             className="w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center text-xl active:scale-90 transition-transform"
           >
             ↑
           </button>
-          <button 
+          <button
             onClick={() => {
               setSelectedTeacher(displayTeachers[currentIndex]);
               setSelectedIndex(currentIndex);
@@ -577,7 +598,7 @@ const TeachersSection = () => {
           >
             ←
           </button>
-          <button 
+          <button
             onClick={() => handleMobileNav('next')}
             className="w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center text-xl active:scale-90 transition-transform"
           >
@@ -587,7 +608,7 @@ const TeachersSection = () => {
 
         {/* View All Button */}
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2">
-          <button 
+          <button
             onClick={() => setShowAllModal(true)}
             className="bg-white/90 backdrop-blur-md px-6 py-3 rounded-full shadow-xl border border-gray-100 font-black text-sm text-primary-600 uppercase tracking-widest active:scale-95 transition-transform"
           >
@@ -610,7 +631,7 @@ const TeachersSection = () => {
                 <span className="text-lg">{item.icon}</span>
                 {t(item.labelKey)}
               </div>
-          ))}
+            ))}
         </div>
       </div>
 
@@ -629,14 +650,14 @@ const TeachersSection = () => {
       <AnimatePresence>
         {showAllModal && (
           <div className="fixed inset-0 z-[10000] flex items-end justify-center p-0 md:hidden">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="absolute inset-0 bg-black/40 backdrop-blur-sm"
               onClick={() => { setShowAllModal(false); setIsPaused(false); closeModal(); }}
             />
-            <motion.div 
+            <motion.div
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
@@ -652,8 +673,8 @@ const TeachersSection = () => {
                 </div>
                 <div className="space-y-4">
                   {displayTeachers.map((teacher, i) => (
-                    <div 
-                      key={teacher._id} 
+                    <div
+                      key={teacher._id}
                       className="flex items-center gap-4 p-4 rounded-3xl bg-gray-50 border border-gray-100 active:scale-95 transition-transform"
                       onClick={() => {
                         setSelectedTeacher(teacher);
