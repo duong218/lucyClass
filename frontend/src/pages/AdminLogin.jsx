@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import ReCAPTCHA from 'react-google-recaptcha';
+import RecaptchaBox from '../components/RecaptchaBox';
 import { useAuth } from '../contexts/AuthContext';
 import { Eye, EyeOff } from 'lucide-react';
 
@@ -9,7 +9,7 @@ const AdminLogin = () => {
   const { t } = useTranslation();
   const { login } = useAuth();
   const navigate = useNavigate();
-  const recaptchaRef = useRef();
+  const recaptchaRef = useRef(null);
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -79,7 +79,9 @@ const handleSubmit = async (e) => {
     console.error('Login failed:', err);
     setError(err.response?.data?.message || t('admin.invalidCredentials'));
 
-    if (recaptchaRef.current) recaptchaRef.current.reset();
+    if (recaptchaRef.current) {
+      try { recaptchaRef.current.reset(); } catch (e) {}
+    }
     setCaptchaToken(null);
   } finally {
     setLoading(false);
@@ -190,13 +192,7 @@ const handleSubmit = async (e) => {
             </div>
 
             {/* Google reCAPTCHA */}
-            <div className="flex justify-center py-2">
-              <ReCAPTCHA
-                ref={recaptchaRef}
-                sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
-                onChange={(token) => setCaptchaToken(token)}
-              />
-            </div>
+            <RecaptchaBox ref={recaptchaRef} onVerify={setCaptchaToken} />
 
             <button
               type="submit" disabled={loading}

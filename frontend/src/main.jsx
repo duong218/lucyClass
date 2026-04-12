@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import { AuthProvider } from './contexts/AuthContext'
+import { RecaptchaProvider } from './components/RecaptchaProvider'
 import { keepAliveBackend } from './utils/keepAlive'
 import './i18n.js'
 import './index.css'
@@ -17,7 +18,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
       <AuthProvider>
-        <App />
+        <RecaptchaProvider>
+          <App />
+        </RecaptchaProvider>
       </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>,

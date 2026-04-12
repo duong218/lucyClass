@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import ReCAPTCHA from 'react-google-recaptcha';
+import RecaptchaBox from './RecaptchaBox';
 import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
@@ -55,8 +55,7 @@ const RegistrationForm = () => {
   const handleSubmit = async (e, ignoreDuplicate = false) => {
     if (e) e.preventDefault();
 
-    const freshToken = recaptchaRef.current?.getValue();
-    if (!freshToken && !ignoreDuplicate) {
+    if (!captchaToken && !ignoreDuplicate) {
       toast.warning(t("form.captcha_required"));
       return;
     }
@@ -68,14 +67,14 @@ const RegistrationForm = () => {
       const courseName = selectedCourse ? selectedCourse.name : '';
       const res = await api.post('/registrations', {
         ...formData,
-        captchaToken: freshToken || captchaToken,
+        captchaToken,
         courseName,
         ignoreDuplicate
       });
 
       if (res.data.warning && res.data.type === 'DUPLICATE_WARN') {
         setDuplicateConfirm({ message: res.data.message, data: formData });
-        recaptchaRef.current?.reset();
+        if (recaptchaRef.current) recaptchaRef.current.reset();
         setCaptchaToken(null);
         setStatus({ loading: false });
         return;
@@ -86,7 +85,7 @@ const RegistrationForm = () => {
         style: { borderRadius: '20px', fontWeight: 'bold' }
       });
       setFormData({ parentName: '', phone: '', childName: '', childAge: 5, courseId: '', email: '', message: '' });
-      recaptchaRef.current?.reset();
+      if (recaptchaRef.current) recaptchaRef.current.reset();
       setCaptchaToken(null);
       setDuplicateConfirm(null);
       setStatus({ loading: false });
@@ -149,7 +148,7 @@ const RegistrationForm = () => {
         }
       }
 
-      recaptchaRef.current?.reset();
+      if (recaptchaRef.current) recaptchaRef.current.reset();
       setCaptchaToken(null);
       setStatus({ loading: false });
     }
@@ -371,15 +370,7 @@ const RegistrationForm = () => {
           </div>
 
           {/* ReCAPTCHA */}
-          <div className="flex flex-col items-center py-1">
-            <div className="scale-90 md:scale-100 origin-center">
-              <ReCAPTCHA
-                ref={recaptchaRef}
-                sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
-                onChange={(token) => setCaptchaToken(token)}
-              />
-            </div>
-          </div>
+          <RecaptchaBox ref={recaptchaRef} onVerify={(token) => setCaptchaToken(token)} />
 
           {/* Submit Button */}
           <div className="flex justify-center flex-col items-center gap-4">
@@ -434,8 +425,7 @@ const RegistrationForm = () => {
                 </button>
                 <button
                   onClick={() => {
-                    const token = recaptchaRef.current?.getValue();
-                    if (!token) {
+                    if (!captchaToken) {
                       toast.warning('Vui lòng xác minh captcha trước khi tiếp tục');
                       setDuplicateConfirm(null);
                       return;

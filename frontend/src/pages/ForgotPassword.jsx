@@ -1,17 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api, { fetchCsrfToken } from '../services/api';
+import RecaptchaBox from '../components/RecaptchaBox';
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
-  const [captchaReady, setCaptchaReady] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState(null);
+  const recaptchaRef = useRef(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const emailRef = useRef(null); // Ref for input focus
-  const captchaRef = useRef(null);
-  const widgetId = useRef(null);
+  const emailRef = useRef(null);
 
   // Auto-clear messages after 5 seconds
   useEffect(() => {
@@ -24,38 +24,14 @@ const ForgotPassword = () => {
     }
   }, [message, error]);
 
-  // Manual reCAPTCHA rendering to avoid "No reCAPTCHA clients exist"
-  useEffect(() => {
-    let timeoutId;
-    const initCaptcha = () => {
-      if (window.grecaptcha && window.grecaptcha.render) {
-        if (captchaRef.current && widgetId.current === null) {
-          try {
-            widgetId.current = window.grecaptcha.render(captchaRef.current, {
-              sitekey: import.meta.env.VITE_RECAPTCHA_SITE_KEY,
-              callback: () => setCaptchaReady(true),
-              'expired-callback': () => setCaptchaReady(false)
-            });
-          } catch (e) {
-            console.warn("reCAPTCHA rendering skipped or failed:", e);
-          }
-        }
-      } else {
-        timeoutId = setTimeout(initCaptcha, 500);
-      }
-    };
-
-    initCaptcha();
-    return () => clearTimeout(timeoutId);
-  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     console.log(`[Frontend] Gửi yêu cầu đặt lại mật khẩu cho: ${email}`);
 
-    // Verify grecaptcha is ready + widget exists
-    if (!window.grecaptcha || widgetId.current === null) {
-      setError('Hệ thống bảo mật chưa sẵn sàng, vui lòng đợi trong giây lát');
+    // Verify captcha token
+    if (!captchaToken) {
+      setError('Hệ thống bảo mật chưa sẵn sàng hoặc bạn chưa xác minh captcha');
       return;
     }
 
@@ -64,15 +40,7 @@ const ForgotPassword = () => {
     setError('');
 
     // Safety delay before getResponse (300ms)
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    // Get reCAPTCHA token using specific widgetId
-    const recaptchaToken = window.grecaptcha.getResponse(widgetId.current);
-    if (!recaptchaToken) {
-      setError('Vui lòng xác minh reCAPTCHA');
-      setLoading(false);
-      return;
-    }
+    const recaptchaToken = captchaToken;
 
     try {
       // Step 1: Fetch CSRF Token
@@ -100,10 +68,10 @@ const ForgotPassword = () => {
     } finally {
       setLoading(false);
       // Reset reCAPTCHA and readiness state after submission
-      if (window.grecaptcha && widgetId.current !== null) {
-        window.grecaptcha.reset(widgetId.current);
-        setCaptchaReady(false);
+      if (recaptchaRef.current) {
+        try { recaptchaRef.current.reset(); } catch (e) {}
       }
+      setCaptchaToken(null);
     }
   };
 
@@ -154,14 +122,12 @@ const ForgotPassword = () => {
               </div>
             </div>
 
-            {/* Google reCAPTCHA Container */}
-            <div className="flex justify-center min-h-[78px]">
-              <div ref={captchaRef}></div>
-            </div>
+            {/* Google reCAPTCHA */}
+            <RecaptchaBox ref={recaptchaRef} onVerify={setCaptchaToken} />
 
             <button
               type="submit"
-              disabled={loading || widgetId.current === null || !captchaReady}
+              disabled={loading || !captchaToken}
               className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 rounded-2xl font-black text-lg hover:shadow-[0_10px_20px_rgba(37,99,235,0.3)] transition-all disabled:opacity-70 active:scale-95 shadow-lg flex items-center justify-center gap-3"
             >
               {loading ? (

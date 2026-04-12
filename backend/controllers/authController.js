@@ -75,7 +75,8 @@ exports.login = async (req, res) => {
 
     // Verify CAPTCHA
     const recaptchaRes = await axios.post('https://www.google.com/recaptcha/api/siteverify',
-      new URLSearchParams({ secret: process.env.RECAPTCHA_SECRET_KEY, response: captchaToken }));
+      new URLSearchParams({ secret: process.env.RECAPTCHA_SECRET_KEY, response: captchaToken }),
+      { timeout: 5000 });
     if (!recaptchaRes.data.success) {
       return res.status(400).json({ message: 'reCAPTCHA failed' });
     }
@@ -236,7 +237,8 @@ exports.forgotPassword = async (req, res) => {
     }
 
     const recaptchaRes = await axios.post('https://www.google.com/recaptcha/api/siteverify',
-      new URLSearchParams({ secret: process.env.RECAPTCHA_SECRET_KEY, response: recaptchaToken }));
+      new URLSearchParams({ secret: process.env.RECAPTCHA_SECRET_KEY, response: recaptchaToken }),
+      { timeout: 5000 });
 
     if (!recaptchaRes.data.success) {
       console.warn('[ForgotPassword] reCAPTCHA failed:', recaptchaRes.data['error-codes']);
