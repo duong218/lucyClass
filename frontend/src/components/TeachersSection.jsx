@@ -608,13 +608,34 @@ const TeachersSection = () => {
 
         {/* View All Button */}
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2">
-          <button
-            onClick={() => setShowAllModal(true)}
-            className="bg-white/90 backdrop-blur-md px-6 py-3 rounded-full shadow-xl border border-gray-100 font-black text-sm text-primary-600 uppercase tracking-widest active:scale-95 transition-transform"
-          >
-            {t('teachersSection.viewAll')}
-          </button>
-        </div>
+  <button
+    onClick={() => setShowAllModal(true)}
+    className="
+      relative
+      bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500
+      text-white
+      font-black
+      text-sm
+      px-8 py-4
+      rounded-full
+      shadow-[0_10px_30px_rgba(59,130,246,0.4)]
+      hover:shadow-[0_15px_40px_rgba(139,92,246,0.5)]
+      active:scale-95
+      transition-all duration-300
+      uppercase tracking-widest
+      overflow-hidden
+    "
+  >
+    {/* Glow effect */}
+    <span className="absolute inset-0 bg-white/20 opacity-0 hover:opacity-100 transition-opacity duration-300 rounded-full" />
+
+    {/* Text */}
+    <span className="relative z-10 flex items-center gap-2 justify-center">
+      👀 {t('teachersSection.viewAll')} →
+    </span>
+  </button>
+</div>
+
       </div>
 
       {/* ── Trust badges strip — back inside centered container ── */}
