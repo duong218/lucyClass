@@ -45,7 +45,6 @@ const TestimonialsSection = () => {
 
       <div className="max-w-6xl mx-auto text-center relative z-10">
         <h2 className="text-3xl md:text-4xl font-display font-black text-text-main mb-2">{t('testimonials.title')}</h2>
-        <h3 className="text-2xl font-bold text-text-main mb-4">{t('testimonials.title')}</h3>
         <p className="text-gray-500 mb-16 max-w-2xl mx-auto">{t('testimonials.subtitle')}</p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
