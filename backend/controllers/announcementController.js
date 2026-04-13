@@ -1,6 +1,7 @@
 const Announcement = require('../models/Announcement');
 const mongoose = require('mongoose');
 const { uploadImageBuffer, deleteImageFromCloudinary } = require('../utils/cloudinary');
+const { cleanInput } = require('../utils/sanitize');
 
 /**
  * Standard Success Response
@@ -57,8 +58,8 @@ exports.create = async (req, res) => {
     }
 
     const announcementData = {
-      title: title.trim(),
-      description: description.trim()
+      title: cleanInput(title),
+      description: cleanInput(description)
     };
 
     if (uploadResult) {
@@ -113,8 +114,8 @@ exports.update = async (req, res) => {
     }
 
     // Only update provided fields
-    if (title !== undefined) updateData.title = title.trim();
-    if (description !== undefined) updateData.description = description.trim();
+    if (title !== undefined) updateData.title = cleanInput(title);
+    if (description !== undefined) updateData.description = cleanInput(description);
 
     let uploadResult = null;
     if (req.file && req.file.buffer) {

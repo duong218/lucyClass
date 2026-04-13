@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const { logAction } = require('../utils/logger');
 const logAdminAction = require('../utils/logAdminAction');
 const { uploadImageBuffer, deleteImageFromCloudinary } = require('../utils/cloudinary');
+const { cleanInput } = require('../utils/sanitize');
 
 // GET /api/feedback
 exports.getAll = async (req, res, next) => {
@@ -41,7 +42,13 @@ exports.create = async (req, res) => {
     if (childAge !== undefined && (childAge < 4 || childAge > 16)) return res.status(400).json({ success: false, message: 'Child age must be between 4 and 16' });
     if (text?.length > 200) return res.status(400).json({ success: false, message: 'Feedback text max 200 characters' });
 
-    const data = { parentName, childName, childAge, rating, text };
+    const data = { 
+      parentName: cleanInput(parentName), 
+      childName: cleanInput(childName), 
+      childAge, 
+      rating, 
+      text: cleanInput(text) 
+    };
 
     if (req.file && req.file.buffer) {
       try {
@@ -99,11 +106,11 @@ exports.update = async (req, res) => {
     if (!existing) return res.status(404).json({ success: false, message: 'Feedback not found' });
 
     const data = {};
-    if (parentName !== undefined) data.parentName = parentName;
-    if (childName !== undefined) data.childName = childName;
+    if (parentName !== undefined) data.parentName = cleanInput(parentName);
+    if (childName !== undefined) data.childName = cleanInput(childName);
     if (childAge !== undefined) data.childAge = childAge;
     if (rating !== undefined) data.rating = rating;
-    if (text !== undefined) data.text = text;
+    if (text !== undefined) data.text = cleanInput(text);
 
     if (req.file && req.file.buffer) {
       try {

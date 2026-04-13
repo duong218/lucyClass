@@ -7,6 +7,7 @@ const { logAction } = require('../utils/logger');
 const logAdminAction = require('../utils/logAdminAction');
 const emailService = require('../utils/emailService');
 const { appendToSheet } = require("../googleSheets");
+const { cleanInput } = require("../utils/sanitize");
 
 // Lightweight regex escape utility
 const escapeStringRegexp = (string) => {
@@ -243,10 +244,13 @@ exports.create = async (req, res) => {
         if (req.body[field] !== undefined) filteredData[field] = req.body[field];
       }
 
-      filteredData.phone = normPhone;
-      filteredData.email = normEmail;
-      filteredData.parentName = req.body.parentName?.trim();
-      filteredData.childName = req.body.childName?.trim();
+      filteredData.phone = cleanInput(normPhone);
+      filteredData.email = cleanInput(normEmail);
+      filteredData.parentName = cleanInput(req.body.parentName);
+      filteredData.childName = cleanInput(req.body.childName);
+      if (filteredData.message) {
+        filteredData.message = cleanInput(filteredData.message);
+      }
 
       reg = new Registration(filteredData);
       await reg.save({ session });
@@ -315,7 +319,11 @@ exports.update = async (req, res) => {
   const ALLOWED = ['childName', 'parentName', 'phone', 'email', 'note', 'message', 'childAge', 'status'];
   const updateData = {};
   for (const field of ALLOWED) {
-    if (req.body[field] !== undefined) updateData[field] = req.body[field];
+    if (req.body[field] !== undefined) {
+      updateData[field] = (typeof req.body[field] === 'string' && field !== 'status') 
+        ? cleanInput(req.body[field]) 
+        : req.body[field];
+    }
   }
 
   // Reject empty strings after trim (only when explicitly provided)

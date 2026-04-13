@@ -2,17 +2,7 @@ const Teacher = require('../models/Teacher');
 const mongoose = require('mongoose');
 const logAdminAction = require('../utils/logAdminAction');
 const { uploadImageBuffer, deleteImageFromCloudinary } = require('../utils/cloudinary');
-
-/** Basic HTML entity escape for stored text (XSS mitigation). */
-function escapeHtml(str) {
-  if (str == null || typeof str !== 'string') return '';
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+const { cleanInput } = require('../utils/sanitize');
 
 function pickTeacherInput(body) {
   if (!body || typeof body !== 'object') return {};
@@ -96,11 +86,11 @@ exports.create = async (req, res) => {
     if (ratingVal === null) return res.status(400).json({ success: false, message: 'Rating must be integer 1-5' });
 
     const data = {
-      name,
-      specialization,
+      name: cleanInput(name),
+      specialization: cleanInput(specialization),
       experience: experienceNum,
-      description: escapeHtml(descriptionRaw),
-      feedback: feedbackRaw,
+      description: cleanInput(descriptionRaw),
+      feedback: cleanInput(feedbackRaw),
       rating: ratingVal
     };
 
@@ -158,13 +148,13 @@ exports.update = async (req, res) => {
       const name = trimStr(body.name);
       if (name.length === 0) return res.status(400).json({ success: false, message: 'Teacher name cannot be empty' });
       if (name.length > 40) return res.status(400).json({ success: false, message: 'Teacher name max 40 characters' });
-      data.name = name;
+      data.name = cleanInput(name);
     }
     if (Object.prototype.hasOwnProperty.call(body, 'specialization')) {
       const specialization = trimStr(body.specialization);
       if (specialization.length === 0) return res.status(400).json({ success: false, message: 'Specialization cannot be empty' });
       if (specialization.length > 100) return res.status(400).json({ success: false, message: 'Specialization max 100 characters' });
-      data.specialization = specialization;
+      data.specialization = cleanInput(specialization);
     }
     if (Object.prototype.hasOwnProperty.call(body, 'experience')) {
       const experienceNum = Number(body.experience);
@@ -177,12 +167,12 @@ exports.update = async (req, res) => {
       const descriptionRaw = trimStr(body.description ?? '');
       if (descriptionRaw.length === 0) return res.status(400).json({ success: false, message: 'Short description cannot be empty' });
       if (descriptionRaw.length > 50) return res.status(400).json({ success: false, message: 'Short description max 50 characters' });
-      data.description = escapeHtml(descriptionRaw);
+      data.description = cleanInput(descriptionRaw);
     }
     if (Object.prototype.hasOwnProperty.call(body, 'feedback')) {
       const feedbackRaw = trimStr(body.feedback ?? '');
       if (feedbackRaw.length > 500) return res.status(400).json({ success: false, message: 'Feedback max 500 characters' });
-      data.feedback = feedbackRaw;
+      data.feedback = cleanInput(feedbackRaw);
     }
     if (Object.prototype.hasOwnProperty.call(body, 'rating')) {
       const ratingVal = parseRatingStrict(body.rating);

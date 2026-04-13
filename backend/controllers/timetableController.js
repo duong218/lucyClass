@@ -3,6 +3,7 @@ const TimetableCell = require('../models/TimetableCell');
 const mongoose = require('mongoose');
 const logAdminAction = require('../utils/logAdminAction');
 const XLSX = require('xlsx');
+const { cleanInput } = require('../utils/sanitize');
 
 // --- 🌍 UTC WEEK NORMALIZATION ---
 
@@ -94,8 +95,8 @@ exports.createRow = async (req, res) => {
         const nextOrder = (maxRow?.order ?? 0) + 1;
 
         row = await TimetableRow.create({
-          roomName: roomName.trim(),
-          timeSlot: timeSlot.trim(),
+          roomName: cleanInput(roomName.trim()),
+          timeSlot: cleanInput(timeSlot.trim()),
           order: nextOrder
         });
         break; // Success — exit retry loop
@@ -136,8 +137,8 @@ exports.updateRow = async (req, res) => {
     const { roomName, timeSlot } = req.body;
 
     const updateData = {};
-    if (roomName !== undefined) updateData.roomName = roomName.trim();
-    if (timeSlot !== undefined) updateData.timeSlot = timeSlot.trim();
+    if (roomName !== undefined) updateData.roomName = cleanInput(roomName.trim());
+    if (timeSlot !== undefined) updateData.timeSlot = cleanInput(timeSlot.trim());
 
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ success: false, message: 'No fields to update' });
@@ -284,8 +285,8 @@ exports.upsertCell = async (req, res) => {
 
     // Build update payload (only include defined fields)
     const updatePayload = {};
-    if (note !== undefined) updatePayload.note = note.trim();
-    if (color !== undefined) updatePayload.color = color;
+    if (note !== undefined) updatePayload.note = cleanInput(note.trim());
+    if (color !== undefined) updatePayload.color = cleanInput(color);
 
     const cell = await TimetableCell.findOneAndUpdate(
       { rowId, dayOfWeek: day, weekDate: monday },

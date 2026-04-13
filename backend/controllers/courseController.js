@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const { logAction } = require('../utils/logger');
 const logAdminAction = require('../utils/logAdminAction');
 const { uploadImageBuffer, deleteImageFromCloudinary } = require('../utils/cloudinary');
+const { cleanInput } = require('../utils/sanitize');
 
 // GET /api/courses
 exports.getAll = async (req, res, next) => {
@@ -72,11 +73,18 @@ exports.create = async (req, res) => {
     const size = parseInt(classSize);
     if (isNaN(size) || size < 1 || size > 100) return res.status(400).json({ success: false, message: 'Class size must be between 1 and 100' });
 
-    const data = { name, description, teacher: teacher || null, ageGroup, duration, classSize: size };
+    const data = { 
+      name: cleanInput(name), 
+      description: cleanInput(description), 
+      teacher: teacher || null, 
+      ageGroup: cleanInput(ageGroup), 
+      duration: cleanInput(duration), 
+      classSize: size 
+    };
 
     try {
       const parsed = parseHighlights(highlights);
-      if (parsed !== undefined) data.highlights = parsed;
+      if (parsed !== undefined) data.highlights = parsed.map(h => cleanInput(h));
     } catch (err) {
       return res.status(400).json({ success: false, message: err.message });
     }
@@ -150,17 +158,17 @@ exports.update = async (req, res) => {
     if (!existing) return res.status(404).json({ success: false, message: 'Course not found' });
 
     const data = {};
-    if (name !== undefined) data.name = name;
-    if (description !== undefined) data.description = description;
+    if (name !== undefined) data.name = cleanInput(name);
+    if (description !== undefined) data.description = cleanInput(description);
     if (teacher !== undefined) data.teacher = teacher || null;
-    if (ageGroup !== undefined) data.ageGroup = ageGroup;
-    if (duration !== undefined) data.duration = duration;
+    if (ageGroup !== undefined) data.ageGroup = cleanInput(ageGroup);
+    if (duration !== undefined) data.duration = cleanInput(duration);
     if (classSize !== undefined) data.classSize = size;
 
     try {
       if (highlights !== undefined) {
         const parsed = parseHighlights(highlights);
-        if (parsed !== undefined) data.highlights = parsed;
+        if (parsed !== undefined) data.highlights = parsed.map(h => cleanInput(h));
       }
     } catch (err) {
       return res.status(400).json({ success: false, message: err.message });

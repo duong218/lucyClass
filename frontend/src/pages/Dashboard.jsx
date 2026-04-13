@@ -387,12 +387,12 @@ const Dashboard = () => {
         </div>
       )}
 
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style>{`
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         .animate-slide-in { animation: slideIn 0.3s ease-out forwards; }
         .scale-in { animation: scaleIn 0.2s ease-out forwards; }
         @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-      `}} />
+      `}</style>
     </div>
   );
 };

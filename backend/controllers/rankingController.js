@@ -1,5 +1,6 @@
 const Ranking = require('../models/Ranking');
 const mongoose = require('mongoose');
+const { cleanInput } = require('../utils/sanitize');
 
 const getPreviousMonthYear = () => {
   const now = new Date();
@@ -116,11 +117,11 @@ const createOrUpdateRanking = async (req, res) => {
     const rankingPayload = {
       studentId,
       courseId,
-      childName: normalizedChildName,
-      courseName: normalizedCourseName,
+      childName: cleanInput(normalizedChildName),
+      courseName: cleanInput(normalizedCourseName),
       stars: parsedStars,
-      title: normalizedTitle,
-      skill: normalizedSkill,
+      title: cleanInput(normalizedTitle),
+      skill: cleanInput(normalizedSkill),
       month,
       year
     };
