@@ -193,3 +193,47 @@ There is a slight architectural discrepancy where `securityMiddleware.js` whitel
     -   Apply a dedicated `refreshLimiter` (e.g., 20 requests per hour per IP) to the `/api/auth/refresh-token` endpoint.
 4.  **Enlist Audit Trails**:
     -   Increase the granularity of the `AuditLog` for session-related events, specifically tracking session conflict triggers and refresh token rotation failures.
+---
+
+## Stored XSS Mitigation (Resolved)
+
+### Overview
+Previously, the system was vulnerable to Stored XSS due to unsanitized user input from public forms (registration, feedback). Malicious scripts could be stored in MongoDB and executed in the admin dashboard.
+
+### Root Cause
+* User input was stored without sanitization
+* Rendering in admin dashboard trusted stored data
+
+### Fix Implemented
+* Introduced a centralized sanitization utility: `utils/sanitize.js`
+* Used `sanitize-html` with strict configuration:
+  * No allowed HTML tags
+  * No allowed attributes
+* Applied sanitization to all public input fields:
+  * `parentName`, `childName`, `message`, feedback text
+* Ensured sanitization runs BEFORE saving to database
+* Added type safety handling for `null`, `undefined`, and non-string inputs
+
+### Verification
+Manual browser testing confirmed mitigation:
+* Payload tested: `<script>alert('XSS')</script>`
+* Result:
+  * No JavaScript execution
+  * Data stored as plain text or encoded
+  * Admin dashboard renders content safely
+
+Additional payload: `<img src=x onerror=alert('XSS')>`
+* Result:
+  * No execution
+
+### Security Impact
+* Eliminates Stored XSS attack vector from public forms
+* Protects admin session from script injection
+* Significantly reduces attack surface
+
+### Residual Risk
+* Admin-controlled inputs are not fully sanitized (low risk)
+* No HTML rendering is allowed (intentional design choice)
+
+### Status
+✅ RESOLVED
