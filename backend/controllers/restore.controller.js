@@ -3,6 +3,10 @@ const restoreService = require('../services/restore.service');
 const AuditLog = require('../models/AuditLog');
 const path = require('path');
 const fs = require('fs').promises;
+const bcrypt = require('bcrypt');
+
+// Lazy-load User model to avoid circular dependency issues
+const Admin = require('../models/Admin');
 
 /**
  * List backups from Google Drive
@@ -12,7 +16,7 @@ exports.listBackups = async (req, res, next) => {
   try {
     const drive = await driveService.getDrive();
     const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
-    
+
     if (!folderId) {
       return res.status(500).json({ success: false, message: 'GOOGLE_DRIVE_FOLDER_ID is not configured' });
     }
@@ -37,11 +41,11 @@ exports.listBackups = async (req, res, next) => {
     res.json({ success: true, data: enrichedFiles });
   } catch (error) {
     console.error('[RESTORE:LIST] Error:', error.response?.data || error.message);
-    
+
     if (error.message === 'GOOGLE_TOKEN_EXPIRED' || error.status === 401) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Google token expired, please reconnect' 
+      return res.status(401).json({
+        success: false,
+        message: 'Google token expired, please reconnect'
       });
     }
 
@@ -54,7 +58,7 @@ exports.listBackups = async (req, res, next) => {
  * Restricted to ADMIN only
  */
 exports.restoreBackup = async (req, res, next) => {
-  const { fileId, confirm } = req.body;
+  const { fileId, confirm, password } = req.body;
 
   // 1. Security: Identity Check
   if (!req.user || req.user.role !== 'admin') {
@@ -66,9 +70,54 @@ exports.restoreBackup = async (req, res, next) => {
     return res.status(400).json({ success: false, message: 'Invalid fileId' });
   }
 
-  if (confirm !== true) {
-    return res.status(400).json({ success: false, message: 'Security check: Confirmation required for destructive restore' });
+  // ── GUARD 1: Explicit string confirmation ──────────────────────────────────
+  // Replaced the old `confirm !== true` (boolean) check with a stricter string
+  // literal. This prevents accidental triggers from API clients that coerce
+  // truthy values and makes the intent unmistakably deliberate.
+  if (confirm !== 'CONFIRM') {
+    return res.status(400).json({ success: false, message: 'Invalid confirmation' });
   }
+
+  // ── GUARD 2: Re-authentication — verify admin password ────────────────────
+  // Even if the JWT/session token is compromised, the attacker still needs the
+  // plaintext password to proceed. We fetch the full user record so we have the
+  // hashed password (req.user from middleware usually omits it).
+  if (!password || typeof password !== 'string') {
+    return res.status(400).json({ success: false, message: 'Password is required' });
+  }
+
+  try {
+    const Admin = require('../models/Admin');
+    const adminUser = await Admin.findById(req.user.id || req.user._id).select('+password');
+    if (!adminUser) {
+      return res.status(401).json({ success: false, message: 'Admin user not found' });
+    }
+
+    const passwordMatch = await bcrypt.compare(password, adminUser.password);
+    if (!passwordMatch) {
+      console.warn(
+        `[RESTORE:AUTH_FAIL] Admin ${req.user.username} (id: ${req.user.id || req.user._id}) ` +
+        `failed password re-auth at ${new Date().toISOString()}`
+      );
+      return res.status(401).json({ success: false, message: 'Password incorrect' });
+    }
+  } catch (authErr) {
+    console.error('[RESTORE:AUTH_ERROR]', authErr.message);
+    return res.status(500).json({ success: false, message: 'Authentication check failed' });
+  }
+
+  // ── GUARD 3: Attempt logging ───────────────────────────────────────────────
+  // Log BEFORE the restore starts so there is always a record even if the
+  // process crashes mid-way.
+  console.log(
+    `[RESTORE:ATTEMPT] Admin "${req.user.username}" (id: ${req.user.id || req.user._id}) ` +
+    `triggered restore for fileId: "${fileId}" at ${new Date().toISOString()}`
+  );
+
+  // ── GUARD 4: Anti-automation safety delay ─────────────────────────────────
+  // A 4-second pause makes scripted/brute-force abuse impractical and gives a
+  // narrow window to detect anomalous activity in logs before data is touched.
+  await new Promise(resolve => setTimeout(resolve, 4000));
 
   // 3. Environment Preparation
   const B_PATH = process.env.BACKUP_PATH;
@@ -76,7 +125,7 @@ exports.restoreBackup = async (req, res, next) => {
     return res.status(500).json({ success: false, message: 'BACKUP_PATH is not configured' });
   }
   const BACKUP_DIR = path.resolve(B_PATH);
-  
+
   try {
     if (!(await exists(BACKUP_DIR))) {
       await fs.mkdir(BACKUP_DIR, { recursive: true });
@@ -85,19 +134,22 @@ exports.restoreBackup = async (req, res, next) => {
     return res.status(500).json({ success: false, message: 'Storage initialization failed' });
   }
 
-  // const tempZipPath = path.join(BACKUP_DIR, `restore-temp-${Date.now()}.zip`);
+  // Fix: declare tempZipPath in the outer try scope so the catch block can
+  // reference it for cleanup (it was previously scoped inside the try block,
+  // causing a ReferenceError on cleanup).
+  let tempZipPath;
 
   try {
     console.log(`[RESTORE:SECURE] Admin ${req.user.username} initiated restore for fileId: ${fileId}`);
 
     // A. Fetch file metadata to get the correct extension
     const drive = await driveService.getDrive();
-    
+
     const fileMetadata = await drive.files.get({ fileId, fields: 'name' });
     const fileName = fileMetadata.data.name;
     const extension = fileName.endsWith('.enc') ? '.zip.enc' : '.zip';
-    
-    const tempZipPath = path.join(BACKUP_DIR, `restore-temp-${Date.now()}${extension}`);
+
+    tempZipPath = path.join(BACKUP_DIR, `restore-temp-${Date.now()}${extension}`);
 
     // B. Download (Must await before starting restore)
     await restoreService.downloadFileFromDrive(fileId, tempZipPath);
@@ -125,24 +177,24 @@ exports.restoreBackup = async (req, res, next) => {
         });
       });
 
-    // C. Respond Immediately
-    res.json({ 
-      success: true, 
-      message: 'Tiến trình khôi phục đã bắt đầu trong nền. Vui lòng theo dõi thanh tiến độ.' 
+    // D. Respond Immediately
+    res.json({
+      success: true,
+      message: 'Tiến trình khôi phục đã bắt đầu trong nền. Vui lòng theo dõi thanh tiến độ.'
     });
 
   } catch (error) {
     console.error('[RESTORE:INIT_FAILED] Error:', error.response?.data || error.message);
-    
+
     // Quick cleanup of failed download
-    if (await exists(tempZipPath)) {
-      await fs.rm(tempZipPath, { force: true }).catch(() => {});
+    if (tempZipPath && await exists(tempZipPath)) {
+      await fs.rm(tempZipPath, { force: true }).catch(() => { });
     }
 
     if (error.message === 'GOOGLE_TOKEN_EXPIRED' || error.status === 401) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Google token expired, please reconnect' 
+      return res.status(401).json({
+        success: false,
+        message: 'Google token expired, please reconnect'
       });
     }
 

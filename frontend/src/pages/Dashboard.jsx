@@ -24,6 +24,7 @@ const Dashboard = () => {
   const [restoreProgress, setRestoreProgress] = useState(0);
   const [selectedBackup, setSelectedBackup] = useState(null);
   const [googleNotConnected, setGoogleNotConnected] = useState(false);
+  const [restorePassword, setRestorePassword] = useState('');
   const backupProcessed = useRef(false);
   const [visibleBackupCount, setVisibleBackupCount] = useState(5);
   const BACKUP_PAGE_SIZE = 5;
@@ -98,6 +99,10 @@ const Dashboard = () => {
   };
 
   const handleRestore = async (fileId) => {
+    if (!restorePassword) {
+      setBackupStatus({ type: 'error', message: 'Vui lòng nhập mật khẩu để xác nhận.' });
+      return;
+    }
     setRestoreLoading(true);
     setRestoreProgress(0);
     setBackupStatus(null);
@@ -109,7 +114,11 @@ const Dashboard = () => {
     }, 1000);
 
     try {
-      const res = await api.post('/auth/google/restore', { fileId, confirm: true });
+      const res = await api.post('/auth/google/restore', {
+        fileId,
+        confirm: 'CONFIRM',
+        password: restorePassword,
+      });
       if (res.data.success) {
         setRestoreProgress(100);
         setBackupStatus({ type: 'success', message: 'Khôi phục thành công! Trang sẽ tải lại sau 3s.' });
@@ -122,6 +131,7 @@ const Dashboard = () => {
       clearInterval(progressInterval);
       setRestoreLoading(false);
       setSelectedBackup(null);
+      setRestorePassword('');
     }
   };
 
@@ -253,8 +263,8 @@ const Dashboard = () => {
           <div className="bg-white rounded-2xl shadow-sm border p-5">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-gray-800">Google Drive Backups</h3>
-              <button 
-                onClick={fetchBackups} 
+              <button
+                onClick={fetchBackups}
                 disabled={googleNotConnected}
                 className={`text-xs font-bold ${googleNotConnected ? 'text-gray-400 cursor-not-allowed' : 'text-blue-600 hover:underline'}`}
               >
@@ -294,12 +304,12 @@ const Dashboard = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="bg-white rounded-2xl p-5 shadow-sm border">
-               <h3 className="font-bold text-gray-700 mb-4 text-sm">Registrations by Course</h3>
-               <Bar data={regByCourseData} options={{ responsive: true, plugins: { legend: { display: false } } }} />
+              <h3 className="font-bold text-gray-700 mb-4 text-sm">Registrations by Course</h3>
+              <Bar data={regByCourseData} options={{ responsive: true, plugins: { legend: { display: false } } }} />
             </div>
             <div className="bg-white rounded-2xl p-5 shadow-sm border">
-               <h3 className="font-bold text-gray-700 mb-4 text-sm">Registration Trend</h3>
-               <Line data={dailyTrendData} options={{ responsive: true, plugins: { legend: { display: false } } }} />
+              <h3 className="font-bold text-gray-700 mb-4 text-sm">Registration Trend</h3>
+              <Line data={dailyTrendData} options={{ responsive: true, plugins: { legend: { display: false } } }} />
             </div>
           </div>
         </div>
@@ -350,13 +360,24 @@ const Dashboard = () => {
       {selectedBackup && (
         <div className="fixed inset-0 z-[10001] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl scale-in">
-             <div className="text-4xl text-center mb-4">⚠️</div>
-             <h3 className="text-xl font-black text-center mb-2">Xác nhận khôi phục?</h3>
-             <p className="text-center text-sm text-gray-500 mb-6">Hành động này sẽ <span className="text-red-600 font-bold underline">GHI ĐÈ TOÀN BỘ</span> dữ liệu hiện tại.</p>
-             <div className="flex gap-3">
-               <button onClick={() => setSelectedBackup(null)} className="flex-1 py-3 rounded-2xl bg-gray-100 font-bold hover:bg-gray-200">Hủy</button>
-               <button onClick={() => handleRestore(selectedBackup.id)} className="flex-1 py-3 rounded-2xl bg-red-600 text-white font-bold hover:bg-red-700 shadow-lg">Khôi phục</button>
-             </div>
+            <div className="text-4xl text-center mb-4">⚠️</div>
+            <h3 className="text-xl font-black text-center mb-2">Xác nhận khôi phục?</h3>
+            <p className="text-center text-sm text-gray-500 mb-4">Hành động này sẽ <span className="text-red-600 font-bold underline">GHI ĐÈ TOÀN BỘ</span> dữ liệu hiện tại.</p>
+            <div className="mb-6">
+              <label className="block text-xs font-bold text-gray-600 mb-1">Nhập mật khẩu admin để xác nhận</label>
+              <input
+                type="password"
+                value={restorePassword}
+                onChange={e => setRestorePassword(e.target.value)}
+                placeholder="Mật khẩu của bạn"
+                className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-red-400"
+                onKeyDown={e => e.key === 'Enter' && handleRestore(selectedBackup.id)}
+              />
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => { setSelectedBackup(null); setRestorePassword(''); }} className="flex-1 py-3 rounded-2xl bg-gray-100 font-bold hover:bg-gray-200">Hủy</button>
+              <button onClick={() => handleRestore(selectedBackup.id)} className="flex-1 py-3 rounded-2xl bg-red-600 text-white font-bold hover:bg-red-700 shadow-lg">Khôi phục</button>
+            </div>
           </div>
         </div>
       )}
@@ -364,26 +385,26 @@ const Dashboard = () => {
       {restoreLoading && (
         <div className="fixed inset-0 z-[10002] bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-white p-10 rounded-3xl shadow-2xl w-full max-w-xs flex flex-col items-center gap-6">
-             <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin relative">
-                <span className="absolute inset-0 flex items-center justify-center text-lg">⚙️</span>
-             </div>
-             <div className="w-full">
-                <p className="text-center font-bold text-gray-800 mb-2">Đang khôi phục... {restoreProgress}%</p>
-                <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
-                   <div className="bg-blue-600 h-full transition-all duration-500" style={{ width: `${restoreProgress}%` }} />
-                </div>
-             </div>
+            <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin relative">
+              <span className="absolute inset-0 flex items-center justify-center text-lg">⚙️</span>
+            </div>
+            <div className="w-full">
+              <p className="text-center font-bold text-gray-800 mb-2">Đang khôi phục... {restoreProgress}%</p>
+              <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
+                <div className="bg-blue-600 h-full transition-all duration-500" style={{ width: `${restoreProgress}%` }} />
+              </div>
+            </div>
           </div>
         </div>
       )}
 
       {backupStatus && (
         <div className={`fixed top-6 right-6 z-[10003] p-4 rounded-2xl shadow-2xl border-2 flex items-center gap-3 animate-slide-in ${backupStatus.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
-           <span className="text-xl">{backupStatus.type === 'success' ? '✅' : '❌'}</span>
-           <div className="flex-1">
-              <p className="font-bold text-sm leading-tight">{backupStatus.message}</p>
-           </div>
-           <button onClick={() => setBackupStatus(null)} className="opacity-50 hover:opacity-100">✕</button>
+          <span className="text-xl">{backupStatus.type === 'success' ? '✅' : '❌'}</span>
+          <div className="flex-1">
+            <p className="font-bold text-sm leading-tight">{backupStatus.message}</p>
+          </div>
+          <button onClick={() => setBackupStatus(null)} className="opacity-50 hover:opacity-100">✕</button>
         </div>
       )}
 
