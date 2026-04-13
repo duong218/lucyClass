@@ -116,124 +116,318 @@ The **Lucy's Class** application implements a "defense-in-depth" strategy, utili
 
 ---
 
-# Advanced Security Audit
+# Advanced Security Audit (Updated)
 
-## 1. Identified Vulnerabilities
+This section documents the transition from identified vulnerabilities to verified mitigations.
 
-### 1.1 Destructive Database Restore (Critical)
-The `restore.service.js` utilizes the `mongorestore --drop` flag. While this is necessary for a full restoration, it presents a significant risk if misused or abused by a compromised account.
-- **Location**: `backend/services/restore.service.js`
-- **Logic**: The service drops all existing production collections (except `admins`) before replacing them with backup data.
+## 1. Stored XSS (FIXED)
 
-### 1.2 Stored XSS in Administrative Dashboards (High)
-User-provided data from public registration forms (e.g., `parentName`, `childName`, `message`) is stored in the database without backend-level HTML sanitization and later rendered in the Admin dashboard.
-- **Location**: `backend/middlewares/validateRegistration.js` (missing sanitization) & `frontend/src/pages/RegistrationManagement.jsx` (rendering context).
-- **Risk**: A malicious user can inject scripts that execute in the context of an authenticated admin session.
-
-### 1.3 Rate Limiting Gap: Refresh Token Endpoint (Medium)
-While sensitive routes like `/login` and `/forgot-password` are strictly limited, the `/api/auth/refresh-token` endpoint lacks an explicit rate limiter in the current route configuration.
-- **Location**: `backend/routes/authRoutes.js`
-- **Risk**: An attacker with a stolen refresh token could spam the endpoint to keep a session alive indefinitely or perform denial-of-service on the database.
-
-### 1.4 Inconsistent CSRF Whitelisting (Low)
-There is a slight architectural discrepancy where `securityMiddleware.js` whitelists certain paths that `csrf.js` (the `csurf` wrapper) still protects. 
-- **Location**: `backend/middlewares/securityMiddleware.js` vs `backend/middlewares/csrf.js`.
-- **Logic**: While redundant, the Origin check being skipped for whitelisted paths reduces the depth of defense for those specific endpoints.
-
----
-
-## 2. Attack Scenarios (Simulations)
-
-### Attack: Database Wipe via Malicious Restore
-*   **Step 1**: Attacker gains access to an Admin account (e.g., via phishing or session theft).
-*   **Step 2**: Attacker uploads a specially crafted "empty" or malicious `.enc` backup file to the restore directory (or exploits the `performRestore` logic).
-*   **Step 3**: Attacker triggers the Restore operation.
-*   **Step 4**: The system drops all production collections and fails to populate them with valid data.
-*   **Preconditions**: Admin credentials + valid encryption key + access to the restore API.
-*   **Impact (Critical)**: Immediate loss of all current student registrations, courses, and teacher data.
-*   **Detection**: Monitor audit logs for manual restore events at anomalous times or a spike in `AUTO_BACKUP_FAILED` system events.
-
-### Attack: Admin Session Takeover via Stored XSS
-*   **Step 1**: Attacker submits a public registration form with a malicious payload in the `message` field: `<script>fetch('/api/auth/me').then(r=>r.json()).then(d=>sendToAttacker(d))</script>`.
-*   **Step 2**: An Admin logs in and opens the "Registration Management" dashboard to view new sign-ups.
-*   **Step 3**: The payload executes in the Admin's browser, sending their profile info or performing actions on their behalf.
-*   **Preconditions**: Public access to registration forms; an Admin viewing the malicious entry.
-*   **Impact (High)**: Full take-over of the Admin session, bypass of MFA/reCAPTCHA, and access to internal management tools.
-*   **Detection**: Audit logs showing admin actions (e.g., deleting registrations) that the admin does not recognize.
-
-### Attack: Refresh Token persistence abuse
-*   **Step 1**: Attacker steals the `refreshToken` cookie from a compromised workstation.
-*   **Step 2**: Attacker uses a script to spam the `/refresh-token` endpoint before the original user notices or the session expires.
-*   **Step 3**: Attacker maintains an active Access Token indefinitely without needing the original user's password.
-*   **Preconditions**: Access to a stolen HttpOnly cookie (e.g., via malware on the user's OS).
-*   **Impact (Medium)**: Persistent unauthorized access to the management dashboard.
-*   **Detection**: Monitoring the `/refresh-token` endpoint for a high volume of requests or a spike in 401/403 errors from a single IP.
-
----
-
-## 3. Severity Assessment
-
-| Vulnerability | Severity | Justification |
-| :--- | :--- | :--- |
-| **Destructive Restore** | **Critical** | Leads to total data loss. Recovery depends on external Google Drive backups which may also be compromised. |
-| **Stored XSS** | **High** | Directly target administrative sessions, bypassing standard authentication perimeters. |
-| **Rate Limit Gap** | **Medium** | Increases the effectiveness of automated session persistence attacks. |
-| **CSRF Inconsistency** | **Low** | While it reduces defense-in-depth, standard protection is still largely enforced by `csurf`. |
-
----
-
-## 4. Recommended Fixes
-
-1.  **Harden Restore Pipeline**:
-    -   Implement "Two-Person Integrity" (4-eyes principle) requiring two administrators to approve a destructive restore.
-    -   Add a mandatory "Final Confirmation" step displaying exactly which collections will be dropped.
-2.  **Implement Backend Sanitization**:
-    -   Use a library like `dompurify` (backend side) or `sanitize-html` in the registration validator to strip all HTML tags from user-provided strings before saving to MongoDB.
-3.  **Close Rate Limiting Gaps**:
-    -   Apply a dedicated `refreshLimiter` (e.g., 20 requests per hour per IP) to the `/api/auth/refresh-token` endpoint.
-4.  **Enlist Audit Trails**:
-    -   Increase the granularity of the `AuditLog` for session-related events, specifically tracking session conflict triggers and refresh token rotation failures.
----
-
-## Stored XSS Mitigation (Resolved)
-
-### Overview
-Previously, the system was vulnerable to Stored XSS due to unsanitized user input from public forms (registration, feedback). Malicious scripts could be stored in MongoDB and executed in the admin dashboard.
-
-### Root Cause
-* User input was stored without sanitization
-* Rendering in admin dashboard trusted stored data
+### Description (Before)
+- User input from public forms (registration, feedback) and admin panels was stored without sanitization.
+- This allowed injection of malicious scripts like: `<script>alert('XSS')</script>`
+- Risk: Script execution in admin dashboard → session hijacking.
 
 ### Fix Implemented
-* Introduced a centralized sanitization utility: `utils/sanitize.js`
-* Used `sanitize-html` with strict configuration:
-  * No allowed HTML tags
-  * No allowed attributes
-* Applied sanitization to all public input fields:
-  * `parentName`, `childName`, `message`, feedback text
-* Ensured sanitization runs BEFORE saving to database
-* Added type safety handling for `null`, `undefined`, and non-string inputs
+- **Backend Sanitization**: Introduced `sanitize-html` to strip all HTML tags from user strings.
+- **Centralized Utility**: Created `backend/utils/sanitize.js` with a strict `cleanInput()` function.
+- **Comprehensive Application**: Applied sanitization BEFORE saving to DB in all critical controllers:
+  - `registrationController`, `feedbackController`, `announcementController`, `courseController`, `teacherController`, `timetableController`, `rankingController`.
+- **Logic Cleanup**: Removed legacy `escapeHtml()` from the teacher controller to prevent double-encoding issues.
+- **Frontend Hardening**: Verified and ensured that the frontend does NOT use `dangerouslySetInnerHTML` for any user-controlled data.
 
-### Verification
-Manual browser testing confirmed mitigation:
-* Payload tested: `<script>alert('XSS')</script>`
-* Result:
-  * No JavaScript execution
-  * Data stored as plain text or encoded
-  * Admin dashboard renders content safely
+### Result
+- All HTML tags are stripped and stored as plain text.
+- XSS payloads are neutralized at the entry point.
+- Verified via manual browser testing with script and image-based payloads.
 
-Additional payload: `<img src=x onerror=alert('XSS')>`
-* Result:
-  * No execution
+---
 
-### Security Impact
-* Eliminates Stored XSS attack vector from public forms
-* Protects admin session from script injection
-* Significantly reduces attack surface
+## 2. Destructive Restore Abuse (FIXED)
 
-### Residual Risk
-* Admin-controlled inputs are not fully sanitized (low risk)
-* No HTML rendering is allowed (intentional design choice)
+### Description (Before)
+- The restore endpoint (`/api/auth/google/restore`) could be triggered with minimal protection.
+- Only required standard authentication (JWT).
+- No strong confirmation or identity re-verification existed.
+- Risk: A compromised admin session could be used to overwrite the entire production database.
 
-### Status
-✅ RESOLVED
+### Fix Implemented
+
+#### 2.1 Explicit Confirmation Guard
+- The system now requires a specific string literal: `confirm === "CONFIRM"`.
+- This prevents accidental triggers or simple boolean-based bypasses.
+
+#### 2.2 Admin Password Re-authentication
+- The backend now enforces a "sudo-style" re-authentication.
+- Admins must re-enter their password, which is verified using `bcrypt.compare()` against the database before any restore logic begins.
+- This ensures that even with a stolen session token, an attacker cannot perform destructive actions without the plaintext password.
+
+#### 2.3 Comprehensive Audit Logging
+- Every restore attempt is now logged with high granularity:
+  - `adminId` and `adminName`.
+  - Action status (`RESTORE_ATTEMPT`, `RESTORE_SUCCESS`, or `RESTORE_FAILED`).
+  - Origin IP address.
+- Logs are recorded *before* the process starts to ensure traceability even in the event of a crash.
+
+#### 2.4 Anti-Automation Safety Delay
+- Implemented a mandatory **4-second artificial delay** before the restore execution starts.
+- This makes scripted abuse impractical and provides a window for log monitoring tools to detect and flag anomalous activity.
+
+#### 2.5 Logic & Scope Fixes
+- **Model Integrity**: Fixed incorrect model references (changed legacy `User` references to the correct `Admin` model).
+- **Cleanup Safety**: Fixed a scope issue with `tempZipPath` to ensure temporary files are properly deleted even if the download or decryption fails.
+
+---
+
+## 3. Verification Summary
+
+### Stored XSS Test
+- **Payload**: `<script>alert('XSS')</script>`
+- **Result**: Stored as plain text `" alert('XSS') "`, rendered safely as text. No execution.
+- **Payload**: `<img src=x onerror=alert(1)>`
+- **Result**: Tags stripped, no execution.
+
+### Restore Abuse Test
+- **Scenario**: Incorrect password entered.
+- **Result**: Request blocked with `"Password incorrect"` (401).
+- **Scenario**: Correct password + `CONFIRM` string.
+- **Result**: 4-second delay followed by successful background restoration.
+
+---
+
+## 4. Final Security Status
+
+| Vulnerability | Severity | Status |
+| :--- | :--- | :--- |
+| **Stored XSS** | **HIGH** | ✅ **FIXED** |
+| **Restore Abuse** | **CRITICAL** | ✅ **FIXED** |
+| **Rate Limit Gaps** | **MEDIUM** | ⚠️ *Partial (Ongoing)* |
+| **CSRF Inconsistent** | **LOW** | ⚠️ *Monitored* |
+
+---
+
+## 5. Conclusion
+
+The "Lucy's Class" security posture has been significantly hardened through:
+- **Strict Input Sanitization**: Neutralizing the #1 vector for admin takeover.
+- **Defense-in-Depth for Destructive Actions**: Requiring re-authentication for high-risk operations.
+- **Enhanced Traceability**: Ensuring all critical actions leave a permanent, verifiable log.
+
+The system is now better prepared for production deployment with robust protections against both automated bots and sophisticated session abuse.
+
+---
+
+# Tổng quan Bảo mật - Lớp học của Lucy (Bản dịch tiếng Việt)
+
+## 🔍 Tổng quan Hệ thống
+Ứng dụng **Lucy's Class** triển khai chiến lược "phòng thủ theo chiều sâu", sử dụng nhiều lớp bảo mật ở các cấp độ mạng, ứng dụng và cơ sở dữ liệu. Hệ thống được thiết kế để xử lý dữ liệu học sinh nhạy cảm và các chức năng quản trị với tính toàn vẹn và sẵn sàng cao.
+
+---
+
+## 🎭 1. Mô hình Mối đe dọa (Rút gọn)
+
+### Các loại đối tượng tấn công
+-   **Bot chưa xác thực**: Cố gắng đăng nhập brute-force hoặc spam các biểu mẫu đăng ký.
+-   **Người dùng chưa được cấp quyền**: Cố gắng vượt qua lớp đăng nhập bảng điều khiển quản trị.
+-   **Kẻ xấu nội bộ**: (Giả định) Cố gắng tải xuống hoặc làm xáo trộn dữ liệu sao lưu.
+-   **Kẻ đánh cắp phiên làm việc**: Cố gắng sử dụng lại các token/cookie bị đánh cắp từ một phiên làm việc hợp lệ của quản trị viên.
+
+### Các bề mặt tấn công chính
+-   **Admin API**: Các điểm cuối (endpoints) để quản lý học sinh, giáo viên và thời khóa biểu.
+-   **Auth Routes**: Các điểm cuối Đăng nhập, Làm mới và Quên mật khẩu.
+-   **Luồng dữ liệu sao lưu**: Truyền dữ liệu giữa máy chủ và Google Drive.
+-   **Biểu mẫu công khai**: Đăng ký học sinh, phản hồi và xem khóa học.
+
+---
+
+## 🛡️ 2. Ranh giới Tin cậy
+
+-   **Frontend (Không tin cậy)**: Nằm trên trình duyệt của người dùng. Tất cả dữ liệu đến từ frontend đều được coi là không tin cậy và phải được xác thực.
+-   **Backend (Tin cậy)**: Máy chủ ứng dụng Node.js. Đây là nơi thực thi logic nghiệp vụ, xác thực và phân quyền.
+-   **Cơ sở dữ liệu (Hạn chế)**: MongoDB Atlas. Chỉ được truy cập thông qua Backend bằng thông tin xác thực URI bảo mật. Không cho phép truy cập công khai trực tiếp.
+-   **Dịch vụ bên ngoài (Bán tin cậy)**:
+    -   **Google Drive API**: Sự tin cậy được thiết lập qua token OAuth2; dữ liệu được mã hóa cục bộ trước khi truyền đi.
+    -   **Cloudinary**: Được sử dụng để lưu trữ hình ảnh; các yêu cầu được ký và xác thực.
+
+---
+
+## 🔐 3. Xác thực & Phân quyền
+
+### Xử lý JWT & Logic Phiên làm việc
+-   **Access Token**: 
+    -   Loại: JWT (HS256)
+    -   Thời hạn: **15 phút**
+    -   Lưu trữ: **Trong bộ nhớ** (phía Client) để giảm thiểu rủi ro bị đánh cắp qua XSS.
+-   **Refresh Token**: 
+    -   Loại: JWT (HS256)
+    -   Thời hạn: **7 ngày**
+    -   Lưu trữ: **Cookie HttpOnly, Secure, SameSite=None**.
+    -   **Xoay vòng**: Một refresh token mới được cấp sau mỗi yêu cầu làm mới; token cũ sẽ bị vô hiệu hóa để ngăn chặn các cuộc tấn công phát lại (replay attacks).
+-   **Thực thi Phiên đơn duy nhất**: 
+    -   Mỗi lần đăng nhập admin tạo ra một `sessionId` duy nhất được lưu trong cookie và cơ sở dữ liệu (`activeSessionId`).
+    -   Nếu một đăng nhập mới xảy ra trên thiết bị khác, `sessionId` trước đó sẽ trở nên vô hiệu, buộc phiên làm việc cũ phải đăng xuất ngay lập tức.
+
+### Kiểm soát truy cập dựa trên vai trò (RBAC)
+-   Hệ thống thực thi vai trò `admin` cho tất cả các luồng quản lý thông qua các middleware `auth` và `authorizeRoles('admin')`.
+
+---
+
+## 📦 4. Bảo vệ Dữ liệu
+
+### Tiêu chuẩn Mã hóa
+-   **Mã hóa Sao lưu**: Sử dụng **AES-256-GCM** (Mã hóa có xác thực). Mọi bản sao lưu cơ sở dữ liệu đều được mã hóa cục bộ bằng khóa hex 32 byte trước khi nén hoặc tải lên.
+-   **Bảo mật Mật khẩu**: Được băm bằng **Bcrypt** với hệ số salt bảo mật.
+-   **Dữ liệu nhạy cảm**: Email và chi tiết cá nhân chỉ được xử lý trong môi trường backend tin cậy.
+
+### Xử lý Dữ liệu Nhạy cảm
+-   Nhật ký kiểm tra (Audit logs) được duy trì cho tất cả các hành động quản trị quan trọng (ví dụ: sao lưu tự động, khôi phục thủ công).
+
+---
+
+## 🚀 5. Bảo mật API
+
+### Bảo vệ CSRF (Hai lớp)
+1.  **Kiểm tra Header tùy chỉnh**: Tất cả các yêu cầu không phải GET đều yêu cầu header `X-Requested-With`, điều này gây khó khăn cho các trang web độc hại đa nguồn trong việc giả mạo.
+2.  **CSRF Tiêu chuẩn**: Sử dụng thư viện `csurf` để xác thực token CSRF có trạng thái cho các hoạt động thay đổi dữ liệu nhạy cảm.
+3.  **Xác thực Nguồn (Origin)**: Kiểm tra nghiêm ngặt header `Origin` so với danh sách cho phép được định nghĩa trong `CORS_ORIGINS`.
+
+### Giới hạn tốc độ (Ngưỡng sản xuất)
+-   **API chung**: 200 yêu cầu mỗi 5 phút.
+-   **Đăng nhập**: **5 lần thử thất bại mỗi 10 phút** (khóa tài khoản sau 5 lần thất bại).
+-   **Đăng ký**: 5 lần thử mỗi 1 giờ.
+-   **Quên mật khẩu**: 3 lần thử mỗi 1 giờ.
+-   **Đặt lại mật khẩu**: 5 lần thử mỗi 30 phút.
+
+### Xác thực đầu vào & Xử lý lỗi
+-   **Xác thực**: Mọi điểm cuối đều sử dụng `express-validator` để thực thi các schema nghiêm ngặt trên `req.body` và `req.params`.
+-   **Che dấu lỗi**: Các lỗi trong môi trường sản xuất được làm sạch; các dấu vết ngăn xếp (stack traces) không bao giờ được trả về cho client để ngăn chặn rò rỉ thông tin môi trường.
+
+---
+
+## 📂 6. Bảo mật Sao lưu & Khôi phục
+
+### Luồng dữ liệu bảo mật
+-   **Tải lên Zero-Knowledge**: Các bản sao lưu được mã hóa ở trạng thái nghỉ trên máy chủ trước khi được truyền đến Google Drive qua HTTPS.
+-   **An toàn Drive**: Hệ thống chỉ duy trì **20 bản sao lưu** gần nhất bằng chính sách xoay vòng tự động trong `drive.service.js`.
+
+### Khôi phục an toàn
+-   **Chạy thử xác minh**: `restore.service.js` thực hiện khôi phục dữ liệu vào một **cơ sở dữ liệu tạm thời** trước để đảm bảo bản sao lưu không bị hỏng.
+-   **Ảnh chụp an toàn**: Một bản sao lưu an toàn cục bộ được thực hiện ngay trước khi cơ sở dữ liệu sản xuất được xóa sạch (`--drop`).
+-   **Dọn dẹp**: Các tệp ZIP đã giải mã tạm thời và các thư mục giải nén sẽ được xóa khỏi ổ đĩa ngay sau khi hoàn thành hoặc thất bại.
+
+---
+
+## 💻 7. Bảo mật Frontend
+
+-   **Lưu trữ Token**: Token được giữ trong bộ nhớ JavaScript, không bao giờ để trong `localStorage`, giúp giảm đáng kể rủi ro bị mất token qua XSS.
+-   **Axios Interceptors**: Tự động xử lý việc lấy token CSRF và các cuộc gọi làm mới token.
+-   **reCAPTCHA v2**: Được tích hợp vào các biểu mẫu **Đăng nhập** và **Quên mật khẩu** để ngăn chặn các cuộc tấn công brute-force tự động.
+
+---
+
+## 🚩 8. Rủi ro Tiềm ẩn & Cải thiện
+
+-   **Rủi ro**: Khóa mã hóa tập trung trong `.env` có thể là một điểm yếu duy nhất nếu môi trường máy chủ bị xâm nhập.
+    -   *Cải thiện*: Tích hợp với dịch vụ Quản lý Khóa chuyên dụng (ví dụ: AWS Secrets Manager).
+-   **Rủi ro**: Lưu trữ Google Drive phụ thuộc vào một tài khoản dịch vụ duy nhất.
+    -   *Cải thiện*: Triển khai lưu trữ sao lưu phụ ở nơi khác (ví dụ: AWS S3).
+-   **Cải thiện**: Triển khai phát hiện bất thường dựa trên IP để chặn các cuộc tấn công brute-force phân tán.
+
+---
+
+# Kiểm tra Bảo mật Nâng cao (Đã cập nhật)
+
+Phần này ghi lại quá trình chuyển đổi từ các lỗ hổng đã xác định sang các biện pháp giảm thiểu đã được xác minh.
+
+## 1. Lỗ hổng Stored XSS (ĐÃ KHẮC PHỤC)
+
+### Mô tả (Trước đây)
+- Dữ liệu nhập từ người dùng qua các biểu mẫu công khai (đăng ký, phản hồi) và bảng điều khiển quản trị được lưu trữ mà không qua kiểm duyệt.
+- Điều này cho phép chèn các mã độc như: `<script>alert('XSS')</script>`
+- Nguy cơ: Thực thi mã độc trong bảng điều khiển quản trị -> đánh cắp phiên làm việc (session hijacking).
+
+### Giải pháp đã triển khai
+- **Kiểm duyệt phía Backend**: Sử dụng thư viện `sanitize-html` để loại bỏ tất cả các thẻ HTML khỏi chuỗi dữ liệu của người dùng.
+- **Tiện ích tập trung**: Tạo tệp `backend/utils/sanitize.js` với hàm `cleanInput()` nghiêm ngặt.
+- **Áp dụng toàn diện**: Thực hiện kiểm duyệt TRƯỚC KHI lưu vào DB trong tất cả các controller quan trọng:
+  - `registrationController`, `feedbackController`, `announcementController`, `courseController`, `teacherController`, `timetableController`, `rankingController`.
+- **Dọn dẹp Logic**: Loại bỏ hàm `escapeHtml()` cũ trong teacher controller để tránh lỗi mã hóa kép (double-encoding).
+- **Thắt chặt Frontend**: Xác minh và đảm bảo rằng frontend KHÔNG sử dụng `dangerouslySetInnerHTML` cho bất kỳ dữ liệu nào do người dùng kiểm soát.
+
+### Kết quả
+- Tất cả các thẻ HTML bị loại bỏ và lưu trữ dưới dạng văn bản thuần túy.
+- Các mã độc XSS bị vô hiệu hóa ngay tại điểm nhập liệu.
+- Đã xác minh qua kiểm tra thủ công trên trình duyệt với các mã độc dựa trên script và hình ảnh.
+
+---
+
+## 2. Lạm dụng khôi phục dữ liệu (ĐÃ KHẮC PHỤC)
+
+### Mô tả (Trước đây)
+- Điểm cuối khôi phục (`/api/auth/google/restore`) có thể bị kích hoạt với bảo vệ tối thiểu.
+- Chỉ yêu cầu xác thực tiêu chuẩn (JWT).
+- Không có bước xác nhận mạnh mẽ hoặc xác minh lại danh tính.
+- Nguy cơ: Một phiên làm việc của admin bị xâm nhập có thể bị lợi dụng để ghi đè toàn bộ cơ sở dữ liệu sản xuất.
+
+### Giải pháp đã triển khai
+
+#### 2.1 Lớp bảo vệ xác nhận rõ ràng
+- Hệ thống hiện yêu cầu một chuỗi ký tự cụ thể: `confirm === "CONFIRM"`.
+- Điều này ngăn chặn việc kích hoạt vô tình hoặc các hành vi vượt qua dựa trên giá trị boolean đơn giản.
+
+#### 2.2 Xác thực lại mật khẩu Admin
+- Backend hiện thực thi cơ chế xác thực lại kiểu "sudo".
+- Quản trị viên phải nhập lại mật khẩu của họ, mật khẩu này được xác minh bằng `bcrypt.compare()` với cơ sở dữ liệu trước khi bất kỳ logic khôi phục nào bắt đầu.
+- Điều này đảm bảo rằng ngay cả khi mã thông báo phiên (session token) bị đánh cắp, kẻ tấn công cũng không thể thực hiện các hành động phá hủy nếu không có mật khẩu dạng văn bản thuần túy.
+
+#### 2.3 Hệ thống nhật ký (Audit Log) chi tiết
+- Mọi lần thử khôi phục hiện được ghi nhật ký với độ chi tiết cao:
+  - `adminId` và `adminName`.
+  - Trạng thái hành động (`RESTORE_ATTEMPT`, `RESTORE_SUCCESS`, hoặc `RESTORE_FAILED`).
+  - Địa chỉ IP nguồn.
+- Nhật ký được ghi lại *trước khi* quá trình bắt đầu để đảm bảo khả năng truy vết ngay cả khi xảy ra lỗi hệ thống.
+
+#### 2.4 Độ trễ an toàn chống tự động hóa
+- Triển khai **độ trễ nhân tạo bắt buộc 4 giây** trước khi quá trình khôi phục bắt đầu thực thi.
+- Điều này khiến việc lạm dụng bằng script hoặc tấn công vét cạn (brute-force) trở nên bất khả thi và tạo ra một khoảng thời gian để các công cụ giám sát nhật ký phát hiện các hoạt động bất thường.
+
+#### 2.5 Sửa lỗi logic và phạm vi biến
+- **Tính toàn vẹn của Model**: Sửa các tham chiếu model không chính xác (thay đổi các tham chiếu `User` cũ thành model `Admin` chính xác).
+- **An toàn dọn dẹp**: Sửa lỗi phạm vi biến của `tempZipPath` để đảm bảo các tệp tạm thời được xóa đúng cách ngay cả khi việc tải xuống hoặc giải mã thất bại.
+
+---
+
+## 3. Tóm tắt xác minh
+
+### Kiểm tra Stored XSS
+- **Mã độc**: `<script>alert('XSS')</script>`
+- **Kết quả**: Được lưu trữ dưới dạng văn bản thuần túy `" alert('XSS') "`, hiển thị an toàn dưới dạng văn bản. Không thực thi.
+- **Mã độc**: `<img src=x onerror=alert(1)>`
+- **Kết quả**: Các thẻ bị loại bỏ, không thực thi.
+
+### Kiểm tra lạm dụng khôi phục
+- **Kịch bản**: Nhập sai mật khẩu.
+- **Kết quả**: Yêu cầu bị chặn với thông báo `"Password incorrect"` (401).
+- **Kịch bản**: Nhập đúng mật khẩu + chuỗi `CONFIRM`.
+- **Kết quả**: Độ trễ 4 giây sau đó quá trình khôi phục chạy nền thành công.
+
+---
+
+## 4. Trạng thái bảo mật cuối cùng
+
+| Lỗ hổng | Mức độ nghiêm trọng | Trạng thái |
+| :--- | :--- | :--- |
+| **Stored XSS** | **CAO** | ✅ **ĐÃ KHẮC PHỤC** |
+| **Lạm dụng khôi phục** | **CHÍ THÂN** | ✅ **ĐÃ KHẮC PHỤC** |
+| **Lỗ hổng giới hạn tốc độ** | **TRUNG BÌNH** | ⚠️ *Một phần (Đang xử lý)* |
+| **Bất cập CSRF** | **THẤP** | ⚠️ *Đang giám sát* |
+
+---
+
+## 5. Kết luận
+
+Cấu hình bảo mật của "Lucy's Class" đã được thắt chặt đáng kể thông qua:
+- **Kiểm duyệt đầu vào nghiêm ngặt**: Vô hiệu hóa vector tấn công hàng đầu để chiếm quyền điều khiển admin.
+- **Phòng thủ theo chiều sâu cho các hành động phá hủy**: Yêu cầu xác thực lại cho các hoạt động có rủi ro cao.
+- **Tăng cường khả năng truy vết**: Đảm bảo tất cả các hành động quan trọng đều để lại nhật ký vĩnh viễn, có thể xác minh được.
+
+Hệ thống hiện đã chuẩn bị tốt hơn cho việc triển khai thực tế với các biện pháp bảo vệ mạnh mẽ chống lại cả bot tự động và các hình thức lạm dụng phiên làm việc tinh vi.
