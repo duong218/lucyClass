@@ -1,44 +1,46 @@
-import { useLayoutEffect } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 
 /**
- * Ultimate Stable Scroll Lock Hook
- * Prevents jumping, ensures background stability, and works across all devices.
- * Uses the position: fixed technique with full containment.
+ * Ultimate Stable Scroll Lock Hook - Mobile Fixed
+ * 
+ * Root cause of mobile jump:
+ * The `position: fixed` approach causes a layout recalculation before
+ * window.scrollTo fires, making the page visually snap to top then jump back.
+ * 
+ * Fix: Use `overflow: hidden` on <html> instead of `position: fixed` on <body>.
+ * This preserves scroll position natively without any scrollTo restore needed.
+ * paddingRight compensation still applied to prevent layout shift from scrollbar.
  * 
  * @param {boolean} isOpen - Modal open state
  */
 export const useLockBodyScroll = (isOpen) => {
+  const scrollBarWidthRef = useRef(0);
+
   useLayoutEffect(() => {
     if (!isOpen) return;
 
-    // ✅ lưu vào biến thật
-    const scrollY = window.scrollY;
     const scrollBarWidth = window.innerWidth - document.documentElement.clientWidth;
+    scrollBarWidthRef.current = scrollBarWidth;
 
-    // lock body
-    document.body.style.overflow = 'hidden';
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.left = '0';
-    document.body.style.right = '0';
-    document.body.style.width = '100%';
-    document.body.style.paddingRight = `${scrollBarWidth}px`;
+    const html = document.documentElement;
+    const body = document.body;
 
-    document.body.style.touchAction = 'none';
+    // Lock via overflow on <html> — browser keeps scroll position internally
+    html.style.overflow = 'hidden';
+
+    // Compensate scrollbar width to prevent layout shift
+    if (scrollBarWidth > 0) {
+      body.style.paddingRight = `${scrollBarWidth}px`;
+    }
+
+    // Prevent touch scroll bleed-through on iOS
+    body.style.touchAction = 'none';
 
     return () => {
-      // restore styles
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.top = '';
-      document.body.style.left = '';
-      document.body.style.right = '';
-      document.body.style.width = '';
-      document.body.style.paddingRight = '';
-
-      // ✅ dùng scrollY gốc (KHÔNG parse từ style)
-      document.body.style.touchAction = '';
-      window.scrollTo(0, scrollY);
+      html.style.overflow = '';
+      body.style.paddingRight = '';
+      body.style.touchAction = '';
+      // ✅ NO scrollTo needed — scroll position was never lost
     };
   }, [isOpen]);
 };
