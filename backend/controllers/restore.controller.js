@@ -1,6 +1,4 @@
-const { google } = require('googleapis');
-const oauth2Client = require('../config/google');
-const GoogleToken = require('../models/GoogleToken');
+const driveService = require('../services/drive.service');
 const restoreService = require('../services/restore.service');
 const AuditLog = require('../models/AuditLog');
 const path = require('path');
@@ -12,24 +10,16 @@ const fs = require('fs').promises;
  */
 exports.listBackups = async (req, res, next) => {
   try {
-    const tokenData = await GoogleToken.findOne();
-    if (!tokenData) return res.status(401).json({ message: 'Google account not connected' });
-    oauth2Client.setCredentials(tokenData);
-
-    const drive = google.drive({ version: 'v3', auth: oauth2Client });
+    const drive = await driveService.getDrive();
     const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
     
     if (!folderId) {
       return res.status(500).json({ success: false, message: 'GOOGLE_DRIVE_FOLDER_ID is not configured' });
     }
 
-    let response;
+    let files;
     try {
-      response = await drive.files.list({
-        q: `'${folderId}' in parents and trashed = false and (mimeType = 'application/zip' or name contains '.zip.enc')`,
-        fields: 'files(id, name, createdTime, size)',
-        orderBy: 'createdTime desc'
-      });
+      files = await driveService.listFiles(drive, folderId);
     } catch (err) {
       if (err.response?.data?.error === 'invalid_grant' || err.code === 401) {
         throw new Error('GOOGLE_TOKEN_EXPIRED');
@@ -37,14 +27,14 @@ exports.listBackups = async (req, res, next) => {
       throw err;
     }
 
-    const files = (response.data.files || []).map(file => ({
+    const enrichedFiles = files.map(file => ({
       ...file,
       // Add a cleaner display name for the UI by stripping .enc if present
       displayName: file.name.endsWith('.enc') ? file.name.slice(0, -4) : file.name,
       isEncrypted: file.name.endsWith('.enc')
     }));
 
-    res.json({ success: true, data: files });
+    res.json({ success: true, data: enrichedFiles });
   } catch (error) {
     console.error('[RESTORE:LIST] Error:', error.response?.data || error.message);
     
@@ -101,10 +91,7 @@ exports.restoreBackup = async (req, res, next) => {
     console.log(`[RESTORE:SECURE] Admin ${req.user.username} initiated restore for fileId: ${fileId}`);
 
     // A. Fetch file metadata to get the correct extension
-    const tokenData = await GoogleToken.findOne();
-    if (!tokenData) throw new Error('Google account not connected');
-    oauth2Client.setCredentials(tokenData);
-    const drive = google.drive({ version: 'v3', auth: oauth2Client });
+    const drive = await driveService.getDrive();
     
     const fileMetadata = await drive.files.get({ fileId, fields: 'name' });
     const fileName = fileMetadata.data.name;

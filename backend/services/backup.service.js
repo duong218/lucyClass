@@ -2,10 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const archiver = require('archiver');
 const { spawn } = require('child_process');
-const { google } = require('googleapis');
-const oauth2Client = require('../config/google');
-const GoogleToken = require('../models/GoogleToken');
 const { encryptFile } = require('../utils/encryptionUtils');
+const driveService = require('./drive.service');
 
 /**
  * PRODUCTION-READY BACKUP SERVICE
@@ -13,36 +11,6 @@ const { encryptFile } = require('../utils/encryptionUtils');
 
 const ensureDir = (dirPath) => {
   fs.mkdirSync(dirPath, { recursive: true });
-};
-
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-const uploadToDriveWithRetry = async ({ drive, encryptedFilePath, encryptedFileName, targetFolderId, attempts = 3 }) => {
-  let lastErr = null;
-  for (let attempt = 1; attempt <= attempts; attempt++) {
-    console.log(`[BackupService] Upload attempt ${attempt}/${attempts}: ${encryptedFileName}`);
-    try {
-      const driveResponse = await drive.files.create({
-        requestBody: {
-          name: encryptedFileName,
-          mimeType: 'application/octet-stream',
-          parents: [targetFolderId]
-        },
-        media: {
-          mimeType: 'application/octet-stream',
-          body: fs.createReadStream(encryptedFilePath),
-        },
-      });
-      return driveResponse;
-    } catch (err) {
-      lastErr = err;
-      console.error(`[BackupService] Upload attempt ${attempt} failed:`, err.response?.data || err.message);
-      if (attempt < attempts) {
-        await sleep(1000 * attempt);
-      }
-    }
-  }
-  throw lastErr;
 };
 
 const resolveBackupRoot = () => {
@@ -81,20 +49,20 @@ exports.retryPendingUploads = async () => {
 
   console.log(`[BackupService] Startup scan: found ${pending.length} .uploading file(s), retrying upload...`);
 
-  const tokenData = await GoogleToken.findOne();
-  if (!tokenData) {
-    console.warn('[BackupService] Startup retry skipped: Google Drive account not connected');
-    return;
-  }
-
   const encryptionKey = process.env.BACKUP_ENCRYPTION_KEY;
   if (!encryptionKey) {
     console.warn('[BackupService] Startup retry skipped: BACKUP_ENCRYPTION_KEY missing');
     return;
   }
 
-  oauth2Client.setCredentials(tokenData);
-  const drive = google.drive({ version: 'v3', auth: oauth2Client });
+  let drive;
+  try {
+    drive = await driveService.getDrive();
+  } catch (err) {
+    console.warn('[BackupService] Startup retry skipped: Google Drive account not connected');
+    return;
+  }
+
   const targetFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID || '1grfEjnjRM-HlGHqhlHtbJyEY8tSdv41m';
 
   for (const uploadingPath of pending) {
@@ -107,13 +75,13 @@ exports.retryPendingUploads = async () => {
       console.log(`[BackupService] Encrypting for retry: ${baseName} -> ${encryptedFileName}`);
       await encryptFile(uploadingPath, encryptedFilePath, encryptionKey);
 
-      const driveResponse = await uploadToDriveWithRetry({
+      const driveResponse = await driveService.uploadToDrive(
         drive,
         encryptedFilePath,
         encryptedFileName,
         targetFolderId,
-        attempts: 3
-      });
+        3
+      );
 
       console.log(`[BackupService] Retry upload success. FileID: ${driveResponse.data.id}. Deleting local: ${baseName}`);
       try { fs.unlinkSync(uploadingPath); } catch (_) {}
@@ -239,11 +207,7 @@ exports.runBackup = async (options = {}) => {
         throw new Error('BACKUP_ENCRYPTION_KEY is missing in .env. Cannot encrypt for Google Drive upload.');
       }
 
-      const tokenData = await GoogleToken.findOne();
-      if (!tokenData) throw new Error('Google Drive account not connected');
-      
-      oauth2Client.setCredentials(tokenData);
-      const drive = google.drive({ version: 'v3', auth: oauth2Client });
+      const drive = await driveService.getDrive();
 
       const encryptedFileName = zipFileName + '.enc';
       const uploadingZipPath = zipFilePath + '.uploading';
@@ -262,13 +226,13 @@ exports.runBackup = async (options = {}) => {
         console.log(`[BackupService] Encrypting ${path.basename(uploadingZipPath)} -> ${encryptedFileName}...`);
         await encryptFile(uploadingZipPath, encryptedFilePath, encryptionKey);
 
-        const driveResponse = await uploadToDriveWithRetry({
+        const driveResponse = await driveService.uploadToDrive(
           drive,
           encryptedFilePath,
           encryptedFileName,
           targetFolderId,
-          attempts: 3
-        });
+          3
+        );
         
         driveFileId = driveResponse.data.id;
         console.log(`[BackupService] Upload success. FileID: ${driveFileId}`);
@@ -280,6 +244,10 @@ exports.runBackup = async (options = {}) => {
         } catch (err) {
           console.error('[BackupService] Failed to delete local backup after upload:', err.message);
         }
+
+        // 6. Automatic rotation: cleanup old backups on Drive
+        await driveService.cleanupDriveBackups(drive, targetFolderId);
+
       } catch (err) {
         console.error('[BackupService] Upload failed (file kept for retry):', err.response?.data || err.message);
         if (err.response?.data?.error === 'invalid_grant') {

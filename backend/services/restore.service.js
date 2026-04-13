@@ -2,12 +2,10 @@ const fs = require('fs').promises;
 const fsStandard = require('fs');
 const path = require('path');
 const AdmZip = require('adm-zip');
-const { google } = require('googleapis');
-const oauth2Client = require('../config/google');
 const { spawn, execSync } = require('child_process');
 
-const GoogleToken = require('../models/GoogleToken');
 const backupService = require('./backup.service');
+const driveService = require('./drive.service');
 const { decryptFile } = require('../utils/encryptionUtils');
 
 // 🔒 Global State (In-Memory Lock & Progress)
@@ -92,49 +90,11 @@ const findTargetFolder = async (basePath, targetName) => {
 };
 
 /**
- * Download with Retry Logic
+ * Download with Retry Logic (delegated to drive.service.js)
  */
 exports.downloadFileFromDrive = async (fileId, outputPath, attempts = 3) => {
-  const tokenData = await GoogleToken.findOne();
-  if (!tokenData) throw new Error('Google account not connected');
-  oauth2Client.setCredentials(tokenData);
-
-  const drive = google.drive({ version: 'v3', auth: oauth2Client });
-
-  for (let i = 1; i <= attempts; i++) {
-    try {
-      console.log(`[RESTORE:DRIVE] Download attempt ${i}/${attempts} for ${fileId}`);
-      const dest = fsStandard.createWriteStream(outputPath);
-      let res;
-      try {
-        res = await drive.files.get({ fileId, alt: 'media' }, { responseType: 'stream' });
-      } catch (err) {
-        console.error('[RESTORE:DRIVE] Drive download error:', err.response?.data || err.message);
-        if (err.response?.data?.error === 'invalid_grant' || err.code === 401) {
-          throw new Error('GOOGLE_TOKEN_EXPIRED');
-        }
-        throw err;
-      }
-
-      await new Promise((resolve, reject) => {
-        res.data.pipe(dest);
-        res.data.on('error', (err) => { dest.close(); reject(err); });
-        dest.on('finish', () => { dest.close(); resolve(); });
-        dest.on('error', (err) => { dest.close(); reject(err); });
-      });
-
-      // Validate downloaded file
-      const stats = await fs.stat(outputPath);
-      if (stats.size === 0) throw new Error('Downloaded file is empty');
-
-      console.log(`[RESTORE:DRIVE] Download successful: ${stats.size} bytes`);
-      return;
-    } catch (err) {
-      if (i === attempts) throw new Error(`Google Drive download failed after ${attempts} attempts: ${err.message}`);
-      console.warn(`[RESTORE:DRIVE] Attempt ${i} failed, retrying in 2s...`);
-      await new Promise(r => setTimeout(r, 2000));
-    }
-  }
+  const drive = await driveService.getDrive();
+  await driveService.downloadFromDrive(drive, fileId, outputPath, attempts);
 };
 
 /**
