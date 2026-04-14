@@ -1,0 +1,36 @@
+# Dependencies
+node_modules
+
+# Environment
+.env
+.env.*
+.env.local
+.env.development
+.env.production
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+.dockerignore
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Temp files (backup pipeline)
+tmp/
+temp/
+*.zip
+*.gz

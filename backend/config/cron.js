@@ -9,6 +9,11 @@ const { cleanOldRankings } = require('../controllers/rankingController');
  * Daily backup at 2:00 AM
  */
 const initCronJobs = () => {
+  if (process.env.ENABLE_CRON !== 'true') {
+    console.log('⏰ Cron jobs disabled (ENABLE_CRON != true)');
+    return;
+  }
+
   const isDevelopment = process.env.NODE_ENV !== 'production';
   const cronOptions = process.env.CRON_TIMEZONE ? { timezone: process.env.CRON_TIMEZONE } : undefined;
   let isRankingCleanupRunning = false;
@@ -29,7 +34,6 @@ const initCronJobs = () => {
         console.log(`[Cron] Scheduled backup successful: ${result.fileName}`);
       }
 
-      // Log to AuditLog (System entry)
       try {
         const systemAdmin = await Admin.findOne({ role: 'admin' });
         await AuditLog.create({
@@ -46,7 +50,6 @@ const initCronJobs = () => {
     } catch (error) {
       console.error('[Cron] Scheduled backup failed:', error.message);
       
-      // Log failure
       try {
         const systemAdmin = await Admin.findOne({ role: 'admin' });
         await AuditLog.create({
