@@ -252,6 +252,7 @@ exports.forgotPassword = async (req, res) => {
     user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
     user.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
     await user.save();
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
     const htmlContent = `
       <p style="margin: 0; font-size: 18px;">Bạn yêu cầu đặt lại mật khẩu? 👋</p>
       <p style="margin: 15px 0;">Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản LucyClass của bạn. Nhấn vào nút bên dưới để thực hiện:</p>
