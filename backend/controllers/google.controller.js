@@ -25,11 +25,13 @@ exports.redirectToGoogle = (req, res) => {
 exports.redirectToGoogle = (req, res) => {
   const state = crypto.randomBytes(16).toString('hex');
 
+  const isProd = process.env.NODE_ENV === 'production';
+
   res.cookie('google_oauth_state', state, {
     httpOnly: true,
     signed: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production'
+    sameSite: isProd ? 'none' : 'lax', // 🔥 allow cross-site in production
+    secure: isProd                    // 🔥 required when sameSite = 'none'
   });
 
   const url = oauth2Client.generateAuthUrl({
@@ -68,6 +70,9 @@ exports.handleGoogleCallback = async (req, res) => {
       throw new Error('Failed to retrieve tokens from Google');
     }
 
+    // 🔥 Get existing token from DB first
+    const existing = await GoogleToken.findOne({});
+
     // Save tokens in MongoDB (upsert so we only have one set of credentials)
     await GoogleToken.findOneAndUpdate({},
       {
@@ -90,7 +95,14 @@ exports.handleGoogleCallback = async (req, res) => {
     });
 
     // Success redirect
-    res.clearCookie('google_oauth_state'); //chatgpt đã thêm lúc 4:16 24/
+    const isProd = process.env.NODE_ENV === 'production';
+    res.clearCookie('google_oauth_state', {
+      httpOnly: true,
+      signed: true,
+      sameSite: isProd ? 'none' : 'lax',
+      secure: isProd
+    });
+    
     res.redirect(`${DASHBOARD_URL}?google=success`);
   } catch (error) {
     console.error('Google OAuth Token Exchange Error:', error.message);
