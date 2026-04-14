@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const axios = require('axios');
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
+const { sendEmail, getHtmlTemplate } = require('../utils/emailService');
 const systemLogger = require('../utils/systemLogger');
 
 // Helper to delay response
@@ -252,8 +252,27 @@ exports.forgotPassword = async (req, res) => {
     user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
     user.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
     await user.save();
-    const transporter = nodemailer.createTransport({ service: 'gmail', auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS } });
-    await transporter.sendMail({ from: `"Lucy's Class" <${process.env.EMAIL_USER}>`, to: user.email, subject: 'Yêu cầu đặt lại mật khẩu', html: `<p>Nhấn vào <a href="${process.env.FRONTEND_URL}/reset-password/${resetToken}">đây</a> để đặt lại mật khẩu.</p>` });
+    const htmlContent = `
+      <p style="margin: 0; font-size: 18px;">Bạn yêu cầu đặt lại mật khẩu? 👋</p>
+      <p style="margin: 15px 0;">Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản LucyClass của bạn. Nhấn vào nút bên dưới để thực hiện:</p>
+      
+      <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin: 30px 0;">
+        <tr>
+          <td align="center">
+            <a href="${resetUrl}" style="background-color: #4F9CF9; color: #ffffff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block; font-size: 16px;">Đặt lại mật khẩu</a>
+          </td>
+        </tr>
+      </table>
+
+      <p style="margin: 0; font-size: 14px; color: #888888;">Nếu bạn không yêu cầu điều này, vui lòng bỏ qua email này. Liên kết sẽ hết hạn sau 15 phút.</p>
+    `;
+
+    await sendEmail({
+      to: user.email,
+      subject: "LucyClass - Đặt lại mật khẩu",
+      html: getHtmlTemplate(htmlContent),
+      text: `Đặt lại mật khẩu LucyClass của bạn tại: ${resetUrl}`
+    });
     res.json({ success: true, message: 'Link reset đã được gửi' });
   } catch (error) { 
     systemLogger.error('[ForgotPassword] Error', { message: error.message });

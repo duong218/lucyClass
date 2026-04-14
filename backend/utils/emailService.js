@@ -1,193 +1,169 @@
-const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail');
 
-// Load environment variables if not already handled in server.js
-require('dotenv').config();
+if (!process.env.SENDGRID_API_KEY) {
+  throw new Error("Missing SENDGRID_API_KEY in environment variables");
+}
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 /**
- * Generate standard HTML shell for Lucy Class emails
+ * Standard HTML layout for LucyClass emails
+ * Uses <table> layout for Gmail compatibility
  */
-const getHtmlTemplate = (contentBlocks) => `
+const getHtmlTemplate = (content) => `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <style>
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #f4f7f6;
-      margin: 0;
-      padding: 20px;
-    }
-    .container {
-      max-width: 600px;
-      margin: 0 auto;
-      background-color: #ffffff;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-      border: 3px solid #FDE047; /* Lucy Class Yellow */
-    }
-    .header {
-      background-color: #C2E0F9; /* Lucy Class Light Blue */
-      padding: 30px 20px;
-      text-align: center;
-      border-bottom: 3px solid #FDE047;
-    }
-    .header h1 {
-      margin: 0;
-      color: #1e3a8a;
-      font-size: 24px;
-    }
-    .content {
-      padding: 30px;
-      color: #333333;
-      line-height: 1.6;
-      font-size: 16px;
-    }
-    .content h2 {
-      color: #4A90D9;
-      margin-top: 0;
-    }
-    .highlight-box {
-      background-color: #f8fbff;
-      border-left: 4px solid #FDE047;
-      padding: 15px;
-      margin: 20px 0;
-      border-radius: 0 8px 8px 0;
-    }
-    .highlight-box p {
-      margin: 5px 0;
-    }
-    .footer {
-      background-color: #f8f9fa;
-      padding: 20px;
-      text-align: center;
-      font-size: 14px;
-      color: #666666;
-      border-top: 1px solid #eeeeee;
-    }
-    .footer strong {
-      color: #4A90D9;
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LucyClass English Center</title>
 </head>
-<body>
-  <div class="container">
-    <div class="header">
-      <!-- Lucy Class Logo placeholder (text based since no explicit logo image URL was given) -->
-      <h1>Lucy's Class English Center</h1>
-    </div>
-    <div class="content">
-      ${contentBlocks}
-    </div>
-    <div class="footer">
-      <p>Trân trọng,<br>
-      <strong>Đội ngũ Lucy Class!</strong></p>
-      <p>Địa chỉ: S1.07 1105 Vinhomes Ocean Park 1<br>
-      Fanpage: <a href="https://www.facebook.com/lucysclass" style="color: #4A90D9;">https://www.facebook.com/lucysclass</a></p>
-    </div>
-  </div>
+<body style="margin: 0; padding: 0; background-color: #f4f7f9; font-family: Arial, sans-serif;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f4f7f9; padding: 20px 0;">
+    <tr>
+      <td align="center">
+        <!-- Container -->
+        <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid #e0e0e0;">
+          <!-- Header -->
+          <tr>
+            <td align="center" style="background-color: #4F9CF9; padding: 30px;">
+              <img src="https://res.cloudinary.com/dtf9wke7m/image/upload/v1776183996/logo_ahh4ff.png" alt="LucyClass Logo" width="100" style="display: block; margin-bottom: 10px;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 22px; font-weight: bold;">LucyClass English Center</h1>
+            </td>
+          </tr>
+          <!-- Main Content -->
+          <tr>
+            <td style="padding: 40px; color: #333333; line-height: 1.6; font-size: 16px;">
+              ${content}
+            </td>
+          </tr>
+          <!-- Support Section -->
+          <tr>
+            <td style="padding: 0 40px 40px 40px;">
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f9fbff; border-radius: 8px; padding: 20px; border: 1px solid #eef2f8;">
+                <tr>
+                  <td>
+                    <p style="margin: 0 0 10px 0; font-weight: bold; color: #4F9CF9;">Thông tin hỗ trợ:</p>
+                    <p style="margin: 0; font-size: 14px; color: #666666;">📞 Hotline: <strong>+84 931768790</strong></p>
+                    <p style="margin: 5px 0 0 0; font-size: 14px; color: #666666;">📧 Email: <a href="mailto:lucyclasspage@gmail.com" style="color: #4F9CF9; text-decoration: none;">lucyclasspage@gmail.com</a></p>
+                    <p style="margin: 5px 0 0 0; font-size: 14px; color: #666666;">🌐 Facebook: <a href="https://www.facebook.com/lucysclass" style="color: #4F9CF9; text-decoration: none;">fb.com/lucysclass</a></p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td align="center" style="padding: 30px; background-color: #fcfcfc; border-top: 1px solid #f0f0f0; color: #888888; font-size: 14px;">
+              <p style="margin: 0;">Trân trọng,<br><strong style="color: #4F9CF9;">Đội ngũ LucyClass</strong></p>
+              <p style="margin: 10px 0 0 0;">S1.07 1105 Vinhomes Ocean Park 1</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>
 `;
 
 /**
+ * Reusable function to send email via SendGrid
+ */
+const sendEmail = async ({ to, subject, html, text }) => {
+  try {
+    if (!process.env.EMAIL_FROM) {
+      console.error('❌ EMAIL_FROM is missing!');
+      return;
+    }
+
+    const msg = {
+      to,
+      from: process.env.EMAIL_FROM,
+      subject,
+      html,
+      text: text || subject
+    };
+
+    console.log("📧 Sending email via SendGrid:", { to, subject });
+
+    await sgMail.send(msg);
+
+    console.log("✅ Email sent successfully via SendGrid");
+  } catch (error) {
+    console.error("❌ SendGrid send error:", error.response?.body || error.message);
+    throw error;
+  }
+};
+
+/**
  * Send registration confirmation email to parent
  */
-exports.sendRegistrationEmail = async (parentEmail, studentName, courseName) => {
-  if (!parentEmail || !process.env.EMAIL_USER) return;
-
-  const currentDateTime = new Date().toLocaleString('vi-VN', {
-    timeZone: 'Asia/Ho_Chi_Minh',
-    dateStyle: 'full',
-    timeStyle: 'medium'
-  });
-
-  const contentBlocks = `
-    <h2>Thân gửi bạn ${studentName},</h2>
-    <p>Chúc mừng bạn đã đăng ký thành công khóa học <strong>${courseName}</strong> tại Lucy Class!</p>
-    <p>Chúng tôi rất vui mừng được đồng hành cùng bạn trên con đường chinh phục tiếng Anh. Dưới đây là thông tin chi tiết về đơn đăng ký:</p>
+const sendRegistrationEmail = async (parentEmail, studentName, courseName) => {
+  const content = `
+    <p style="margin: 0; font-size: 18px;">Xin chào ${studentName || 'bạn'} 👋</p>
+    <p style="margin: 15px 0 25px 0;">Chúc mừng bạn đã đăng ký thành công khóa học tại <strong>LucyClass</strong>!</p>
     
-    <div class="highlight-box">
-      <p><strong>1. Thông tin khóa học:</strong></p>
-      <ul>
-        <li>Tên khóa học: ${courseName}</li>
-        <li>Tên học viên: ${studentName}</li>
-        <li>Thời gian đăng ký: ${currentDateTime}</li>
-      </ul>
-    </div>
-    
-    <div class="highlight-box">
-      <p><strong>2. Hỗ trợ học viên:</strong></p>
-      <ul>
-        <li>Hotline: +84 931768790</li>
-        <li>Zalo/Messenger: <a href="https://zalo.me/0931768790" style="color:#4A90D9;">Liên hệ Zalo</a></li>
-        <li>Email hỗ trợ: lucyclass2019@gmail.com</li>
-      </ul>
-    </div>
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f5faff; border-radius: 8px; padding: 20px; margin-bottom: 30px; border-left: 4px solid #FFD93D;">
+      <tr>
+        <td>
+          <p style="margin: 0 0 10px 0; font-weight: bold; color: #333333;">Chi tiết đăng ký:</p>
+          <p style="margin: 5px 0; font-size: 15px;">📌 <strong>Tên khóa học:</strong> ${courseName}</p>
+          <p style="margin: 5px 0; font-size: 15px;">👤 <strong>Tên học viên:</strong> ${studentName}</p>
+          <p style="margin: 5px 0; font-size: 15px;">🕒 <strong>Thời gian đăng ký:</strong> ${new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>
+        </td>
+      </tr>
+    </table>
+
+    <table width="100%" border="0" cellspacing="0" cellpadding="0">
+      <tr>
+        <td align="center">
+          <a href="mailto:lucyclasspage@gmail.com" style="background-color: #FFD93D; color: #000000; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block; font-size: 16px;">Liên hệ hỗ trợ</a>
+        </td>
+      </tr>
+    </table>
   `;
 
-  const html = getHtmlTemplate(contentBlocks);
-
-  const mailOptions = {
-    from: `"Lucy Class" <${process.env.EMAIL_USER}>`,
+  await sendEmail({
     to: parentEmail,
-    subject: `Lucy Class - Xác nhận đăng ký thành công khóa học ${courseName}`,
-    html: html
-  };
-
-  try {
-    await transporter.sendMail(mailOptions);
-    console.log('[DEBUG] Registration email sent to', parentEmail);
-  } catch (err) {
-    console.error('[ERROR] Failed to send registration email:', err);
-  }
+    subject: "LucyClass - Xác nhận đăng ký thành công",
+    html: getHtmlTemplate(content),
+    text: `Xin chào ${studentName}, bạn đã đăng ký thành công khóa học ${courseName} tại LucyClass.`
+  });
 };
 
 /**
  * Send internal notification email to admin
  */
-exports.sendAdminNotification = async (parentName, phone, studentName, courseName, parentEmail) => {
-  if (!process.env.EMAIL_USER) return;
-
-  const contentBlocks = `
-    <h2>Thông báo: Có học viên mới đăng ký</h2>
-    <p>Hệ thống vừa ghi nhận một lượt đăng ký mới cho khóa học <strong>${courseName}</strong>.</p>
+const sendAdminNotification = async (parentName, phone, studentName, courseName, parentEmail) => {
+  const content = `
+    <p style="margin: 0; font-size: 18px; font-weight: bold; color: #4F9CF9;">🛎 Có học viên mới đăng ký!</p>
+    <p style="margin: 15px 0;">Hệ thống vừa ghi nhận một lượt đăng ký mới:</p>
     
-    <div class="highlight-box">
-      <p><strong>Thông tin đăng ký:</strong></p>
-      <ul>
-        <li>Phụ huynh: ${parentName}</li>
-        <li>SĐT: ${phone}</li>
-        <li>Email: ${parentEmail || 'Không cung cấp'}</li>
-        <li>Học viên: ${studentName}</li>
-        <li>Khóa học: ${courseName}</li>
-        <li>Thời gian: ${new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</li>
-      </ul>
-    </div>
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fbff; border-radius: 8px; padding: 20px; margin-bottom: 20px; border: 1px solid #eef2f8;">
+      <tr>
+        <td>
+          <p style="margin: 5px 0; font-size: 15px;">👤 <strong>Học viên:</strong> ${studentName}</p>
+          <p style="margin: 5px 0; font-size: 15px;">📌 <strong>Khóa học:</strong> ${courseName}</p>
+          <p style="margin: 5px 0; font-size: 15px;">👨‍👩‍👧 <strong>Phụ huynh:</strong> ${parentName}</p>
+          <p style="margin: 5px 0; font-size: 15px;">📞 <strong>SĐT:</strong> ${phone}</p>
+          <p style="margin: 5px 0; font-size: 15px;">📧 <strong>Email:</strong> ${parentEmail || 'Không cung cấp'}</p>
+        </td>
+      </tr>
+    </table>
   `;
 
-  const html = getHtmlTemplate(contentBlocks);
+  await sendEmail({
+    to: process.env.EMAIL_FROM,
+    subject: `[Admin] Đăng ký mới: ${courseName}`,
+    html: getHtmlTemplate(content),
+    text: `Có học viên mới đăng ký: ${studentName} - Khóa học: ${courseName}. Phụ huynh: ${parentName}, SĐT: ${phone}.`
+  });
+};
 
-  const mailOptions = {
-    from: `"Lucy Class System" <${process.env.EMAIL_USER}>`,
-    to: process.env.EMAIL_USER, // send to admin
-    subject: `[Thông báo Admin] - Đăng ký mới: ${courseName}`,
-    html: html
-  };
-
-  try {
-    await transporter.sendMail(mailOptions);
-    console.log('[DEBUG] Admin notification email sent.');
-  } catch (err) {
-    console.error('[ERROR] Failed to send admin notification:', err);
-  }
+module.exports = {
+  sendEmail,
+  sendRegistrationEmail,
+  sendAdminNotification,
+  getHtmlTemplate
 };
