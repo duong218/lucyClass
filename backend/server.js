@@ -5,11 +5,23 @@ const systemLogger = require('./utils/systemLogger');
 let server;
 const gracefulShutdown = () => {
   console.log('🛑 Shutting down...');
+  
+  const mongoose = require('mongoose');
+  
   if (server) {
-    server.close(() => {
-      console.log('✅ All connections closed');
+    server.close(async () => {
+      console.log('✅ HTTP server closed');
+      await mongoose.connection.close();
+      console.log('✅ MongoDB connection closed');
       process.exit(0);
     });
+    
+    // Force exit nếu quá 10s
+    setTimeout(() => {
+      console.error('⚠️ Forced shutdown after timeout');
+      process.exit(1);
+    }, 10000);
+    
   } else {
     process.exit(0);
   }
