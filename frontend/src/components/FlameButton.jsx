@@ -256,11 +256,11 @@ const FlameButton = () => {
   return (
     <>
       <div
-        className="fixed bottom-[24px] right-[24px] z-[40] cursor-pointer group"
+        className="fixed bottom-[20px] right-[16px] sm:bottom-[24px] sm:right-[20px] md:bottom-[28px] md:right-[28px] lg:bottom-[36px] lg:right-[36px] z-[40] cursor-pointer group"
         onClick={() => setIsOpen(true)}
       >
         {/* Glow behind flame */}
-        <div className="absolute inset-0 bg-orange-400/20 blur-3xl rounded-full scale-150 animate-pulse"></div>
+        <div className="absolute inset-0 bg-orange-400/20 blur-3xl rounded-full scale-150 md:scale-175 lg:scale-200 animate-pulse"></div>
         
         <img
           src={flameImg}
@@ -269,7 +269,7 @@ const FlameButton = () => {
             sm:w-[140px] sm:h-[160px] 
             md:w-[160px] md:h-[180px] 
             lg:w-[190px] lg:h-[210px]
-            object-contain origin-bottom transition-transform group-hover:scale-110 drop-shadow-[0_10px_10px_rgba(255,165,0,0.4)] animate-float ${
+            object-contain origin-bottom transition-transform group-hover:scale-110 md:group-hover:scale-125 drop-shadow-[0_10px_10px_rgba(255,165,0,0.4)] animate-float ${
             isBouncing ? 'animate-bounce' : ''
           }`}
         />
@@ -293,9 +293,9 @@ const FlameButton = () => {
           <div className="absolute top-1 right-1">
              <div className="relative animate-bounce-subtle" key={userData.streakCount}>
                 <div className={`absolute inset-0 ${styles.bg} blur-sm rounded-full scale-110`}></div>
-                <div className={`relative ${styles.bg} ${styles.color} font-black px-3 py-1 rounded-full text-[14px] border-2 ${styles.border} shadow-lg flex items-center gap-1`}>
+                <div className={`relative ${styles.bg} ${styles.color} font-black px-3 py-1 rounded-full text-[14px] sm:text-[16px] md:text-[18px] px-3 sm:px-4 py-1.5 border-2 ${styles.border} shadow-lg flex items-center gap-1`}>
                   <span>{userData.streakCount}</span>
-                  <span className="text-[10px]">{styles.icon}</span>
+                  <span className="text-[px]">{styles.icon}</span>
                 </div>
              </div>
           </div>
@@ -410,13 +410,15 @@ const FlameButton = () => {
                     disabled={loading || hasCheckedInToday}
                     className={`w-full text-white font-black py-5 rounded-[2rem] transition-all shadow-xl hover:scale-105 active:scale-95 ${
                       hasCheckedInToday
-                        ? 'bg-gray-100 text-gray-300 shadow-none cursor-not-allowed'
+                        ? 'bg-green-100 text-green-600 animate-pulse border-2 border-green-200 shadow-md cursor-not-allowed'
                         : `${styles.btn} ${styles.shadow}`
                     } ${loading ? 'opacity-70' : ''}`}
                   >
                     {hasCheckedInToday ? (
                       <span className="flex items-center justify-center gap-2">
-                        <span>{t('streak.already_checked_in')}</span>
+                        <span className="font-bold text-white bg-gradient-to-r from-green-400 to-emerald-500 px-3 py-1 rounded-full shadow-md">
+                          {t('streak.already_checked_in')}
+                        </span> 
                         <span className="text-xl">🍬</span>
                       </span>
                     ) : (
