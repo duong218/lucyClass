@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import flameImg from '../assets/flame.png';
 
 const FlameButton = () => {
+  const { t } = useTranslation();
+  
   const [isBouncing, setIsBouncing] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [phone, setPhone] = useState('');
@@ -11,6 +14,8 @@ const FlameButton = () => {
   const [streakCount, setStreakCount] = useState(0);
   const [hasCheckedInToday, setHasCheckedInToday] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [justCheckedIn, setJustCheckedIn] = useState(false);
+  const [lostStreak, setLostStreak] = useState(false);
   const phoneInputRef = React.useRef(null);
 
   const getVietnamDateString = (offsetDays = 0) => {
@@ -36,18 +41,41 @@ const FlameButton = () => {
 
     let count = parseInt(localStorage.getItem(`streak_count_${targetPhone}`) || '0', 10);
     const lastDate = localStorage.getItem(`last_checkin_${targetPhone}`);
+    const successDate = localStorage.getItem(`last_checkin_success_${targetPhone}`);
 
     if (lastDate === today) {
       setStreakCount(count);
       setHasCheckedInToday(true);
+      setLostStreak(false);
+      localStorage.removeItem(`lost_streak_${targetPhone}`);
+      
+      if (successDate === today) {
+        setJustCheckedIn(true);
+      } else {
+        setJustCheckedIn(false);
+      }
     } else if (lastDate === yesterday) {
       setStreakCount(count);
       setHasCheckedInToday(false);
+      setJustCheckedIn(false);
+      setLostStreak(false);
+      localStorage.removeItem(`lost_streak_${targetPhone}`);
     } else {
-      // reset sạch
+      if (count > 0 && lastDate) {
+        const seen = localStorage.getItem(`lost_streak_${targetPhone}`);
+        if (!seen) {
+          setLostStreak(true);
+          localStorage.setItem(`lost_streak_${targetPhone}`, 'true');
+        } else {
+          setLostStreak(false);
+        }
+      } else {
+        setLostStreak(false);
+      }
       count = 0;
       setStreakCount(0);
       setHasCheckedInToday(false);
+      setJustCheckedIn(false);
       localStorage.setItem(`streak_count_${targetPhone}`, '0');
       localStorage.removeItem(`last_checkin_${targetPhone}`);
     }
@@ -82,7 +110,6 @@ const FlameButton = () => {
 
     const lastDate = localStorage.getItem(`last_checkin_${phoneToUse}`);
 
-    // chặn check-in 2 lần
     if (lastDate === today) {
       setHasCheckedInToday(true);
       return;
@@ -90,33 +117,49 @@ const FlameButton = () => {
 
     let currentCount = parseInt(localStorage.getItem(`streak_count_${phoneToUse}`) || '0', 10);
 
-    // mất streak → reset
     if (lastDate !== yesterday) {
       currentCount = 0;
     }
 
     const newCount = currentCount + 1;
 
-    // sync tuyệt đối
     localStorage.setItem(`streak_count_${phoneToUse}`, newCount.toString());
     localStorage.setItem(`last_checkin_${phoneToUse}`, today);
+    localStorage.setItem(`last_checkin_success_${phoneToUse}`, today);
+    localStorage.removeItem(`lost_streak_${phoneToUse}`);
 
     setStreakCount(newCount);
     setHasCheckedInToday(true);
+    setLostStreak(false);
+    setJustCheckedIn(true);
+  };
+
+  const getMilestoneMessage = (count) => {
+    if (count === 30) return t('streak.milestone_30');
+    if (count === 7) return t('streak.milestone_7');
+    if (count === 3) return t('streak.milestone_3');
+    return "";
+  };
+
+  const getStreakColorClass = (count) => {
+    if (count >= 30) return "text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.8)]";
+    if (count >= 7) return "text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-orange-500 pb-1";
+    if (count >= 3) return "text-orange-600 drop-shadow-sm";
+    return "text-orange-500";
   };
 
   const handleStart = () => {
     const formattedPhone = phone.trim();
 
     if (!formattedPhone) {
-      setErrorMsg('Vui lòng nhập số điện thoại nhé! ✨');
+      setErrorMsg(t('streak.error_phone'));
       return;
     }
 
     const existingName = localStorage.getItem(`streak_name_${formattedPhone}`);
 
     if (!existingName && !name.trim()) {
-      setErrorMsg('Vui lòng nhập tên của bạn nhé! ✨');
+      setErrorMsg(t('streak.error_name'));
       return;
     }
 
@@ -130,10 +173,14 @@ const FlameButton = () => {
       localStorage.setItem(`streak_name_${formattedPhone}`, formattedName);
       localStorage.setItem(`streak_count_${formattedPhone}`, '0');
       localStorage.removeItem(`last_checkin_${formattedPhone}`);
+      localStorage.removeItem(`lost_streak_${formattedPhone}`);
+      localStorage.removeItem(`last_checkin_success_${formattedPhone}`);
 
       setSavedUser({ phone: formattedPhone, name: formattedName });
       setStreakCount(0);
       setHasCheckedInToday(false);
+      setJustCheckedIn(false);
+      setLostStreak(false);
     }
   };
 
@@ -146,6 +193,8 @@ const FlameButton = () => {
     setStreakCount(0);
     setHasCheckedInToday(false);
     setErrorMsg('');
+    setJustCheckedIn(false);
+    setLostStreak(false);
 
     setTimeout(() => {
       phoneInputRef.current?.focus();
@@ -161,6 +210,16 @@ const FlameButton = () => {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+  if (!justCheckedIn) return;
+
+  const timer = setTimeout(() => {
+    setJustCheckedIn(false);
+  }, 2500);
+
+  return () => clearTimeout(timer);
+}, [justCheckedIn]);
+
   return (
     <>
       <style>
@@ -174,6 +233,13 @@ const FlameButton = () => {
             50% { transform: translateY(0) scale(1.12); }
             100% { transform: translateY(0) scale(1); }
           }
+          @keyframes checkInSuccess {
+            0% { transform: scale(1); }
+            40% { transform: scale(1.25) rotate(5deg); }
+            60% { transform: scale(1.15) rotate(-5deg); }
+            80% { transform: scale(1.05) rotate(2deg); }
+            100% { transform: scale(1) rotate(0deg); }
+          }
           @keyframes modalPopIn {
             0% { opacity: 0; transform: scale(0.85) translateY(20px); }
             100% { opacity: 1; transform: scale(1) translateY(0); }
@@ -184,13 +250,15 @@ const FlameButton = () => {
           .animate-attention-pulse {
             animation: attentionPulse 0.3s ease-in-out forwards;
           }
+          .animate-checkin-success {
+            animation: checkInSuccess 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+          }
           .animate-modal-pop {
             animation: modalPopIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
           }
         `}
       </style>
 
-      {/* Floating Flame Button */}
       <div 
         className="fixed bottom-[24px] right-[24px] z-[40] cursor-pointer"
         onClick={() => setIsOpen(true)}
@@ -204,48 +272,53 @@ const FlameButton = () => {
         />
       </div>
 
-      {/* Modal Overlay */}
       {isOpen && (
         <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity duration-300">
           
-          {/* Modal Content */}
           <div className="bg-white rounded-[2.5rem] shadow-2xl p-6 md:p-8 max-w-sm w-full animate-modal-pop border-4 border-orange-100 flex flex-col items-center">
             
-            {/* Header */}
             <div className="text-4xl mb-2 flex justify-center gap-2">
               <span>👋</span><span>✨</span>
             </div>
             <h2 className="text-2xl md:text-3xl font-extrabold text-orange-500 mb-6 text-center leading-tight">
-              🔥 Giữ chuỗi học tập
+              {t('streak.title')}
             </h2>
             
-            {/* Conditional Form Inputs or Retuning User Greeting */}
             <div className="w-full flex flex-col gap-4">
               {savedUser ? (
                 <div className="flex flex-col items-center text-center w-full">
                   <p className="text-2xl font-bold text-orange-600 mb-2">
-                    👋 Chào {savedUser.name || 'bạn'}, bạn quay lại rồi!
+                    {t('streak.greeting_back', { name: savedUser.name || t('streak.greeting_default') })}
                   </p>
+                  
+                  {lostStreak && !hasCheckedInToday && (
+                    <div className="bg-red-50 text-red-600 px-4 py-2 rounded-xl text-sm font-semibold mb-2 animate-modal-pop text-center w-full">
+                      {t('streak.lost_streak_msg')}
+                    </div>
+                  )}
+
                   <div className="mb-6 flex flex-col items-center">
-                    <span className="text-lg text-orange-800 font-medium">🔥 Chuỗi của bạn:</span>
-                    <span className="text-5xl font-extrabold text-orange-500 my-2 drop-shadow-md">
-                      {streakCount} ngày
+                    <span className="text-lg text-orange-800 font-medium">{t('streak.streak_label')}</span>
+                    <span className={`text-5xl font-extrabold my-2 transition-all duration-300 ${getStreakColorClass(streakCount)} ${justCheckedIn ? 'animate-checkin-success' : ''}`}>
+                      {streakCount} {t('streak.days')}
                     </span>
+                    {getMilestoneMessage(streakCount) && (
+                      <span className="text-sm font-bold text-orange-600 bg-orange-100 px-3 py-1 rounded-full mt-1 animate-modal-pop">
+                        {getMilestoneMessage(streakCount)}
+                      </span>
+                    )}
                   </div>
                   
                   {hasCheckedInToday ? (
-                    <button 
-                      disabled
-                      className="w-full bg-gray-300 text-gray-500 font-extrabold text-xl py-4 rounded-[1.5rem] cursor-not-allowed"
-                    >
-                      ✅ Đã check-in hôm nay
-                    </button>
+                    <div className="w-full bg-gray-100 text-green-600 font-extrabold text-xl py-4 rounded-[1.5rem] flex items-center justify-center animate-modal-pop shadow-inner">
+                      {justCheckedIn ? t('streak.check_in_success') : t('streak.already_checked_in')}
+                    </div>
                   ) : (
                     <button 
                       onClick={handleCheckIn}
-                      className="w-full bg-gradient-to-b from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white font-extrabold text-xl py-4 rounded-[1.5rem] shadow-[0_6px_0_rgb(194,65,12)] hover:shadow-[0_4px_0_rgb(194,65,12)] hover:translate-y-[2px] active:translate-y-[6px] active:shadow-none transition-all"
+                      className="w-full bg-gradient-to-b from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white font-extrabold text-xl py-4 rounded-[1.5rem] shadow-[0_6px_0_rgb(194,65,12)] hover:shadow-[0_4px_0_rgb(194,65,12)] hover:scale-105 active:scale-95 active:shadow-none transition-all duration-200"
                     >
-                      🔥 Check-in hôm nay
+                      {t('streak.check_in_btn')}
                     </button>
                   )}
                   
@@ -253,7 +326,7 @@ const FlameButton = () => {
                     onClick={handleSwitchUser}
                     className="w-full mt-3 bg-orange-100 text-orange-600 hover:bg-orange-200 font-bold text-lg py-3 rounded-[1.5rem] transition-colors"
                   >
-                    🔄 Dùng số khác
+                    {t('streak.switch_user')}
                   </button>
                 </div>
               ) : (
@@ -266,7 +339,7 @@ const FlameButton = () => {
                   <input 
                     ref={phoneInputRef}
                     type="tel" 
-                    placeholder="Nhập số điện thoại" 
+                    placeholder={t('streak.placeholder_phone')}
                     value={phone}
                     onChange={(e) => {
                       setPhone(e.target.value);
@@ -278,13 +351,13 @@ const FlameButton = () => {
                   {foundName ? (
                     <div className="w-full text-center py-2">
                       <p className="text-xl font-bold text-orange-600">
-                        👋 Chào {foundName}, bạn quay lại rồi!
+                        {t('streak.greeting_back', { name: foundName })}
                       </p>
                     </div>
                   ) : (
                     <input 
                       type="text" 
-                      placeholder="Tên của bạn" 
+                      placeholder={t('streak.placeholder_name')}
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       className="w-full bg-orange-50 border-2 border-orange-200 text-orange-800 placeholder-orange-400/80 rounded-2xl px-5 py-3 md:py-4 text-lg focus:outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-200/50 transition-all font-bold"
@@ -292,26 +365,24 @@ const FlameButton = () => {
                   )}
                   <input 
                     type="email" 
-                    placeholder="Email (không bắt buộc)" 
+                    placeholder={t('streak.placeholder_email')}
                     className="w-full bg-orange-50 border-2 border-orange-200 text-orange-800 placeholder-orange-400/80 rounded-2xl px-5 py-3 md:py-4 text-lg focus:outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-200/50 transition-all font-bold"
                   />
                   
-                  {/* Primary Action */}
                   <button 
                     onClick={handleStart}
-                    className="mt-2 w-full bg-gradient-to-b from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white font-extrabold text-xl py-4 rounded-[1.5rem] shadow-[0_6px_0_rgb(194,65,12)] hover:shadow-[0_4px_0_rgb(194,65,12)] hover:translate-y-[2px] active:translate-y-[6px] active:shadow-none transition-all"
+                    className="mt-2 w-full bg-gradient-to-b from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white font-extrabold text-xl py-4 rounded-[1.5rem] shadow-[0_6px_0_rgb(194,65,12)] hover:shadow-[0_4px_0_rgb(194,65,12)] hover:scale-105 active:scale-95 active:shadow-none transition-all duration-200"
                   >
-                    🔥 Bắt đầu giữ lửa
+                    {t('streak.start_btn')}
                   </button>
                 </>
               )}
               
-              {/* Close Button */}
               <button 
                 onClick={() => setIsOpen(false)}
                 className="w-full mt-2 bg-transparent text-gray-400 hover:text-gray-600 font-bold text-lg py-3 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
               >
-                Đóng
+                {t('streak.close_btn')}
               </button>
             </div>
           </div>

@@ -63,22 +63,23 @@
     "subtitle": "Dedicated educators passionate about your child's growth",
     "yearsExp": "Years experience",
     "viewAll": "View All Teachers",
-  "card": {
-    "defaultRole": "English Guide",
-    "yearsExp": "Years experience",
-    "hoverHint": "Hover to see details ✨"
+    "card": {
+      "defaultRole": "English Guide",
+      "yearsExp": "Years experience",
+      "hoverHint": "Hover to see details ✨"
+    },
+    "modal": {
+      "reviews": "Reviews",
+      "noReviews": "No reviews yet",
+      "reviewer": "Teacher"
+    },
+    "trust": {
+      "certified": "Certified Teachers",
+      "curriculum": "International Curriculum",
+      "childSafe": "Child-Safe Environment",
+      "rated": "Highly Rated"
+    }
   },
-  "modal": {
-    "reviews": "Reviews",
-    "noReviews": "No reviews yet",
-    "reviewer": "Teacher"
-  },
-  "trust": {
-    "certified": "Certified Teachers",
-    "curriculum": "International Curriculum",
-    "childSafe": "Child-Safe Environment",
-    "rated": "Highly Rated"
-  }},
   "testimonials": {
     "title": "What Parents Say About Us",
     "subtitle": "Real feedback from parents whose children are studying at our center"
@@ -321,5 +322,27 @@
     "heartBtn": "❤️ SEND LOVE ❤️",
     "badge": "Learning & Growing",
     "note": "This is my first project, I would really appreciate your feedback 💖"
+  },
+  "streak": {
+    "title": "🔥 Keep Your Streak",
+    "greeting_back": "👋 Hi {{name}}, welcome back!",
+    "greeting_default": "there",
+    "streak_label": "🔥 Your Streak:",
+    "days": "days",
+    "lost_streak_msg": "😢 You lost your previous streak, let's start again!",
+    "check_in_success": "🔥 +1 day! Awesome!",
+    "already_checked_in": "✅ Checked in today",
+    "check_in_btn": "🔥 Check-in today",
+    "switch_user": "🔄 Use another number",
+    "error_phone": "Please enter your phone number! ✨",
+    "error_name": "Please enter your name! ✨",
+    "placeholder_phone": "Enter phone number",
+    "placeholder_name": "Your name",
+    "placeholder_email": "Email (optional)",
+    "start_btn": "🔥 Start your streak",
+    "close_btn": "Close",
+    "milestone_3": "You're getting used to it! ⭐",
+    "milestone_7": "Incredible 🔥",
+    "milestone_30": "Absolute Legend! 🏆"
   }
 }

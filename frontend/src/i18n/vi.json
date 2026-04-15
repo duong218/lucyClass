@@ -64,21 +64,22 @@
     "yearsExp": "Năm kinh nghiệm",
     "viewAll": "Xem tất cả giáo viên",
     "card": {
-    "defaultRole": "Giáo viên",
-    "yearsExp": "năm kinh nghiệm",
-    "hoverHint": "Di chuột để xem chi tiết ✨"
+      "defaultRole": "Giáo viên",
+      "yearsExp": "năm kinh nghiệm",
+      "hoverHint": "Di chuột để xem chi tiết ✨"
+    },
+    "modal": {
+      "reviews": "Đánh giá",
+      "noReviews": "Chưa có đánh giá",
+      "reviewer": "Giáo viên"
+    },
+    "trust": {
+      "certified": "Giáo viên có chứng chỉ",
+      "curriculum": "Chương trình quốc tế",
+      "childSafe": "Môi trường an toàn",
+      "rated": "Đánh giá cao"
+    }
   },
-  "modal": {
-    "reviews": "Đánh giá",
-    "noReviews": "Chưa có đánh giá",
-    "reviewer": "Giáo viên"
-  },
-  "trust": {
-    "certified": "Giáo viên có chứng chỉ",
-    "curriculum": "Chương trình quốc tế",
-    "childSafe": "Môi trường an toàn",
-    "rated": "Đánh giá cao"
-  }},
   "testimonials": {
     "title": "Phụ Huynh Nói Gì Về Chúng Tôi",
     "subtitle": "Phản hồi thực tế từ phụ huynh có con đang học tại trung tâm"
@@ -315,5 +316,27 @@
     "heartBtn": "❤️ GỬI YÊU THƯƠNG ❤️",
     "badge": "Đang học tập và phát triển",
     "note": "Đây là sản phẩm đầu tay, mong mọi người góp ý 💖"
+  },
+  "streak": {
+    "title": "🔥 Giữ chuỗi học tập",
+    "greeting_back": "👋 Chào {{name}}, bạn quay lại rồi!",
+    "greeting_default": "bạn",
+    "streak_label": "🔥 Chuỗi của bạn:",
+    "days": "ngày",
+    "lost_streak_msg": "😢 Bạn đã mất chuỗi trước đó, bắt đầu lại nhé!",
+    "check_in_success": "🔥 +1 ngày! Tuyệt vời!",
+    "already_checked_in": "✅ Đã check-in",
+    "check_in_btn": "🔥 Check-in hôm nay",
+    "switch_user": "🔄 Dùng số khác",
+    "error_phone": "Vui lòng nhập số điện thoại nhé! ✨",
+    "error_name": "Vui lòng nhập tên của bạn nhé! ✨",
+    "placeholder_phone": "Nhập số điện thoại",
+    "placeholder_name": "Tên của bạn",
+    "placeholder_email": "Email (không bắt buộc)",
+    "start_btn": "🔥 Bắt đầu giữ lửa",
+    "close_btn": "Đóng",
+    "milestone_3": "Bạn bắt đầu quen rồi đó! ⭐",
+    "milestone_7": "Quá đỉnh 🔥",
+    "milestone_30": "Legend luôn! 🏆"
   }
 }
