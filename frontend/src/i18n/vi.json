@@ -341,6 +341,10 @@
     "loading": "Đang xử lý...",
     "recover_btn": "🔄 Khôi phục chuỗi",
     "error_recover_required": "Nhập số điện thoại và email",
-    "error_recover_failed": "Không thể khôi phục, kiểm tra lại thông tin"
+    "error_recover_failed": "Không thể khôi phục, kiểm tra lại thông tin",
+    "loginTitle": "Đăng nhập để lưu chuỗi",
+    "loginButton": "Đăng nhập",
+    "phonePlaceholder": "Số điện thoại",
+    "loginFailed": "Đăng nhập thất bại"
   }
 }

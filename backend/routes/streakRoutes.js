@@ -12,9 +12,11 @@ const {
 } = require('../validators/streakValidator');
 
 const { streakLimiter } = require('../middlewares/rateLimiter');
+const streakAuth = require('../middlewares/streakAuth');
 
 router.post(
   '/checkin',
+  streakAuth,
   streakLimiter,
   checkinValidation,
   validate,
@@ -31,6 +33,7 @@ router.post(
 
 router.post(
   '/revive',
+  streakAuth,
   streakLimiter,
   reviveValidation,
   validate,
@@ -38,11 +41,12 @@ router.post(
 );
 
 router.get(
-  '/:phone',
+  '/me',
+  streakAuth,
   streakLimiter,
-  getStreakValidation,
-  validate,
   controller.getStreak
 );
+
+router.post('/login', controller.loginStreak);
 
 module.exports = router;

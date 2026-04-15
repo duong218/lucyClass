@@ -1,4 +1,5 @@
 const Streak = require('../models/Streak');
+const jwt = require('jsonwebtoken');
 
 const getVNDate = (offset = 0) => {
   const vn = new Date().toLocaleString('en-US', {
@@ -44,7 +45,7 @@ const formatUser = (user) => {
 // GET streak
 exports.getStreak = async (req, res) => {
   try {
-    const { phone } = req.params;
+    const phone = req.user.phone;
     const user = await Streak.findOne({ phone });
     return res.json({
       success: true,
@@ -58,7 +59,8 @@ exports.getStreak = async (req, res) => {
 // POST check-in
 exports.checkIn = async (req, res) => {
   try {
-  const { phone, name, email } = req.body;
+  const phone = req.user.phone;
+  const { name, email } = req.body;
 
   const today = getVNDate();
   const yesterday = getVNDate(-1);
@@ -120,7 +122,7 @@ exports.checkIn = async (req, res) => {
 // POST revive streak
 exports.reviveStreak = async (req, res) => {
   try {
-    const { phone } = req.body;
+    const phone = req.user.phone;
     const user = await Streak.findOne({ phone });
 
     if (!user) {
@@ -184,6 +186,38 @@ exports.recoverStreak = async (req, res) => {
       data: formatUser(user)
     });
 
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// POST login streak
+exports.loginStreak = async (req, res) => {
+  try {
+    const { phone } = req.body;
+
+    // Validate
+    if (!phone || !/^[0-9]{9,11}$/.test(phone)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid phone number'
+      });
+    }
+
+    // Generate token
+    const token = jwt.sign(
+      { phone },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    return res.json({
+      success: true,
+      token
+    });
   } catch (error) {
     return res.status(500).json({
       success: false,

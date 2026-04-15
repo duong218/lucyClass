@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import flameImg from '../assets/flame.png';
-import { fetchStreak, checkinStreak, recoverStreak, reviveStreak } from '../services/streakService';
+import { fetchStreak, checkinStreak, recoverStreak, reviveStreak, loginStreak } from '../services/streakService';
 
 const FlameButton = () => {
   const { t } = useTranslation();
@@ -20,6 +20,7 @@ const FlameButton = () => {
   const [lostStreak, setLostStreak] = useState(false);
   const [canRevive, setCanRevive] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
   const phoneInputRef = React.useRef(null);
   
   const getVietnamDateString = () => {
@@ -28,17 +29,34 @@ const FlameButton = () => {
     });
   };
 
-  const loadUserSession = async (targetPhone) => {
-    const savedName = localStorage.getItem(`streak_name_${targetPhone}`);
-    if (!savedName) return false;
+  const ensureLoggedIn = async () => {
+    const token = localStorage.getItem('streak_token');
 
-    setSavedUser({ phone: targetPhone, name: savedName });
+    if (token) return true;
 
+    setShowLogin(true);
+    setErrorMsg('');
+    return false;
+  };
+
+  const loadUserSession = async (silent = false) => {
     try {
-      const res = await fetchStreak(targetPhone);
+      if (!silent) {
+        const ok = await ensureLoggedIn();
+        if (!ok) return false;
+      }
+
+      const res = await fetchStreak();
 
       if (res.success) {
         const data = res.data || {};
+        
+        // Use API data as source of truth
+        setSavedUser({
+          phone: data.phone,
+          name: data.name
+        });
+
         const today = getVietnamDateString();
         const lastCheckinDate = data.lastCheckin
         ? new Date(data.lastCheckin).toLocaleDateString('en-CA', {
@@ -62,8 +80,10 @@ const FlameButton = () => {
   };
 
   useEffect(() => {
-    const savedPhone = localStorage.getItem('streak_phone');
-    if (savedPhone) loadUserSession(savedPhone);
+    const token = localStorage.getItem('streak_token');
+    if (token) {
+      loadUserSession(true);
+    }
   }, []);
 
   const handlePhoneBlur = () => {
@@ -85,6 +105,9 @@ const FlameButton = () => {
     setLoading(true);
 
     try {
+      const ok = await ensureLoggedIn();
+      if (!ok) return;
+
       const res = await checkinStreak({
         phone: savedUser.phone,
         name: savedUser.name,
@@ -92,7 +115,7 @@ const FlameButton = () => {
       });
 
       if (res.success && res.data) {
-        await loadUserSession(savedUser.phone);
+        await loadUserSession();
         setJustCheckedIn(true);
       }
 
@@ -136,7 +159,7 @@ const FlameButton = () => {
     localStorage.setItem('streak_phone', formattedPhone);
 
     if (existingName) {
-      await loadUserSession(formattedPhone);
+      await loadUserSession();
     } else {
       const formattedName = name.trim();
       localStorage.setItem(`streak_name_${formattedPhone}`, formattedName);
@@ -156,6 +179,9 @@ const FlameButton = () => {
     }
 
     try {
+      const ok = await ensureLoggedIn();
+      if (!ok) return;
+
       const res = await recoverStreak({
         phone: phone.trim(),
         email: email.trim().toLowerCase()
@@ -171,7 +197,7 @@ const FlameButton = () => {
         // Reload state from API
         setEmail(user.email || '');
         setErrorMsg('');
-        await loadUserSession(user.phone);
+        await loadUserSession();
       } else {
         setErrorMsg(t('streak.error_recover_failed'));
       }
@@ -185,10 +211,13 @@ const FlameButton = () => {
 
     setLoading(true);
     try {
+      const ok = await ensureLoggedIn();
+      if (!ok) return;
+
       const res = await reviveStreak({ phone: savedUser.phone });
 
       if (res.success) {
-        await loadUserSession(savedUser.phone);
+        await loadUserSession();
       }
     } catch (e) {
       console.error(e);
@@ -287,7 +316,58 @@ const FlameButton = () => {
       {isOpen && (
         <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity duration-300">
 
-          <div className="bg-white rounded-[2.5rem] shadow-2xl p-6 md:p-8 max-w-sm w-full animate-modal-pop border-4 border-orange-100 flex flex-col items-center">
+          <div className="relative bg-white rounded-[2.5rem] shadow-2xl p-6 md:p-8 max-w-sm w-full animate-modal-pop border-4 border-orange-100 flex flex-col items-center">
+
+            {showLogin && (
+              <div className="absolute inset-0 z-[70] bg-white rounded-[2.5rem] p-8 flex flex-col items-center justify-center animate-modal-pop">
+                <div className="text-4xl mb-4 drop-shadow-sm">🔐</div>
+                <h3 className="text-2xl font-extrabold text-orange-600 mb-6 text-center leading-tight">
+                  {t('streak.loginTitle') || t('streak.title')}
+                </h3>
+                
+                <div className="w-full max-w-[280px] flex flex-col gap-4">
+                  {errorMsg && (
+                    <p className="text-red-500 text-xs font-bold text-center -mb-2 animate-bounce">
+                      {errorMsg}
+                    </p>
+                  )}
+
+                  <input
+                    type="tel"
+                    placeholder={t('streak.phonePlaceholder')}
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full bg-orange-50 border-2 border-orange-100 text-orange-900 placeholder-orange-300 rounded-2xl px-5 py-3 md:py-4 text-lg focus:outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-100 transition-all font-bold shadow-sm"
+                  />
+
+                  <button
+                    onClick={async () => {
+                      const res = await loginStreak(phone);
+                      if (res.success) {
+                        setShowLogin(false);
+                        await loadUserSession(true);
+                        setErrorMsg('');
+                      } else {
+                        setErrorMsg(t('streak.loginFailed'));
+                      }
+                    }}
+                    className="w-full bg-gradient-to-br from-orange-400 via-orange-500 to-orange-600 text-white font-extrabold text-lg py-4 rounded-2xl shadow-lg shadow-orange-200 hover:shadow-orange-300 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+                  >
+                    {t('streak.loginButton')}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowLogin(false);
+                      setErrorMsg('');
+                    }}
+                    className="text-gray-400 hover:text-orange-500 font-bold text-sm transition-colors py-2"
+                  >
+                    {t('streak.close_btn')}
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="text-4xl mb-2 flex justify-center gap-2">
               <span>👋</span><span>✨</span>

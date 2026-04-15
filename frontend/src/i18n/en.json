@@ -347,6 +347,10 @@
     "loading": "Loading...",
     "recover_btn": "🔄 Recover streak",
     "error_recover_required": "Please enter phone and email",
-    "error_recover_failed": "Could not recover, please check your info"
+    "error_recover_failed": "Could not recover, please check your info",
+    "loginTitle": "Login to save your streak",
+    "loginButton": "Login",
+    "phonePlaceholder": "Phone number",
+    "loginFailed": "Login failed"
   }
 }
