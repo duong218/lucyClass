@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import flameImg from '../assets/flame.png';
+import { fetchStreak, checkinStreak, recoverStreak } from '../services/streakService';
 
 const FlameButton = () => {
   const { t } = useTranslation();
@@ -9,6 +10,7 @@ const FlameButton = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [foundName, setFoundName] = useState(null);
   const [savedUser, setSavedUser] = useState(null);
   const [streakCount, setStreakCount] = useState(0);
@@ -16,13 +18,14 @@ const FlameButton = () => {
   const [errorMsg, setErrorMsg] = useState('');
   const [justCheckedIn, setJustCheckedIn] = useState(false);
   const [lostStreak, setLostStreak] = useState(false);
+  const [loading, setLoading] = useState(false);
   const phoneInputRef = React.useRef(null);
 
   const getVietnamDateString = (offsetDays = 0) => {
     const now = new Date();
     const vn = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
     vn.setHours(0, 0, 0, 0);
-    if (offsetDays) vn.setDate(vn.getDate() + offsetDays);
+    vn.setDate(vn.getDate() + offsetDays);
 
     const yyyy = vn.getFullYear();
     const mm = String(vn.getMonth() + 1).padStart(2, '0');
@@ -30,12 +33,37 @@ const FlameButton = () => {
     return `${yyyy}-${mm}-${dd}`;
   };
 
-  const loadUserSession = (targetPhone) => {
+  // UPDATED – now async; backend is source of truth, localStorage is fallback
+  const loadUserSession = async (targetPhone) => {
     const savedName = localStorage.getItem(`streak_name_${targetPhone}`);
     if (!savedName) return false;
 
     setSavedUser({ phone: targetPhone, name: savedName });
 
+    // --- Try backend first ---
+    try {
+      const res = await fetchStreak(targetPhone); // FIXED
+      if (res.success && res.data) {
+        const data = res.data; // FIXED
+        const today = getVietnamDateString();
+        // Sync from API response
+        setStreakCount(data.streakCount);
+        setHasCheckedInToday(data.lastCheckin === today);
+        setLostStreak(data.lastCheckin !== today && data.streakCount > 0);
+        setJustCheckedIn(false);
+
+        // Keep localStorage in sync as cache
+        localStorage.setItem(`streak_count_${targetPhone}`, data.streakCount.toString());
+        if (data.lastCheckin === today) {
+          localStorage.setItem(`last_checkin_${targetPhone}`, today);
+        }
+        return true;
+      }
+    } catch (_err) {
+      // API failed – fall through to local logic
+    }
+
+    // --- Fallback: existing localStorage logic (unchanged) ---
     const today = getVietnamDateString();
     const yesterday = getVietnamDateString(-1);
 
@@ -101,8 +129,10 @@ const FlameButton = () => {
     }
   };
 
-  const handleCheckIn = () => {
-    if (!savedUser?.phone) return;
+  // UPDATED – async with backend call + spam-click guard
+  const handleCheckIn = async () => {
+    console.log("CLICK CHECKIN");
+    if (!savedUser?.phone || loading || hasCheckedInToday) return; // FIXED
 
     const phoneToUse = savedUser.phone;
     const today = getVietnamDateString();
@@ -115,23 +145,53 @@ const FlameButton = () => {
       return;
     }
 
-    let currentCount = parseInt(localStorage.getItem(`streak_count_${phoneToUse}`) || '0', 10);
+    setLoading(true); // ADDED
+    try {
+      // --- Call backend ---
+      const res = await checkinStreak({
+        phone: phoneToUse,
+        name: savedUser.name,
+        email: savedUser.email || localStorage.getItem(`streak_email_${phoneToUse}`) || ''
+      });
 
-    if (lastDate !== yesterday) {
-      currentCount = 0;
+      // Use API response if available
+      const newCount = (res.success && res.data && typeof res.data.streakCount === 'number') // FIXED
+        ? res.data.streakCount
+        : (() => {
+            // Fallback: compute locally
+            let c = parseInt(localStorage.getItem(`streak_count_${phoneToUse}`) || '0', 10);
+            if (lastDate !== yesterday) c = 0;
+            return c + 1;
+          })();
+
+      // Persist to localStorage (cache)
+      localStorage.setItem(`streak_count_${phoneToUse}`, newCount.toString());
+      localStorage.setItem(`last_checkin_${phoneToUse}`, today);
+      localStorage.setItem(`last_checkin_success_${phoneToUse}`, today);
+      localStorage.removeItem(`lost_streak_${phoneToUse}`);
+
+      setStreakCount(newCount);
+      setHasCheckedInToday(true);
+      setLostStreak(false);
+      setJustCheckedIn(true);
+    } catch (_err) {
+      // --- Fallback: existing local logic (unchanged) ---
+      let currentCount = parseInt(localStorage.getItem(`streak_count_${phoneToUse}`) || '0', 10);
+      if (lastDate !== yesterday) currentCount = 0;
+      const newCount = currentCount + 1;
+
+      localStorage.setItem(`streak_count_${phoneToUse}`, newCount.toString());
+      localStorage.setItem(`last_checkin_${phoneToUse}`, today);
+      localStorage.setItem(`last_checkin_success_${phoneToUse}`, today);
+      localStorage.removeItem(`lost_streak_${phoneToUse}`);
+
+      setStreakCount(newCount);
+      setHasCheckedInToday(true);
+      setLostStreak(false);
+      setJustCheckedIn(true);
+    } finally {
+      setLoading(false); // ADDED
     }
-
-    const newCount = currentCount + 1;
-
-    localStorage.setItem(`streak_count_${phoneToUse}`, newCount.toString());
-    localStorage.setItem(`last_checkin_${phoneToUse}`, today);
-    localStorage.setItem(`last_checkin_success_${phoneToUse}`, today);
-    localStorage.removeItem(`lost_streak_${phoneToUse}`);
-
-    setStreakCount(newCount);
-    setHasCheckedInToday(true);
-    setLostStreak(false);
-    setJustCheckedIn(true);
   };
 
   const getMilestoneMessage = (count) => {
@@ -148,7 +208,7 @@ const FlameButton = () => {
     return "text-orange-500";
   };
 
-  const handleStart = () => {
+  const handleStart = async () => {
     const formattedPhone = phone.trim();
 
     if (!formattedPhone) {
@@ -167,7 +227,7 @@ const FlameButton = () => {
     localStorage.setItem('streak_phone', formattedPhone);
 
     if (existingName) {
-      loadUserSession(formattedPhone);
+      await loadUserSession(formattedPhone);
     } else {
       const formattedName = name.trim();
       localStorage.setItem(`streak_name_${formattedPhone}`, formattedName);
@@ -181,6 +241,43 @@ const FlameButton = () => {
       setHasCheckedInToday(false);
       setJustCheckedIn(false);
       setLostStreak(false);
+    }
+  };
+
+  const handleRecover = async () => {
+    if (!phone.trim() || !email.trim()) {
+      setErrorMsg(t('streak.error_recover_required'));
+      return;
+    }
+
+    try {
+      const res = await recoverStreak({
+        phone: phone.trim(),
+        email: email.trim().toLowerCase()
+      });
+
+      if (res.success && res.data) {
+        const user = res.data;
+
+        // sync localStorage
+        localStorage.setItem('streak_phone', user.phone);
+        localStorage.setItem(`streak_name_${user.phone}`, user.name);
+        localStorage.setItem(`streak_email_${user.phone}`, user.email);
+        localStorage.setItem(`streak_count_${user.phone}`, String(user.streakCount));
+        if (user.lastCheckin) {
+          localStorage.setItem(`last_checkin_${user.phone}`, user.lastCheckin);
+        }
+
+        // reuse existing session loader for clean state sync
+        setLostStreak(false);
+        setEmail(user.email || '');
+        setErrorMsg('');
+        await loadUserSession(user.phone);
+      } else {
+        setErrorMsg(t('streak.error_recover_failed'));
+      }
+    } catch (_err) {
+      setErrorMsg(t('streak.error_recover_failed'));
     }
   };
 
@@ -316,9 +413,10 @@ const FlameButton = () => {
                   ) : (
                     <button 
                       onClick={handleCheckIn}
-                      className="w-full bg-gradient-to-b from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white font-extrabold text-xl py-4 rounded-[1.5rem] shadow-[0_6px_0_rgb(194,65,12)] hover:shadow-[0_4px_0_rgb(194,65,12)] hover:scale-105 active:scale-95 active:shadow-none transition-all duration-200"
+                      disabled={loading} // ADDED
+                      className={`w-full bg-gradient-to-b from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white font-extrabold text-xl py-4 rounded-[1.5rem] shadow-[0_6px_0_rgb(194,65,12)] hover:shadow-[0_4px_0_rgb(194,65,12)] hover:scale-105 active:scale-95 active:shadow-none transition-all duration-200 ${loading ? 'opacity-60 cursor-not-allowed' : ''}`} // UPDATED – dim when loading
                     >
-                      {t('streak.check_in_btn')}
+                      {loading ? t('streak.loading') : t('streak.check_in_btn')} {/* UPDATED */}
                     </button>
                   )}
                   
@@ -366,6 +464,8 @@ const FlameButton = () => {
                   <input 
                     type="email" 
                     placeholder={t('streak.placeholder_email')}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     className="w-full bg-orange-50 border-2 border-orange-200 text-orange-800 placeholder-orange-400/80 rounded-2xl px-5 py-3 md:py-4 text-lg focus:outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-200/50 transition-all font-bold"
                   />
                   
@@ -374,6 +474,12 @@ const FlameButton = () => {
                     className="mt-2 w-full bg-gradient-to-b from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white font-extrabold text-xl py-4 rounded-[1.5rem] shadow-[0_6px_0_rgb(194,65,12)] hover:shadow-[0_4px_0_rgb(194,65,12)] hover:scale-105 active:scale-95 active:shadow-none transition-all duration-200"
                   >
                     {t('streak.start_btn')}
+                  </button>
+                  <button 
+                    onClick={handleRecover}
+                    className="w-full mt-2 bg-blue-100 text-blue-600 hover:bg-blue-200 font-bold text-lg py-3 rounded-[1.5rem] transition-colors"
+                  >
+                    {t('streak.recover_btn')}
                   </button>
                 </>
               )}

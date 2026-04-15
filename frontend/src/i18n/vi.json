@@ -337,6 +337,10 @@
     "close_btn": "Đóng",
     "milestone_3": "Bạn bắt đầu quen rồi đó! ⭐",
     "milestone_7": "Quá đỉnh 🔥",
-    "milestone_30": "Legend luôn! 🏆"
+    "milestone_30": "Legend luôn! 🏆",
+    "loading": "Đang xử lý...",
+    "recover_btn": "🔄 Khôi phục chuỗi",
+    "error_recover_required": "Nhập số điện thoại và email",
+    "error_recover_failed": "Không thể khôi phục, kiểm tra lại thông tin"
   }
 }

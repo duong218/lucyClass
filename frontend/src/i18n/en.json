@@ -343,6 +343,10 @@
     "close_btn": "Close",
     "milestone_3": "You're getting used to it! ⭐",
     "milestone_7": "Incredible 🔥",
-    "milestone_30": "Absolute Legend! 🏆"
+    "milestone_30": "Absolute Legend! 🏆",
+    "loading": "Loading...",
+    "recover_btn": "🔄 Recover streak",
+    "error_recover_required": "Please enter phone and email",
+    "error_recover_failed": "Could not recover, please check your info"
   }
 }

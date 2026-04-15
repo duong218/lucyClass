@@ -167,6 +167,7 @@ const backupService = require('./services/backup.service');
 const userIdentifier = require('./middlewares/userIdentifier');
 const { apiLimiter } = require('./middlewares/rateLimiter');
 const errorHandler = require('./middlewares/errorHandler');
+const streakRoutes = require('./routes/streakRoutes');
 
 // 7. Global Logic
 app.use(userIdentifier);
@@ -197,6 +198,7 @@ app.use('/api/restore', restoreRoutes);
 app.use('/api/announcements', announcementRoutes);
 app.use('/api/timetable', timetableRoutes);
 app.use('/api/rankings', rankingRoutes);
+app.use('/api/streak', streakRoutes);
 
 // --- 📊 GOOGLE SHEETS SUBMISSION ENDPOINT ---
 // Helpers for /api/submit

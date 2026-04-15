@@ -32,7 +32,7 @@ const rateLimitHandler = (req, res, next, options) => {
  */
 const apiLimiter = rateLimit({
   windowMs: 5 * 60 * 1000,
-  max: 200,
+  max: isProduction ? 200 : 10000,
   skip: (req) => req.user?.role === 'admin',
   handler: rateLimitHandler,
   standardHeaders: true,
@@ -127,6 +127,20 @@ const resetPasswordLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+/**
+ * 8. Streak Limiter
+ * Protection for streak check-in/recover
+ * PROD: 20 attempts / 5 mins
+ * DEV: 10000 attempts / 1 min
+ */
+const streakLimiter = rateLimit({
+  windowMs: isProduction ? 5 * 60 * 1000 : 60 * 1000,
+  max: isProduction ? 20 : 10000,
+  handler: rateLimitHandler,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 module.exports = {
   apiLimiter,
   loginLimiter,
@@ -134,5 +148,6 @@ module.exports = {
   statsLimiter,
   publicLimiter,
   forgotPasswordLimiter,
-  resetPasswordLimiter
+  resetPasswordLimiter,
+  streakLimiter
 };
