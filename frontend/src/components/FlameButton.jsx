@@ -1,15 +1,25 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import flameImg from '../assets/flame.png';
 import {
   startStreak,
   fetchStreak,
   checkinStreak,
-  clearStreakToken
+  reviveStreak
 } from '../services/streakService';
 
-const getVietnamDateString = () => new Date().toLocaleDateString('en-CA', {
-  timeZone: 'Asia/Ho_Chi_Minh'
-});
+/**
+ * Gets date in YYYY-MM-DD format (Vietnam timezone)
+ */
+const getVNDate = (offset = 0) => {
+  const date = new Date();
+  const vnDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+  vnDate.setDate(vnDate.getDate() + offset);
+  
+  const y = vnDate.getFullYear();
+  const m = String(vnDate.getMonth() + 1).padStart(2, '0');
+  const d = String(vnDate.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
 
 const FlameButton = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -17,242 +27,304 @@ const FlameButton = () => {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const [formName, setFormName] = useState('');
-  const [formEmail, setFormEmail] = useState('');
+  // Form states
+  const [phone, setPhone] = useState('');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
 
-  const [savedUser, setSavedUser] = useState(null);
-  const [streakCount, setStreakCount] = useState(0);
-  const [lastCheckin, setLastCheckin] = useState(null);
-  const [hasCheckedInToday, setHasCheckedInToday] = useState(false);
+  // User state
+  const [savedPhone, setSavedPhone] = useState(localStorage.getItem('streak_phone') || '');
+  const [userData, setUserData] = useState(null);
 
-  const resetSessionState = () => {
-    setSavedUser(null);
-    setStreakCount(0);
-    setLastCheckin(null);
-    setHasCheckedInToday(false);
+  /**
+   * UI Milestone logic
+   */
+  const getMilestoneStyles = (count) => {
+    if (count >= 100) return { color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200', btn: 'bg-purple-500 hover:bg-purple-600', shadow: 'shadow-purple-200', sparkle: true };
+    if (count >= 30) return { color: 'text-red-500', bg: 'bg-red-50', border: 'border-red-200', btn: 'bg-red-500 hover:bg-red-600', shadow: 'shadow-red-200' };
+    if (count >= 7) return { color: 'text-blue-500', bg: 'bg-blue-50', border: 'border-blue-200', btn: 'bg-blue-500 hover:bg-blue-600', shadow: 'shadow-blue-200' };
+    if (count >= 3) return { color: 'text-yellow-500', bg: 'bg-yellow-50', border: 'border-yellow-200', btn: 'bg-yellow-500 hover:bg-yellow-600', shadow: 'shadow-yellow-200' };
+    return { color: 'text-orange-500', bg: 'bg-orange-50', border: 'border-orange-200', btn: 'bg-orange-500 hover:bg-orange-600', shadow: 'shadow-orange-200' };
   };
 
-  const applySessionData = (data) => {
-    if (!data) {
-      resetSessionState();
-      return;
-    }
+  const styles = getMilestoneStyles(userData?.streakCount || 0);
 
-    const normalizedName = (data.name || '').trim();
-    const normalizedEmail = (data.email || '').trim();
-    const normalizedCount = Number.isFinite(data.streakCount) ? data.streakCount : 0;
-    const normalizedLastCheckin = data.lastCheckin || null;
-
-    setSavedUser({
-      name: normalizedName,
-      email: normalizedEmail
-    });
-    setStreakCount(normalizedCount);
-    setLastCheckin(normalizedLastCheckin);
-    setHasCheckedInToday(normalizedLastCheckin === getVietnamDateString());
-  };
-
-  const loadSession = async () => {
-    const token = localStorage.getItem('streak_token');
-    if (!token) {
-      resetSessionState();
-      return;
-    }
-
+  const loadUser = useCallback(async (p) => {
+    if (!p) return;
     setLoading(true);
-    setErrorMsg('');
-    try {
-      const res = await fetchStreak();
-
-      if (res.success && res.data) {
-        applySessionData(res.data);
-        return;
-      }
-
-      if (res.status === 401) {
-        clearStreakToken();
-        resetSessionState();
-        return;
-      }
-
-      setErrorMsg(res.message || 'Không tải được phiên điểm danh.');
-    } catch (_err) {
-      setErrorMsg('Không tải được phiên điểm danh.');
-    } finally {
-      setLoading(false);
+    const res = await fetchStreak(p);
+    if (res.success) {
+      setUserData(res.data);
+      setName(res.data.name);
+      setEmail(res.data.email || '');
+    } else {
+      setUserData(null);
     }
-  };
-
-  useEffect(() => {
-    loadSession();
+    setLoading(false);
   }, []);
 
+  // Initial load
+  useEffect(() => {
+    if (savedPhone) {
+      loadUser(savedPhone);
+    }
+  }, [savedPhone, loadUser]);
+
+  // Debounced auto-fill
+  useEffect(() => {
+    if (!savedPhone && phone.length >= 9) {
+      const timer = setTimeout(() => {
+        loadUser(phone);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [phone, savedPhone, loadUser]);
+
+  // Bounce animation
   useEffect(() => {
     const interval = setInterval(() => {
       setIsBouncing(true);
       setTimeout(() => setIsBouncing(false), 300);
     }, 4000);
-
     return () => clearInterval(interval);
   }, []);
 
   const handleStart = async () => {
-    const name = formName.trim();
-    const email = formEmail.trim();
-
-    if (!name) {
-      setErrorMsg('Vui lòng nhập tên.');
+    if (!phone || !name) {
+      setErrorMsg('Vui lòng nhập đủ SĐT và Tên');
       return;
     }
-
     setLoading(true);
     setErrorMsg('');
-    try {
-      const res = await startStreak({ name, email });
-
-      if (res.success && res.data) {
-        applySessionData(res.data);
-        setFormName('');
-        setFormEmail('');
-        return;
-      }
-
-      setErrorMsg(res.message || 'Không thể bắt đầu streak.');
-    } catch (_err) {
-      setErrorMsg('Không thể bắt đầu streak.');
-    } finally {
-      setLoading(false);
+    const res = await startStreak({ phone, name, email });
+    if (res.success) {
+      localStorage.setItem('streak_phone', res.data.phone);
+      setSavedPhone(res.data.phone);
+      setUserData(res.data);
+    } else {
+      setErrorMsg(res.message || 'Lỗi khi bắt đầu streak');
     }
+    setLoading(false);
   };
 
   const handleCheckIn = async () => {
-    if (!savedUser || loading) return;
-
     setLoading(true);
     setErrorMsg('');
-    try {
-      const res = await checkinStreak();
-
-      if (res.success && res.data) {
-        // Update UI directly from API response without reloading.
-        applySessionData(res.data);
-        return;
-      }
-
-      if (res.status === 401) {
-        clearStreakToken();
-        resetSessionState();
-        return;
-      }
-
-      setErrorMsg(res.message || 'Check-in thất bại.');
-    } catch (_err) {
-      setErrorMsg('Check-in thất bại.');
-    } finally {
-      setLoading(false);
+    const res = await checkinStreak(savedPhone);
+    if (res.success) {
+      setUserData(res.data);
+    } else {
+      setErrorMsg(res.message || 'Check-in thất bại');
     }
+    setLoading(false);
+  };
+
+  const handleRevive = async () => {
+    setLoading(true);
+    setErrorMsg('');
+    const res = await reviveStreak(savedPhone);
+    if (res.success) {
+      setUserData(res.data);
+    } else {
+      setErrorMsg(res.message || 'Cứu streak thất bại');
+    }
+    setLoading(false);
   };
 
   const handleSwitchUser = () => {
-    clearStreakToken();
-    resetSessionState();
-    setFormName('');
-    setFormEmail('');
+    localStorage.removeItem('streak_phone');
+    setSavedPhone('');
+    setUserData(null);
+    setPhone('');
+    setName('');
+    setEmail('');
     setErrorMsg('');
   };
+
+  const today = getVNDate(0);
+  const yesterday = getVNDate(-1);
+  const twoDaysAgo = getVNDate(-2);
+  
+  const hasCheckedInToday = userData?.lastCheckin === today;
+  const missedYesterday = userData?.lastCheckin === twoDaysAgo;
+  const canRevive = missedYesterday && !userData?.reviveUsed;
+  const hasMultipleMissed = userData?.lastCheckin && userData.lastCheckin !== today && userData.lastCheckin !== yesterday && userData.lastCheckin !== twoDaysAgo;
 
   return (
     <>
       <div
-        className="fixed bottom-[24px] right-[24px] z-[40] cursor-pointer"
+        className="fixed bottom-[24px] right-[24px] z-[40] cursor-pointer group"
         onClick={() => setIsOpen(true)}
       >
         <img
           src={flameImg}
           alt="Flame"
-          className={`w-[120px] h-[140px] object-contain origin-bottom hover:scale-110 transition-transform ${
+          className={`w-[110px] h-[130px] object-contain origin-bottom transition-transform group-hover:scale-110 ${
             isBouncing ? 'animate-bounce' : 'animate-pulse'
           }`}
         />
+        {userData?.streakCount > 0 && (
+          <div className={`absolute top-1 right-1 ${styles.bg} ${styles.color} font-bold px-2 py-0.5 rounded-full text-xs border ${styles.border} shadow-sm`}>
+            {userData.streakCount}
+          </div>
+        )}
       </div>
 
       {isOpen && (
-        <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="relative bg-white rounded-[2rem] shadow-2xl p-6 max-w-sm w-full border-4 border-orange-100">
-            <h2 className="text-2xl font-extrabold text-orange-500 text-center mb-4">
+        <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={(e) => e.target === e.currentTarget && setIsOpen(false)}>
+          <div className={`relative bg-white rounded-[2rem] shadow-2xl p-6 max-w-sm w-full border-4 ${styles.border} transition-all duration-500 overflow-hidden`}>
+            
+            {/* Sparkle effects for 100+ days */}
+            {styles.sparkle && (
+              <div className="absolute inset-0 pointer-events-none opacity-50">
+                <div className="animate-ping absolute top-4 left-4 w-2 h-2 bg-purple-400 rounded-full"></div>
+                <div className="animate-ping absolute top-10 right-10 w-3 h-3 bg-purple-300 rounded-full delay-75"></div>
+                <div className="animate-ping absolute bottom-10 left-1/3 w-2 h-2 bg-purple-500 rounded-full delay-150"></div>
+              </div>
+            )}
+
+            <h2 className={`text-2xl font-extrabold ${styles.color} text-center mb-4 uppercase tracking-tight`}>
               Học đều mỗi ngày
             </h2>
 
             {errorMsg && (
-              <p className="text-red-500 text-sm font-semibold text-center mb-3">{errorMsg}</p>
+              <p className="text-red-500 text-sm font-semibold text-center mb-4 bg-red-50 p-2.5 rounded-xl border border-red-100">{errorMsg}</p>
             )}
 
-            {savedUser ? (
-              <div className="flex flex-col gap-3">
-                <p className="text-lg font-bold text-orange-700 text-center">
-                  {`Chào ${savedUser.name}, bạn quay lại rồi!`}
-                </p>
-
-                <div className="bg-orange-50 rounded-xl p-4 text-center">
-                  <p className="text-orange-800 font-medium">Chuỗi hiện tại</p>
-                  <p className="text-4xl font-extrabold text-orange-500 mt-1">{streakCount} ngày</p>
-                  {lastCheckin && (
-                    <p className="text-xs text-orange-600 mt-1">{`Lần check-in gần nhất: ${lastCheckin}`}</p>
-                  )}
+            {savedPhone && userData ? (
+              <div className="flex flex-col gap-4">
+                <div className="text-center">
+                  <p className="text-lg font-bold text-gray-700">
+                    Chào <span className={styles.color}>{userData.name}</span>!
+                  </p>
                 </div>
 
-                <button
-                  onClick={handleCheckIn}
-                  disabled={loading || hasCheckedInToday}
-                  className={`w-full text-white font-bold py-3 rounded-xl transition ${
-                    hasCheckedInToday
-                      ? 'bg-gray-400 cursor-not-allowed'
-                      : 'bg-orange-500 hover:bg-orange-600'
-                  } ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
-                >
-                  {hasCheckedInToday ? 'Bạn đã check-in hôm nay' : (loading ? 'Đang xử lý...' : 'Check-in hôm nay')}
-                </button>
+                <div className={`${styles.bg} rounded-[2.5rem] p-8 text-center border-2 border-dashed ${styles.border} relative overflow-hidden group/card`}>
+                  <p className="text-gray-400 font-bold text-xs uppercase tracking-widest mb-1">Chuỗi hiện tại</p>
+                  <div className="relative inline-block">
+                    <p className={`text-6xl font-black ${styles.color} transition-transform group-hover/card:scale-110 duration-300`}>
+                      {userData.streakCount}
+                    </p>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-2 uppercase tracking-widest font-bold">Ngày học tập</p>
+                </div>
 
-                <button
-                  onClick={handleSwitchUser}
-                  className="w-full bg-orange-100 text-orange-700 hover:bg-orange-200 font-bold py-3 rounded-xl transition"
-                >
-                  Dùng số khác
-                </button>
+                {canRevive && (
+                  <div className="bg-red-50 border border-red-100 rounded-2xl p-3 text-center">
+                    <p className="text-red-600 text-[13px] font-bold">
+                      ⚠️ Bạn đã bỏ lỡ ngày hôm qua!
+                    </p>
+                    <p className="text-red-400 text-[11px] font-medium mt-0.5">
+                      Check-in thường sẽ làm mất chuỗi hiện tại.
+                    </p>
+                  </div>
+                )}
+
+                {hasMultipleMissed && (
+                  <div className="bg-orange-50 border border-orange-100 rounded-2xl p-3 text-center">
+                    <p className="text-orange-600 text-[13px] font-bold">
+                      💔 Chuỗi của bạn đã bị ngắt...
+                    </p>
+                    <p className="text-orange-400 text-[11px] font-medium mt-0.5">
+                      Bắt đầu lại từ hôm nay nhé!
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-2.5">
+                  {canRevive ? (
+                    <button
+                      onClick={handleRevive}
+                      disabled={loading}
+                      className="w-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white font-black py-4 rounded-2xl transition-all shadow-lg shadow-red-100 active:scale-95 flex items-center justify-center gap-2"
+                    >
+                      {loading ? (
+                        'ĐANG CỨU...'
+                      ) : (
+                        <>
+                          <span>CỨU STREAK NGAY</span>
+                          <span className="bg-white/20 px-2 py-0.5 rounded-lg text-xs">🆘</span>
+                        </>
+                      )}
+                    </button>
+                  ) : null}
+
+                  <button
+                    onClick={handleCheckIn}
+                    disabled={loading || hasCheckedInToday}
+                    className={`w-full text-white font-black py-4 rounded-2xl transition-all shadow-lg active:scale-95 ${
+                      hasCheckedInToday
+                        ? 'bg-gray-100 text-gray-300 shadow-none cursor-not-allowed border-2 border-gray-50'
+                        : `${styles.btn} ${styles.shadow}`
+                    } ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  >
+                    {hasCheckedInToday ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <span>ĐÃ GIỮ LỬA HÔM NAY</span>
+                        <span className="text-lg">✓</span>
+                      </span>
+                    ) : (
+                      loading ? 'ĐANG XỬ LÝ...' : (canRevive ? 'BỎ QUA & CHECK-IN (RESET)' : 'GIỮ LỬA NGAY 🔥')
+                    )}
+                  </button>
+
+                  <button
+                    onClick={handleSwitchUser}
+                    className="w-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-500 font-bold py-3 rounded-2xl transition-all text-xs uppercase tracking-widest mt-2"
+                  >
+                    Đổi số điện thoại
+                  </button>
+                </div>
               </div>
             ) : (
-              <div className="flex flex-col gap-3">
-                <input
-                  type="text"
-                  placeholder="Tên của bạn"
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  className="w-full bg-orange-50 border-2 border-orange-200 text-orange-800 rounded-xl px-4 py-3 focus:outline-none focus:border-orange-400"
-                />
-                <input
-                  type="email"
-                  placeholder="Email (không bắt buộc)"
-                  value={formEmail}
-                  onChange={(e) => setFormEmail(e.target.value)}
-                  className="w-full bg-orange-50 border-2 border-orange-200 text-orange-800 rounded-xl px-4 py-3 focus:outline-none focus:border-orange-400"
-                />
+              <div className="flex flex-col gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-gray-400 ml-3 uppercase tracking-widest">Số điện thoại</label>
+                  <input
+                    type="tel"
+                    placeholder="0xxxxxxxxx"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full bg-gray-50 border-2 border-transparent text-gray-800 rounded-2xl px-5 py-4 focus:outline-none focus:border-orange-200 focus:bg-white transition-all shadow-inner"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-gray-400 ml-3 uppercase tracking-widest">Họ và Tên</label>
+                  <input
+                    type="text"
+                    placeholder="Tên của bạn"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full bg-gray-50 border-2 border-transparent text-gray-800 rounded-2xl px-5 py-4 focus:outline-none focus:border-orange-200 focus:bg-white transition-all shadow-inner"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-gray-400 ml-3 uppercase tracking-widest">Email (Không bắt buộc)</label>
+                  <input
+                    type="email"
+                    placeholder="email@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-gray-50 border-2 border-transparent text-gray-800 rounded-2xl px-5 py-4 focus:outline-none focus:border-orange-200 focus:bg-white transition-all shadow-inner"
+                  />
+                </div>
                 <button
                   onClick={handleStart}
                   disabled={loading}
-                  className={`w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl transition ${
+                  className={`w-full bg-orange-500 hover:bg-orange-600 text-white font-black py-5 rounded-[1.5rem] transition-all shadow-xl shadow-orange-100 active:scale-95 mt-2 uppercase tracking-widest ${
                     loading ? 'opacity-70 cursor-not-allowed' : ''
                   }`}
                 >
-                  {loading ? 'Đang xử lý...' : 'Bắt đầu streak'}
+                  {loading ? 'ĐANG KHỞI TẠO...' : 'BẮT ĐẦU GIỮ LỬA'}
                 </button>
               </div>
             )}
 
             <button
               onClick={() => setIsOpen(false)}
-              className="w-full mt-4 bg-transparent text-gray-500 hover:text-gray-700 font-semibold py-2"
+              className="w-full mt-6 text-gray-300 hover:text-gray-500 font-bold py-2 transition-colors text-[10px] uppercase tracking-[0.2em]"
             >
-              Đóng
+              Thu nhỏ
             </button>
           </div>
         </div>
