@@ -105,17 +105,9 @@ exports.getStreak = async (req, res) => {
 
     const user = await Streak.findOne({ phone });
 
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        data: null,
-        message: 'Không tìm thấy người dùng'
-      });
-    }
-
     return res.json({
       success: true,
-      data: formatUser(user)
+      data: user ? formatUser(user) : null
     });
   } catch (_error) {
     return res.status(500).json({

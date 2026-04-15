@@ -49,16 +49,28 @@ const FlameButton = () => {
 
   const styles = getMilestoneStyles(userData?.streakCount || 0);
 
+  const isValidPhone = (p) => /^[0][0-9]{9}$/.test(p);
+
   const loadUser = useCallback(async (p) => {
-    if (!p) return;
+    if (!p || !isValidPhone(p)) return;
     setLoading(true);
+    setErrorMsg('');
     const res = await fetchStreak(p);
     if (res.success) {
-      setUserData(res.data);
-      setName(res.data.name);
-      setEmail(res.data.email || '');
+      if (res.data) {
+        setUserData(res.data);
+        setName(res.data.name);
+        setEmail(res.data.email || '');
+      } else {
+        // New user
+        setUserData(null);
+        setName('');
+        setEmail('');
+      }
     } else {
+      // Real error (e.g. network)
       setUserData(null);
+      // Don't necessarily clear form if it was a network error during typing
     }
     setLoading(false);
   }, []);
@@ -72,10 +84,10 @@ const FlameButton = () => {
 
   // Debounced auto-fill
   useEffect(() => {
-    if (!savedPhone && phone.length >= 9) {
+    if (!savedPhone && isValidPhone(phone)) {
       const timer = setTimeout(() => {
         loadUser(phone);
-      }, 500);
+      }, 300);
       return () => clearTimeout(timer);
     }
   }, [phone, savedPhone, loadUser]);
@@ -284,7 +296,7 @@ const FlameButton = () => {
                     type="tel"
                     placeholder="0xxxxxxxxx"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                     className="w-full bg-gray-50 border-2 border-transparent text-gray-800 rounded-2xl px-5 py-4 focus:outline-none focus:border-orange-200 focus:bg-white transition-all shadow-inner"
                   />
                 </div>
