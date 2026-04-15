@@ -18,6 +18,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import NotFound from './pages/NotFound/NotFound';
 import ProtectedRoute from './components/ProtectedRoute';
+import FlameButton from './components/FlameButton';
 
 
 import { ToastContainer } from 'react-toastify';
@@ -26,6 +27,7 @@ import 'react-toastify/dist/ReactToastify.css';
 function App() {
   return (
     <>
+      <FlameButton />
       <ToastContainer 
         position="top-right"
         autoClose={3000}
