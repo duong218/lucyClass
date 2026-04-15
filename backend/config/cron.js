@@ -41,7 +41,7 @@ const initCronJobs = () => {
           adminName: 'System (Cron)',
           action: 'AUTO_BACKUP_SUCCESS',
           description: `Daily automated backup completed: ${result.fileName}`,
-          ipAddress: '127.0.0.1'
+          ipAddress: 'system-cron'
         });
       } catch (logErr) {
         console.error('[Cron] Failed to create audit log:', logErr.message);
@@ -57,7 +57,7 @@ const initCronJobs = () => {
           adminName: 'System (Cron)',
           action: 'AUTO_BACKUP_FAILED',
           description: `Daily automated backup failed: ${error.message}`,
-          ipAddress: '127.0.0.1'
+          ipAddress: 'system-cron'
         });
       } catch (logErr) {
         console.error('[Cron] Failed to create failure audit log:', logErr.message);
