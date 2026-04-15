@@ -22,3 +22,12 @@ export const recoverStreak = async (data) => {
   });
   return res.json();
 };
+
+export const reviveStreak = async (data) => {
+  const res = await fetch(`${API_BASE}/api/streak/revive`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  return res.json();
+};

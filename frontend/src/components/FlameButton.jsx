@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import flameImg from '../assets/flame.png';
-import { fetchStreak, checkinStreak, recoverStreak } from '../services/streakService';
+import { fetchStreak, checkinStreak, recoverStreak, reviveStreak } from '../services/streakService';
 
 const FlameButton = () => {
   const { t } = useTranslation();
-  
+
   const [isBouncing, setIsBouncing] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [phone, setPhone] = useState('');
@@ -18,19 +18,14 @@ const FlameButton = () => {
   const [errorMsg, setErrorMsg] = useState('');
   const [justCheckedIn, setJustCheckedIn] = useState(false);
   const [lostStreak, setLostStreak] = useState(false);
+  const [canRevive, setCanRevive] = useState(false);
   const [loading, setLoading] = useState(false);
   const phoneInputRef = React.useRef(null);
-
-  const getVietnamDateString = (offsetDays = 0) => {
-    const now = new Date();
-    const vn = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
-    vn.setHours(0, 0, 0, 0);
-    vn.setDate(vn.getDate() + offsetDays);
-
-    const yyyy = vn.getFullYear();
-    const mm = String(vn.getMonth() + 1).padStart(2, '0');
-    const dd = String(vn.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
+  
+  const getVietnamDateString = () => {
+    return new Date().toLocaleDateString('en-CA', {
+      timeZone: 'Asia/Ho_Chi_Minh'
+    });
   };
 
   const loadUserSession = async (targetPhone) => {
@@ -45,10 +40,16 @@ const FlameButton = () => {
       if (res.success) {
         const data = res.data || {};
         const today = getVietnamDateString();
+        const lastCheckinDate = data.lastCheckin
+        ? new Date(data.lastCheckin).toLocaleDateString('en-CA', {
+        timeZone: 'Asia/Ho_Chi_Minh'
+        })
+      : null;
 
         setStreakCount(data.streakCount || 0);
-        setHasCheckedInToday(data.lastCheckin === today);
+        setHasCheckedInToday(lastCheckinDate === today);
         setLostStreak(!!data.lostStreak);
+        setCanRevive(!!data.canRevive);
         setJustCheckedIn(false);
 
         return true;
@@ -91,11 +92,7 @@ const FlameButton = () => {
       });
 
       if (res.success && res.data) {
-        const data = res.data;
-
-        setStreakCount(data.streakCount);
-        setHasCheckedInToday(true);
-        setLostStreak(!!data.lostStreak);
+        await loadUserSession(savedUser.phone);
         setJustCheckedIn(true);
       }
 
@@ -148,6 +145,7 @@ const FlameButton = () => {
       setStreakCount(0);
       setHasCheckedInToday(false);
       setJustCheckedIn(false);
+      setCanRevive(false);
     }
   };
 
@@ -182,6 +180,23 @@ const FlameButton = () => {
     }
   };
 
+  const handleRevive = async () => {
+    if (!savedUser?.phone || loading) return;
+
+    setLoading(true);
+    try {
+      const res = await reviveStreak({ phone: savedUser.phone });
+
+      if (res.success) {
+        await loadUserSession(savedUser.phone);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSwitchUser = () => {
     localStorage.removeItem('streak_phone');
     setPhone('');
@@ -192,6 +207,7 @@ const FlameButton = () => {
     setHasCheckedInToday(false);
     setErrorMsg('');
     setJustCheckedIn(false);
+    setCanRevive(false);
 
     setTimeout(() => {
       phoneInputRef.current?.focus();
@@ -208,14 +224,14 @@ const FlameButton = () => {
   }, []);
 
   useEffect(() => {
-  if (!justCheckedIn) return;
+    if (!justCheckedIn) return;
 
-  const timer = setTimeout(() => {
-    setJustCheckedIn(false);
-  }, 2500);
+    const timer = setTimeout(() => {
+      setJustCheckedIn(false);
+    }, 2500);
 
-  return () => clearTimeout(timer);
-}, [justCheckedIn]);
+    return () => clearTimeout(timer);
+  }, [justCheckedIn]);
 
   return (
     <>
@@ -256,38 +272,37 @@ const FlameButton = () => {
         `}
       </style>
 
-      <div 
+      <div
         className="fixed bottom-[24px] right-[24px] z-[40] cursor-pointer"
         onClick={() => setIsOpen(true)}
       >
-        <img 
-          src={flameImg} 
-          alt="Flame" 
-          className={`w-[120px] h-[140px] object-contain origin-bottom hover:scale-110 transition-transform ${
-            isBouncing ? 'animate-attention-pulse' : 'animate-gentle-float'
-          }`}
+        <img
+          src={flameImg}
+          alt="Flame"
+          className={`w-[120px] h-[140px] object-contain origin-bottom hover:scale-110 transition-transform ${isBouncing ? 'animate-attention-pulse' : 'animate-gentle-float'
+            }`}
         />
       </div>
 
       {isOpen && (
         <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity duration-300">
-          
+
           <div className="bg-white rounded-[2.5rem] shadow-2xl p-6 md:p-8 max-w-sm w-full animate-modal-pop border-4 border-orange-100 flex flex-col items-center">
-            
+
             <div className="text-4xl mb-2 flex justify-center gap-2">
               <span>👋</span><span>✨</span>
             </div>
             <h2 className="text-2xl md:text-3xl font-extrabold text-orange-500 mb-6 text-center leading-tight">
               {t('streak.title')}
             </h2>
-            
+
             <div className="w-full flex flex-col gap-4">
               {savedUser ? (
                 <div className="flex flex-col items-center text-center w-full">
                   <p className="text-2xl font-bold text-orange-600 mb-2">
                     {t('streak.greeting_back', { name: savedUser.name || t('streak.greeting_default') })}
                   </p>
-                  
+
                   {lostStreak && !hasCheckedInToday && (
                     <div className="bg-red-50 text-red-600 px-4 py-2 rounded-xl text-sm font-semibold mb-2 animate-modal-pop text-center w-full">
                       {t('streak.lost_streak_msg')}
@@ -305,22 +320,32 @@ const FlameButton = () => {
                       </span>
                     )}
                   </div>
-                  
+
                   {hasCheckedInToday ? (
                     <div className="w-full bg-gray-100 text-green-600 font-extrabold text-xl py-4 rounded-[1.5rem] flex items-center justify-center animate-modal-pop shadow-inner">
                       {justCheckedIn ? t('streak.check_in_success') : t('streak.already_checked_in')}
                     </div>
                   ) : (
-                    <button 
+                    <button
                       onClick={handleCheckIn}
-                      disabled={loading} // ADDED
-                      className={`w-full bg-gradient-to-b from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white font-extrabold text-xl py-4 rounded-[1.5rem] shadow-[0_6px_0_rgb(194,65,12)] hover:shadow-[0_4px_0_rgb(194,65,12)] hover:scale-105 active:scale-95 active:shadow-none transition-all duration-200 ${loading ? 'opacity-60 cursor-not-allowed' : ''}`} // UPDATED – dim when loading
+                      disabled={loading}
+                      className={`w-full bg-gradient-to-b from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white font-extrabold text-xl py-4 rounded-[1.5rem] shadow-[0_6px_0_rgb(194,65,12)] hover:shadow-[0_4px_0_rgb(194,65,12)] hover:scale-105 active:scale-95 active:shadow-none transition-all duration-200 ${loading ? 'opacity-60 cursor-not-allowed' : ''}`}
                     >
-                      {loading ? t('streak.loading') : t('streak.check_in_btn')} {/* UPDATED */}
+                      {loading ? t('streak.loading') : t('streak.check_in_btn')}
                     </button>
                   )}
-                  
-                  <button 
+
+                  {lostStreak && canRevive && !hasCheckedInToday && (
+                    <button
+                      onClick={handleRevive}
+                      disabled={loading}
+                      className="w-full mt-2 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-[1.5rem] transition-all disabled:opacity-60"
+                    >
+                      {loading ? t('streak.loading') : t('streak.revive_btn')}
+                    </button>
+                  )}
+
+                  <button
                     onClick={handleSwitchUser}
                     className="w-full mt-3 bg-orange-100 text-orange-600 hover:bg-orange-200 font-bold text-lg py-3 rounded-[1.5rem] transition-colors"
                   >
@@ -334,9 +359,9 @@ const FlameButton = () => {
                       <p className="text-red-500 font-bold">{errorMsg}</p>
                     </div>
                   )}
-                  <input 
+                  <input
                     ref={phoneInputRef}
-                    type="tel" 
+                    type="tel"
                     placeholder={t('streak.placeholder_phone')}
                     value={phone}
                     onChange={(e) => {
@@ -353,29 +378,29 @@ const FlameButton = () => {
                       </p>
                     </div>
                   ) : (
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       placeholder={t('streak.placeholder_name')}
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       className="w-full bg-orange-50 border-2 border-orange-200 text-orange-800 placeholder-orange-400/80 rounded-2xl px-5 py-3 md:py-4 text-lg focus:outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-200/50 transition-all font-bold"
                     />
                   )}
-                  <input 
-                    type="email" 
+                  <input
+                    type="email"
                     placeholder={t('streak.placeholder_email')}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full bg-orange-50 border-2 border-orange-200 text-orange-800 placeholder-orange-400/80 rounded-2xl px-5 py-3 md:py-4 text-lg focus:outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-200/50 transition-all font-bold"
                   />
-                  
-                  <button 
+
+                  <button
                     onClick={handleStart}
                     className="mt-2 w-full bg-gradient-to-b from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white font-extrabold text-xl py-4 rounded-[1.5rem] shadow-[0_6px_0_rgb(194,65,12)] hover:shadow-[0_4px_0_rgb(194,65,12)] hover:scale-105 active:scale-95 active:shadow-none transition-all duration-200"
                   >
                     {t('streak.start_btn')}
                   </button>
-                  <button 
+                  <button
                     onClick={handleRecover}
                     className="w-full mt-2 bg-blue-100 text-blue-600 hover:bg-blue-200 font-bold text-lg py-3 rounded-[1.5rem] transition-colors"
                   >
@@ -383,8 +408,8 @@ const FlameButton = () => {
                   </button>
                 </>
               )}
-              
-              <button 
+
+              <button
                 onClick={() => setIsOpen(false)}
                 className="w-full mt-2 bg-transparent text-gray-400 hover:text-gray-600 font-bold text-lg py-3 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
               >

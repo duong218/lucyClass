@@ -27,7 +27,7 @@ const formatUser = (user) => {
   const today = getVNDate();
   const diffDays = getDiffDays(user.lastCheckin, today);
 
-  const canRevive = diffDays === 1 && !user.reviveUsed;
+  const canRevive = diffDays === 2 && !user.reviveUsed;
   const lostStreak = diffDays > 1;
 
   return {
@@ -91,6 +91,11 @@ exports.checkIn = async (req, res) => {
     return res.json({ success: true, data: formatUser(user), message: 'Already checked in today' });
   }
 
+
+  // reset revive nếu sang ngày mới
+  if (user.lastCheckin !== today) {
+    user.reviveUsed = false;
+  }
   // streak logic
   if (user.lastCheckin === yesterday) {
     user.streakCount += 1;
@@ -126,9 +131,9 @@ exports.reviveStreak = async (req, res) => {
     }
 
     const today = getVNDate();
-    const yesterday = getVNDate(-1);
+    const twoDaysAgo = getVNDate(-2);
 
-    if (user.lastCheckin !== yesterday || user.reviveUsed) {
+    if (user.lastCheckin !== twoDaysAgo || user.reviveUsed) {
       return res.status(400).json({
         success: false,
         message: 'Revive not available'
