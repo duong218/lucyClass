@@ -43,6 +43,17 @@ const getDateOffsetVN = (offsetDays = 0) => {
   return date.toISOString().split('T')[0];
 };
 
+/**
+ * Calculates difference in days between two YYYY-MM-DD strings
+ */
+const calculateDiffDays = (lastCheckinStr, todayStr) => {
+  if (!lastCheckinStr) return 999;
+  const last = new Date(lastCheckinStr + 'T00:00:00Z');
+  const current = new Date(todayStr + 'T00:00:00Z');
+  const diffTime = current - last;
+  return Math.round(diffTime / (1000 * 60 * 60 * 24));
+};
+
 const formatUser = (user) => ({
   phone: user.phone,
   name: user.name,
@@ -66,6 +77,7 @@ exports.startStreak = async (req, res) => {
     }
 
     let user = await Streak.findOne({ phone });
+    const today = getDateOffsetVN(0);
 
     if (!user) {
       user = await Streak.create({
@@ -80,7 +92,8 @@ exports.startStreak = async (req, res) => {
 
     return res.json({
       success: true,
-      data: formatUser(user)
+      data: formatUser(user),
+      today
     });
   } catch (_error) {
     return res.status(500).json({
@@ -104,10 +117,19 @@ exports.getStreak = async (req, res) => {
     }
 
     const user = await Streak.findOne({ phone });
+    if (!user) {
+      return res.json({ success: true, data: null });
+    }
+
+    const today = getDateOffsetVN(0);
+    const diffDays = calculateDiffDays(user.lastCheckin, today);
 
     return res.json({
       success: true,
-      data: user ? formatUser(user) : null
+      data: formatUser(user),
+      streakExpired: diffDays >= 4,
+      diffDays,
+      today
     });
   } catch (_error) {
     return res.status(500).json({
@@ -120,6 +142,7 @@ exports.getStreak = async (req, res) => {
 
 exports.checkIn = async (req, res) => {
   try {
+    const { forceReset } = req.body;
     const phone = normalizePhone(req.body.phone);
 
     if (!phone) {
@@ -131,7 +154,6 @@ exports.checkIn = async (req, res) => {
     }
 
     const user = await Streak.findOne({ phone });
-
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -141,8 +163,9 @@ exports.checkIn = async (req, res) => {
     }
 
     const today = getDateOffsetVN(0);
-    const yesterday = getDateOffsetVN(-1);
+    const diffDays = calculateDiffDays(user.lastCheckin, today);
 
+    // CASE 1: Already checked today
     if (user.lastCheckin === today) {
       return res.json({
         success: true,
@@ -151,11 +174,24 @@ exports.checkIn = async (req, res) => {
       });
     }
 
-    if (user.lastCheckin === yesterday) {
+    // CASE 2: Normal flow (checked yesterday)
+    if (diffDays === 1) {
       user.streakCount += 1;
-    } else {
+      user.reviveUsed = false; // Recharge revive
+    } 
+    // CASE 3: Need revive (missed 1-2 days)
+    else if ((diffDays === 2 || diffDays === 3) && !forceReset) {
+      return res.json({
+        success: true,
+        needRevive: true,
+        missedDays: diffDays - 1,
+        data: formatUser(user)
+      });
+    }
+    // CASE 4: Expired or Forced reset
+    else {
       user.streakCount = 1;
-      user.reviveUsed = false; // Reset revive status when streak is lost
+      user.reviveUsed = false;
     }
 
     user.lastCheckin = today;
@@ -163,7 +199,8 @@ exports.checkIn = async (req, res) => {
 
     return res.json({
       success: true,
-      data: formatUser(user)
+      data: formatUser(user),
+      message: diffDays >= 4 ? 'Chuỗi đã bị reset do không hoạt động quá lâu' : 'Check-in thành công'
     });
   } catch (_error) {
     return res.status(500).json({
@@ -187,7 +224,6 @@ exports.reviveStreak = async (req, res) => {
     }
 
     const user = await Streak.findOne({ phone });
-
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -196,21 +232,14 @@ exports.reviveStreak = async (req, res) => {
       });
     }
 
-    if (user.reviveUsed) {
-      return res.status(400).json({
-        success: false,
-        data: null,
-        message: 'Bạn đã dùng lượt cứu streak rồi'
-      });
-    }
-
     const today = getDateOffsetVN(0);
-    const twoDaysAgo = getDateOffsetVN(-2);
+    const diffDays = calculateDiffDays(user.lastCheckin, today);
 
-    if (user.lastCheckin === twoDaysAgo) {
+    // VALIDATE: 2-3 days gap and revive not used
+    if ((diffDays === 2 || diffDays === 3) && !user.reviveUsed) {
       user.streakCount += 1;
       user.lastCheckin = today;
-      user.reviveUsed = true;
+      user.reviveUsed = true; // Mark as used
       await user.save();
 
       return res.json({
@@ -222,7 +251,7 @@ exports.reviveStreak = async (req, res) => {
       return res.status(400).json({
         success: false,
         data: null,
-        message: 'Đã quá muộn để cứu streak'
+        message: user.reviveUsed ? 'Bạn đã dùng lượt cứu streak cho chuỗi này rồi' : 'Không thuộc diện cứu streak'
       });
     }
   } catch (_error) {

@@ -26,6 +26,10 @@ const FlameButton = () => {
   const [isBouncing, setIsBouncing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  
+  // Revive Modal
+  const [isReviveModalOpen, setIsReviveModalOpen] = useState(false);
+  const [reviveMissedDays, setReviveMissedDays] = useState(0);
 
   // Form states
   const [phone, setPhone] = useState('');
@@ -61,6 +65,9 @@ const FlameButton = () => {
         setUserData(res.data);
         setName(res.data.name);
         setEmail(res.data.email || '');
+        if (res.streakExpired) {
+          setErrorMsg('Chuỗi của bạn đã bị mất do không hoạt động quá lâu 😢 Nhấn "Bắt đầu lại" để tiếp tục');
+        }
       } else {
         // New user
         setUserData(null);
@@ -68,12 +75,24 @@ const FlameButton = () => {
         setEmail('');
       }
     } else {
-      // Real error (e.g. network)
       setUserData(null);
-      // Don't necessarily clear form if it was a network error during typing
     }
     setLoading(false);
   }, []);
+
+  // Daily Reset Check
+  useEffect(() => {
+    const today = getVNDate(0);
+    const lastLogin = localStorage.getItem('streak_last_login_date');
+    if (savedPhone && lastLogin !== today) {
+      localStorage.removeItem('streak_phone');
+      setSavedPhone('');
+      setUserData(null);
+      setPhone('');
+      setName('');
+      setEmail('');
+    }
+  }, [savedPhone]);
 
   // Initial load
   useEffect(() => {
@@ -110,7 +129,9 @@ const FlameButton = () => {
     setErrorMsg('');
     const res = await startStreak({ phone, name, email });
     if (res.success) {
+      const today = getVNDate(0);
       localStorage.setItem('streak_phone', res.data.phone);
+      localStorage.setItem('streak_last_login_date', today);
       setSavedPhone(res.data.phone);
       setUserData(res.data);
     } else {
@@ -119,12 +140,19 @@ const FlameButton = () => {
     setLoading(false);
   };
 
-  const handleCheckIn = async () => {
+  const handleCheckIn = async (forceReset = false) => {
+    if (loading) return;
     setLoading(true);
     setErrorMsg('');
-    const res = await checkinStreak(savedPhone);
+    const res = await checkinStreak(savedPhone, forceReset);
     if (res.success) {
-      setUserData(res.data);
+      if (res.needRevive) {
+        setReviveMissedDays(res.missedDays);
+        setIsReviveModalOpen(true);
+      } else {
+        setUserData(res.data);
+        setIsReviveModalOpen(false);
+      }
     } else {
       setErrorMsg(res.message || 'Check-in thất bại');
     }
@@ -137,6 +165,7 @@ const FlameButton = () => {
     const res = await reviveStreak(savedPhone);
     if (res.success) {
       setUserData(res.data);
+      setIsReviveModalOpen(false);
     } else {
       setErrorMsg(res.message || 'Cứu streak thất bại');
     }
@@ -338,6 +367,43 @@ const FlameButton = () => {
             >
               Thu nhỏ
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Revive Modal */}
+      {isReviveModalOpen && (
+        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-md flex items-center justify-center p-6">
+          <div className="bg-white rounded-[2.5rem] p-8 max-w-xs w-full shadow-2xl animate-in zoom-in duration-300 border-4 border-orange-100">
+            <div className="text-center">
+              <span className="text-5xl mb-4 block">😢</span>
+              <h3 className="text-xl font-black text-gray-800 mb-2">Bỏ lỡ mất rồi!</h3>
+              <p className="text-gray-500 font-medium text-sm leading-relaxed mb-8">
+                Bạn đã bỏ lỡ <span className="text-orange-500 font-bold text-lg">{reviveMissedDays}</span> ngày học tập. 
+                Bạn có muốn khôi phục chuỗi không?
+              </p>
+              
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={handleRevive}
+                  disabled={loading}
+                  className="w-full bg-orange-500 hover:bg-orange-600 text-white font-black py-4 rounded-2xl shadow-xl shadow-orange-100 active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  {loading ? 'ĐANG XỬ LÝ...' : (
+                    <>
+                      <span>🔥 KHÔI PHỤC</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => handleCheckIn(true)}
+                  disabled={loading}
+                  className="w-full bg-gray-50 hover:bg-gray-100 text-gray-400 font-bold py-4 rounded-2xl active:scale-95 transition-all text-xs uppercase"
+                >
+                  Bỏ qua & bắt đầu lại
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

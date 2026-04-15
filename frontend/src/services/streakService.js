@@ -45,11 +45,11 @@ export const fetchStreak = async (phone) => {
   return normalizeResponse(res, payload);
 };
 
-export const checkinStreak = async (phone) => {
+export const checkinStreak = async (phone, forceReset = false) => {
   const res = await fetch(`${API_BASE}/api/streak/checkin`, {
     method: 'POST',
     headers: getHeaders(),
-    body: JSON.stringify({ phone })
+    body: JSON.stringify({ phone, forceReset })
   });
 
   const payload = await parseJsonSafe(res);
