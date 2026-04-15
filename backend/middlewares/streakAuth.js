@@ -2,9 +2,8 @@ const jwt = require('jsonwebtoken');
 
 const streakAuth = (req, res, next) => {
   const authHeader = req.headers.authorization;
-
   const token = authHeader && authHeader.startsWith('Bearer ')
-    ? authHeader.split(' ')[1]
+    ? authHeader.slice(7)
     : null;
 
   if (!token) {
@@ -17,20 +16,19 @@ const streakAuth = (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // 🎯 CHỈ cần phone
-    if (!decoded.phone) {
+    if (!decoded.streakUserId) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid token payload'
+        message: 'Unauthorized: Invalid token payload'
       });
     }
 
     req.user = {
-      phone: decoded.phone
+      streakUserId: decoded.streakUserId
     };
 
-    next();
-  } catch (err) {
+    return next();
+  } catch (_err) {
     return res.status(401).json({
       success: false,
       message: 'Unauthorized: Invalid token'

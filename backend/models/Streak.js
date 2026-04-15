@@ -1,20 +1,29 @@
 const mongoose = require('mongoose');
 
 const streakSchema = new mongoose.Schema({
-  phone: {
+  identityKey: {
     type: String,
     required: true,
     unique: true,
+    sparse: true,
     trim: true,
+    index: true
   },
   name: {
     type: String,
+    required: true,
     trim: true,
   },
   email: {
     type: String,
+    default: '',
     lowercase: true,
     trim: true,
+  },
+  // Legacy field kept to avoid schema/runtime issues with old data.
+  phone: {
+    type: String,
+    trim: true
   },
   streakCount: {
     type: Number,
@@ -24,10 +33,6 @@ const streakSchema = new mongoose.Schema({
   lastCheckin: {
     type: String, // format YYYY-MM-DD
   },
-  reviveUsed: {
-    type: Boolean,
-    default: false
-  }
 }, {
   timestamps: true,
   collection: process.env.STREAK_COLLECTION || 'streaks'

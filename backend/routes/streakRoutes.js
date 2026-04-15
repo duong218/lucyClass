@@ -1,43 +1,22 @@
 const express = require('express');
-const router = express.Router();
 
 const controller = require('../controllers/streakController');
 const validate = require('../middlewares/validate');
-
-const {
-  checkinValidation,
-  getStreakValidation,
-  recoverValidation,
-  reviveValidation
-} = require('../validators/streakValidator');
-
 const { streakLimiter } = require('../middlewares/rateLimiter');
 const streakAuth = require('../middlewares/streakAuth');
+const {
+  startValidation,
+  checkinValidation
+} = require('../validators/streakValidator');
+
+const router = express.Router();
 
 router.post(
-  '/checkin',
-  streakAuth,
+  '/start',
   streakLimiter,
-  checkinValidation,
+  startValidation,
   validate,
-  controller.checkIn
-);
-
-router.post(
-  '/recover',
-  streakLimiter,
-  recoverValidation,
-  validate,
-  controller.recoverStreak
-);
-
-router.post(
-  '/revive',
-  streakAuth,
-  streakLimiter,
-  reviveValidation,
-  validate,
-  controller.reviveStreak
+  controller.startStreak
 );
 
 router.get(
@@ -47,6 +26,13 @@ router.get(
   controller.getStreak
 );
 
-router.post('/login', controller.loginStreak);
+router.post(
+  '/checkin',
+  streakAuth,
+  streakLimiter,
+  checkinValidation,
+  validate,
+  controller.checkIn
+);
 
 module.exports = router;
