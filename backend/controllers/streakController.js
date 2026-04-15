@@ -12,14 +12,23 @@ const getVNDate = (offset = 0) => {
   return date.toISOString().slice(0, 10);
 };
 
+const getDiffDays = (fromDate, toDate) => {
+  if (!fromDate || !toDate) return null;
+
+  const from = new Date(`${fromDate}T00:00:00.000Z`);
+  const to = new Date(`${toDate}T00:00:00.000Z`);
+
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return null;
+
+  return Math.floor((to - from) / (24 * 60 * 60 * 1000));
+};
+
 const formatUser = (user) => {
   const today = getVNDate();
-  const yesterday = getVNDate(-1);
+  const diffDays = getDiffDays(user.lastCheckin, today);
 
-  const lostStreak =
-    user.lastCheckin &&
-    user.lastCheckin !== today &&
-    user.lastCheckin !== yesterday;
+  const canRevive = diffDays === 1 && !user.reviveUsed;
+  const lostStreak = diffDays > 1;
 
   return {
     phone: user.phone,
@@ -27,6 +36,7 @@ const formatUser = (user) => {
     email: user.email,
     streakCount: user.streakCount,
     lastCheckin: user.lastCheckin,
+    canRevive,
     lostStreak
   };
 };
@@ -99,6 +109,47 @@ exports.checkIn = async (req, res) => {
   return res.json({ success: true, data: formatUser(user) });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// POST revive streak
+exports.reviveStreak = async (req, res) => {
+  try {
+    const { phone } = req.body;
+    const user = await Streak.findOne({ phone });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const today = getVNDate();
+    const yesterday = getVNDate(-1);
+
+    if (user.lastCheckin !== yesterday || user.reviveUsed) {
+      return res.status(400).json({
+        success: false,
+        message: 'Revive not available'
+      });
+    }
+
+    user.reviveUsed = true;
+    user.lastCheckin = today;
+    user.streakCount += 1;
+
+    await user.save();
+
+    return res.json({
+      success: true,
+      data: formatUser(user)
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
   }
 };
 

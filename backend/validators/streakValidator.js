@@ -42,8 +42,18 @@ const recoverValidation = [
     .withMessage('Valid email is required')
 ];
 
+const reviveValidation = [
+  body('phone')
+    .trim()
+    .notEmpty()
+    .withMessage('Phone is required')
+    .matches(/^[0-9]{9,11}$/)
+    .withMessage('Phone must be 9-11 digits')
+];
+
 module.exports = {
   checkinValidation,
   getStreakValidation,
-  recoverValidation
+  recoverValidation,
+  reviveValidation
 };

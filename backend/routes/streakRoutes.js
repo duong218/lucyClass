@@ -7,7 +7,8 @@ const validate = require('../middlewares/validate');
 const {
   checkinValidation,
   getStreakValidation,
-  recoverValidation
+  recoverValidation,
+  reviveValidation
 } = require('../validators/streakValidator');
 
 const { streakLimiter } = require('../middlewares/rateLimiter');
@@ -26,6 +27,14 @@ router.post(
   recoverValidation,
   validate,
   controller.recoverStreak
+);
+
+router.post(
+  '/revive',
+  streakLimiter,
+  reviveValidation,
+  validate,
+  controller.reviveStreak
 );
 
 router.get(

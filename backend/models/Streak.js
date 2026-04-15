@@ -23,6 +23,10 @@ const streakSchema = new mongoose.Schema({
   },
   lastCheckin: {
     type: String, // format YYYY-MM-DD
+  },
+  reviveUsed: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true,
