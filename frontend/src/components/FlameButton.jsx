@@ -33,82 +33,31 @@ const FlameButton = () => {
     return `${yyyy}-${mm}-${dd}`;
   };
 
-  // UPDATED – now async; backend is source of truth, localStorage is fallback
   const loadUserSession = async (targetPhone) => {
     const savedName = localStorage.getItem(`streak_name_${targetPhone}`);
     if (!savedName) return false;
 
     setSavedUser({ phone: targetPhone, name: savedName });
 
-    // --- Try backend first ---
     try {
-      const res = await fetchStreak(targetPhone); // FIXED
+      const res = await fetchStreak(targetPhone);
+
       if (res.success && res.data) {
-        const data = res.data; // FIXED
+        const data = res.data;
         const today = getVietnamDateString();
-        // Sync from API response
+
         setStreakCount(data.streakCount);
         setHasCheckedInToday(data.lastCheckin === today);
-        setLostStreak(data.lastCheckin !== today && data.streakCount > 0);
+        setLostStreak(!!data.lostStreak);
         setJustCheckedIn(false);
 
-        // Keep localStorage in sync as cache
-        localStorage.setItem(`streak_count_${targetPhone}`, data.streakCount.toString());
-        if (data.lastCheckin === today) {
-          localStorage.setItem(`last_checkin_${targetPhone}`, today);
-        }
         return true;
       }
-    } catch (_err) {
-      // API failed – fall through to local logic
+    } catch (err) {
+      console.error('Failed to load streak:', err);
     }
 
-    // --- Fallback: existing localStorage logic (unchanged) ---
-    const today = getVietnamDateString();
-    const yesterday = getVietnamDateString(-1);
-
-    let count = parseInt(localStorage.getItem(`streak_count_${targetPhone}`) || '0', 10);
-    const lastDate = localStorage.getItem(`last_checkin_${targetPhone}`);
-    const successDate = localStorage.getItem(`last_checkin_success_${targetPhone}`);
-
-    if (lastDate === today) {
-      setStreakCount(count);
-      setHasCheckedInToday(true);
-      setLostStreak(false);
-      localStorage.removeItem(`lost_streak_${targetPhone}`);
-      
-      if (successDate === today) {
-        setJustCheckedIn(true);
-      } else {
-        setJustCheckedIn(false);
-      }
-    } else if (lastDate === yesterday) {
-      setStreakCount(count);
-      setHasCheckedInToday(false);
-      setJustCheckedIn(false);
-      setLostStreak(false);
-      localStorage.removeItem(`lost_streak_${targetPhone}`);
-    } else {
-      if (count > 0 && lastDate) {
-        const seen = localStorage.getItem(`lost_streak_${targetPhone}`);
-        if (!seen) {
-          setLostStreak(true);
-          localStorage.setItem(`lost_streak_${targetPhone}`, 'true');
-        } else {
-          setLostStreak(false);
-        }
-      } else {
-        setLostStreak(false);
-      }
-      count = 0;
-      setStreakCount(0);
-      setHasCheckedInToday(false);
-      setJustCheckedIn(false);
-      localStorage.setItem(`streak_count_${targetPhone}`, '0');
-      localStorage.removeItem(`last_checkin_${targetPhone}`);
-    }
-
-    return true;
+    return false;
   };
 
   useEffect(() => {
@@ -129,68 +78,31 @@ const FlameButton = () => {
     }
   };
 
-  // UPDATED – async with backend call + spam-click guard
   const handleCheckIn = async () => {
-    console.log("CLICK CHECKIN");
-    if (!savedUser?.phone || loading || hasCheckedInToday) return; // FIXED
+    if (!savedUser?.phone || loading || hasCheckedInToday) return;
 
-    const phoneToUse = savedUser.phone;
-    const today = getVietnamDateString();
-    const yesterday = getVietnamDateString(-1);
+    setLoading(true);
 
-    const lastDate = localStorage.getItem(`last_checkin_${phoneToUse}`);
-
-    if (lastDate === today) {
-      setHasCheckedInToday(true);
-      return;
-    }
-
-    setLoading(true); // ADDED
     try {
-      // --- Call backend ---
       const res = await checkinStreak({
-        phone: phoneToUse,
+        phone: savedUser.phone,
         name: savedUser.name,
-        email: savedUser.email || localStorage.getItem(`streak_email_${phoneToUse}`) || ''
+        email: email || ''
       });
 
-      // Use API response if available
-      const newCount = (res.success && res.data && typeof res.data.streakCount === 'number') // FIXED
-        ? res.data.streakCount
-        : (() => {
-            // Fallback: compute locally
-            let c = parseInt(localStorage.getItem(`streak_count_${phoneToUse}`) || '0', 10);
-            if (lastDate !== yesterday) c = 0;
-            return c + 1;
-          })();
+      if (res.success && res.data) {
+        const data = res.data;
 
-      // Persist to localStorage (cache)
-      localStorage.setItem(`streak_count_${phoneToUse}`, newCount.toString());
-      localStorage.setItem(`last_checkin_${phoneToUse}`, today);
-      localStorage.setItem(`last_checkin_success_${phoneToUse}`, today);
-      localStorage.removeItem(`lost_streak_${phoneToUse}`);
+        setStreakCount(data.streakCount);
+        setHasCheckedInToday(true);
+        setLostStreak(false);
+        setJustCheckedIn(true);
+      }
 
-      setStreakCount(newCount);
-      setHasCheckedInToday(true);
-      setLostStreak(false);
-      setJustCheckedIn(true);
-    } catch (_err) {
-      // --- Fallback: existing local logic (unchanged) ---
-      let currentCount = parseInt(localStorage.getItem(`streak_count_${phoneToUse}`) || '0', 10);
-      if (lastDate !== yesterday) currentCount = 0;
-      const newCount = currentCount + 1;
-
-      localStorage.setItem(`streak_count_${phoneToUse}`, newCount.toString());
-      localStorage.setItem(`last_checkin_${phoneToUse}`, today);
-      localStorage.setItem(`last_checkin_success_${phoneToUse}`, today);
-      localStorage.removeItem(`lost_streak_${phoneToUse}`);
-
-      setStreakCount(newCount);
-      setHasCheckedInToday(true);
-      setLostStreak(false);
-      setJustCheckedIn(true);
+    } catch (err) {
+      console.error('Check-in failed:', err);
     } finally {
-      setLoading(false); // ADDED
+      setLoading(false);
     }
   };
 
@@ -231,10 +143,6 @@ const FlameButton = () => {
     } else {
       const formattedName = name.trim();
       localStorage.setItem(`streak_name_${formattedPhone}`, formattedName);
-      localStorage.setItem(`streak_count_${formattedPhone}`, '0');
-      localStorage.removeItem(`last_checkin_${formattedPhone}`);
-      localStorage.removeItem(`lost_streak_${formattedPhone}`);
-      localStorage.removeItem(`last_checkin_success_${formattedPhone}`);
 
       setSavedUser({ phone: formattedPhone, name: formattedName });
       setStreakCount(0);
@@ -259,16 +167,11 @@ const FlameButton = () => {
       if (res.success && res.data) {
         const user = res.data;
 
-        // sync localStorage
+        // Cache phone & name only
         localStorage.setItem('streak_phone', user.phone);
         localStorage.setItem(`streak_name_${user.phone}`, user.name);
-        localStorage.setItem(`streak_email_${user.phone}`, user.email);
-        localStorage.setItem(`streak_count_${user.phone}`, String(user.streakCount));
-        if (user.lastCheckin) {
-          localStorage.setItem(`last_checkin_${user.phone}`, user.lastCheckin);
-        }
 
-        // reuse existing session loader for clean state sync
+        // Reload state from API
         setLostStreak(false);
         setEmail(user.email || '');
         setErrorMsg('');

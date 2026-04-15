@@ -12,13 +12,24 @@ const getVNDate = (offset = 0) => {
   return date.toISOString().slice(0, 10);
 };
 
-const formatUser = (user) => ({
-  phone: user.phone,
-  name: user.name,
-  email: user.email,
-  streakCount: user.streakCount,
-  lastCheckin: user.lastCheckin
-});
+const formatUser = (user) => {
+  const today = getVNDate();
+  const yesterday = getVNDate(-1);
+
+  const lostStreak =
+    user.lastCheckin &&
+    user.lastCheckin !== today &&
+    user.lastCheckin !== yesterday;
+
+  return {
+    phone: user.phone,
+    name: user.name,
+    email: user.email,
+    streakCount: user.streakCount,
+    lastCheckin: user.lastCheckin,
+    lostStreak
+  };
+};
 
 // GET streak
 exports.getStreak = async (req, res) => {
@@ -49,7 +60,7 @@ exports.checkIn = async (req, res) => {
     user = await Streak.create({
       phone,
       name,
-      email,
+      email: email ? email.toLowerCase() : '',
       streakCount: 1,
       lastCheckin: today
     });
@@ -58,7 +69,7 @@ exports.checkIn = async (req, res) => {
   }
 
   // 🔒 email mismatch protection (soft auth)
-  if (user.email && email && user.email !== email) {
+  if (user.email && email && user.email !== email.toLowerCase()) {
     return res.status(403).json({
       success: false,
       message: 'Email does not match'
@@ -67,7 +78,7 @@ exports.checkIn = async (req, res) => {
 
   // already check-in
   if (user.lastCheckin === today) {
-    return res.json({ success: true, data: formatUser(user) });
+    return res.json({ success: true, data: formatUser(user), message: 'Already checked in today' });
   }
 
   // streak logic
@@ -81,7 +92,7 @@ exports.checkIn = async (req, res) => {
 
   // update info nếu có
   if (name) user.name = name;
-  if (email) user.email = email;
+  if (email) user.email = email.toLowerCase();
 
   await user.save();
 
@@ -105,7 +116,7 @@ exports.recoverStreak = async (req, res) => {
       });
     }
 
-    if (!user.email || user.email.toLowerCase() !== email.toLowerCase()) {
+    if (!user.email || user.email.toLowerCase() !== (email || '').toLowerCase()) {
       return res.json({
         success: false,
         message: 'Email does not match'
@@ -114,13 +125,7 @@ exports.recoverStreak = async (req, res) => {
 
     return res.json({
       success: true,
-      data: {
-        phone: user.phone,
-        name: user.name,
-        email: user.email,
-        streakCount: user.streakCount,
-        lastCheckin: user.lastCheckin
-      }
+      data: formatUser(user)
     });
 
   } catch (error) {
