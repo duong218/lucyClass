@@ -265,7 +265,11 @@ const FlameButton = () => {
         <img
           src={flameImg}
           alt="Flame"
-          className={`w-[110px] h-[130px] object-contain origin-bottom transition-transform group-hover:scale-110 drop-shadow-[0_10px_10px_rgba(255,165,0,0.4)] animate-float ${
+          className={`w-[130px] h-[150px] 
+            sm:w-[140px] sm:h-[160px] 
+            md:w-[160px] md:h-[180px] 
+            lg:w-[190px] lg:h-[210px]
+            object-contain origin-bottom transition-transform group-hover:scale-110 drop-shadow-[0_10px_10px_rgba(255,165,0,0.4)] animate-float ${
             isBouncing ? 'animate-bounce' : ''
           }`}
         />
@@ -359,7 +363,7 @@ const FlameButton = () => {
                       {userData.streakCount}
                     </p>
                   </div>
-                  <p className="text-[11px] text-gray-400 mt-2 uppercase tracking-[0.1em] font-black">{t('streak.days')}</p>
+                  <p className="text-sm text-gray-600 mt-2 uppercase tracking-[0.15em] font-extrabold">{t('streak.days')}</p>
                 </div>
 
                 {canRevive && (
@@ -422,9 +426,15 @@ const FlameButton = () => {
 
                   <button
                     onClick={handleSwitchUser}
-                    className="w-full bg-gray-50/50 text-gray-400 hover:bg-gray-100 hover:text-gray-500 font-bold py-4 rounded-[1.5rem] transition-all text-[11px] uppercase tracking-widest mt-2 border-2 border-transparent hover:border-gray-200"
+                    className="w-full bg-white border-2 border-gray-200 text-gray-600 
+                  hover:bg-gray-50 hover:border-gray-300 
+                  font-bold py-4 rounded-[1.5rem] 
+                  transition-all shadow-sm hover:shadow-md 
+                  active:scale-95"
                   >
-                    {t('streak.switch_user')}
+                    <span className="flex items-center justify-center gap-2">
+                      🔄 {t('streak.switch_user')}
+                    </span>
                   </button>
                 </div>
               </div>
@@ -511,7 +521,12 @@ const FlameButton = () => {
 
             <button
               onClick={() => setIsOpen(false)}
-              className="w-full mt-8 text-gray-300 hover:text-pink-400 font-black py-2 transition-all text-[11px] uppercase tracking-[0.3em] flex items-center justify-center gap-2"
+              className="w-full mt-6 bg-gray-50 hover:bg-gray-100 
+              text-gray-500 hover:text-pink-500 
+              font-bold py-3 rounded-xl 
+              transition-all text-xs uppercase tracking-[0.25em] 
+              flex items-center justify-center gap-2 
+              border border-gray-200"
             >
               <span>{t('streak.close_hint')}</span>
             </button>
