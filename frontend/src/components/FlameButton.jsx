@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import flameImg from '../assets/flame.png';
 import {
   startStreak,
@@ -27,6 +27,11 @@ const FlameButton = () => {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   
+  // User Lookup Stability
+  const [isExistingUser, setIsExistingUser] = useState(false);
+  const [loadingUser, setLoadingUser] = useState(false);
+  const lookupRequestIdRef = useRef(0);
+  
   // Revive Modal
   const [isReviveModalOpen, setIsReviveModalOpen] = useState(false);
   const [reviveMissedDays, setReviveMissedDays] = useState(0);
@@ -53,31 +58,46 @@ const FlameButton = () => {
 
   const styles = getMilestoneStyles(userData?.streakCount || 0);
 
-  const isValidPhone = (p) => /^[0][0-9]{9}$/.test(p);
+  const isValidPhone = (p) => /^0(3|5|7|8|9)[0-9]{8}$/.test(p);
 
   const loadUser = useCallback(async (p) => {
     if (!p || !isValidPhone(p)) return;
-    setLoading(true);
+    
+    const requestId = ++lookupRequestIdRef.current;
+    setLoadingUser(true);
     setErrorMsg('');
-    const res = await fetchStreak(p);
-    if (res.success) {
-      if (res.data) {
-        setUserData(res.data);
-        setName(res.data.name);
-        setEmail(res.data.email || '');
-        if (res.streakExpired) {
-          setErrorMsg('Chuỗi của bạn đã bị mất do không hoạt động quá lâu 😢 Nhấn "Bắt đầu lại" để tiếp tục');
+    
+    try {
+      const res = await fetchStreak(p);
+      
+      // Only update if this is still the latest request
+      if (requestId === lookupRequestIdRef.current) {
+        if (res.success && res.data) {
+          setUserData(res.data);
+          setName(res.data.name);
+          setEmail(res.data.email || '');
+          setIsExistingUser(true);
+          if (res.streakExpired) {
+            setErrorMsg('Chuỗi của bạn đã bị mất do không hoạt động quá lâu 😢 Nhấn "Bắt đầu lại" để tiếp tục');
+          }
+        } else {
+          // New user or error
+          setUserData(null);
+          setIsExistingUser(false);
+          setName('');
+          setEmail('');
         }
-      } else {
-        // New user
-        setUserData(null);
-        setName('');
-        setEmail('');
       }
-    } else {
-      setUserData(null);
+    } catch (_err) {
+      if (requestId === lookupRequestIdRef.current) {
+        setUserData(null);
+        setIsExistingUser(false);
+      }
+    } finally {
+      if (requestId === lookupRequestIdRef.current) {
+        setLoadingUser(false);
+      }
     }
-    setLoading(false);
   }, []);
 
   // Daily Reset Check
@@ -121,8 +141,13 @@ const FlameButton = () => {
   }, []);
 
   const handleStart = async () => {
-    if (!phone || !name) {
-      setErrorMsg('Vui lòng nhập đủ SĐT và Tên');
+    if (loading) return;
+    if (!phone || !isValidPhone(phone)) {
+      setErrorMsg('Số điện thoại không hợp lệ (10 chữ số, bắt đầu bằng 03, 05, 07, 08 hoặc 09)');
+      return;
+    }
+    if (!name) {
+      setErrorMsg('Vui lòng nhập Tên');
       return;
     }
     setLoading(true);
@@ -160,6 +185,7 @@ const FlameButton = () => {
   };
 
   const handleRevive = async () => {
+    if (loading) return;
     setLoading(true);
     setErrorMsg('');
     const res = await reviveStreak(savedPhone);
@@ -291,7 +317,7 @@ const FlameButton = () => {
                   ) : null}
 
                   <button
-                    onClick={handleCheckIn}
+                    onClick={() => handleCheckIn()}
                     disabled={loading || hasCheckedInToday}
                     className={`w-full text-white font-black py-4 rounded-2xl transition-all shadow-lg active:scale-95 ${
                       hasCheckedInToday
@@ -325,19 +351,44 @@ const FlameButton = () => {
                     type="tel"
                     placeholder="0xxxxxxxxx"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setPhone(val);
+                      // Reactive Reset: If phone becomes invalid, immediately clear lookup state
+                      if (!isValidPhone(val)) {
+                        lookupRequestIdRef.current++; // Cancel any pending lookups
+                        setIsExistingUser(false);
+                        setLoadingUser(false);
+                        setName('');
+                        setEmail('');
+                      }
+                    }}
                     className="w-full bg-gray-50 border-2 border-transparent text-gray-800 rounded-2xl px-5 py-4 focus:outline-none focus:border-orange-200 focus:bg-white transition-all shadow-inner"
                   />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-gray-400 ml-3 uppercase tracking-widest">Họ và Tên</label>
-                  <input
-                    type="text"
-                    placeholder="Tên của bạn"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full bg-gray-50 border-2 border-transparent text-gray-800 rounded-2xl px-5 py-4 focus:outline-none focus:border-orange-200 focus:bg-white transition-all shadow-inner"
-                  />
+                  {loadingUser ? (
+                    <div className="w-full bg-gray-50 text-gray-400 rounded-2xl px-5 py-4 italic text-sm animate-pulse flex items-center gap-2">
+                       <span className="w-4 h-4 border-2 border-orange-200 border-t-orange-500 rounded-full animate-spin"></span>
+                       Đang kiểm tra...
+                    </div>
+                  ) : isExistingUser ? (
+                    <div className="w-full bg-orange-50/50 border-2 border-orange-100 text-gray-800 rounded-2xl px-5 py-4 flex flex-col">
+                      <span className="font-bold text-lg">{name}</span>
+                      <span className="text-[9px] text-orange-400 font-bold uppercase tracking-wider mt-0.5">
+                        Tên đã được đăng ký, không thể thay đổi 🔒
+                      </span>
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      placeholder="Tên của bạn"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full bg-gray-50 border-2 border-transparent text-gray-800 rounded-2xl px-5 py-4 focus:outline-none focus:border-orange-200 focus:bg-white transition-all shadow-inner"
+                    />
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-gray-400 ml-3 uppercase tracking-widest">Email (Không bắt buộc)</label>

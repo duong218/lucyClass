@@ -88,6 +88,10 @@ exports.startStreak = async (req, res) => {
         lastCheckin: null,
         reviveUsed: false
       });
+    } else if (!user.name && name) {
+      // Lock name: Only set if not already present
+      user.name = name;
+      await user.save();
     }
 
     return res.json({
@@ -96,6 +100,7 @@ exports.startStreak = async (req, res) => {
       today
     });
   } catch (_error) {
+    console.error('StartStreak Error:', _error);
     return res.status(500).json({
       success: false,
       data: null,
@@ -132,6 +137,7 @@ exports.getStreak = async (req, res) => {
       today
     });
   } catch (_error) {
+    console.error('GetStreak Error:', _error);
     return res.status(500).json({
       success: false,
       data: null,
@@ -153,7 +159,7 @@ exports.checkIn = async (req, res) => {
       });
     }
 
-    const user = await Streak.findOne({ phone });
+    let user = await Streak.findOne({ phone });
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -176,8 +182,18 @@ exports.checkIn = async (req, res) => {
 
     // CASE 2: Normal flow (checked yesterday)
     if (diffDays === 1) {
-      user.streakCount += 1;
-      user.reviveUsed = false; // Recharge revive
+      // Atomic increment
+      user = await Streak.findOneAndUpdate({
+        phone,
+        lastCheckin: user.lastCheckin // Optimistic lock
+      }, {
+        $set: { lastCheckin: today, reviveUsed: false },
+        $inc: { streakCount: 1 }
+      }, { new: true });
+
+      if (!user) {
+        return res.status(409).json({ success: false, message: 'Check-in conflict. Vui lòng thử lại.' });
+      }
     } 
     // CASE 3: Need revive (missed 1-2 days)
     else if ((diffDays === 2 || diffDays === 3) && !forceReset) {
@@ -190,12 +206,18 @@ exports.checkIn = async (req, res) => {
     }
     // CASE 4: Expired or Forced reset
     else {
-      user.streakCount = 1;
-      user.reviveUsed = false;
-    }
+      // Atomic reset
+      user = await Streak.findOneAndUpdate({
+        phone,
+        lastCheckin: user.lastCheckin
+      }, {
+        $set: { lastCheckin: today, reviveUsed: false, streakCount: 1 }
+      }, { new: true });
 
-    user.lastCheckin = today;
-    await user.save();
+      if (!user) {
+        return res.status(409).json({ success: false, message: 'Check-in conflict. Vui lòng thử lại.' });
+      }
+    }
 
     return res.json({
       success: true,
@@ -203,6 +225,7 @@ exports.checkIn = async (req, res) => {
       message: diffDays >= 4 ? 'Chuỗi đã bị reset do không hoạt động quá lâu' : 'Check-in thành công'
     });
   } catch (_error) {
+    console.error('Checkin Error:', _error);
     return res.status(500).json({
       success: false,
       data: null,
@@ -237,14 +260,23 @@ exports.reviveStreak = async (req, res) => {
 
     // VALIDATE: 2-3 days gap and revive not used
     if ((diffDays === 2 || diffDays === 3) && !user.reviveUsed) {
-      user.streakCount += 1;
-      user.lastCheckin = today;
-      user.reviveUsed = true; // Mark as used
-      await user.save();
+      // Atomic update for revive
+      const updatedUser = await Streak.findOneAndUpdate({
+        phone,
+        reviveUsed: false,
+        lastCheckin: user.lastCheckin
+      }, {
+        $set: { lastCheckin: today, reviveUsed: true },
+        $inc: { streakCount: 1 }
+      }, { new: true });
+
+      if (!updatedUser) {
+        return res.status(409).json({ success: false, message: 'Revive conflict. Vui lòng thử lại.' });
+      }
 
       return res.json({
         success: true,
-        data: formatUser(user),
+        data: formatUser(updatedUser),
         message: 'Cứu streak thành công!'
       });
     } else {
@@ -255,6 +287,7 @@ exports.reviveStreak = async (req, res) => {
       });
     }
   } catch (_error) {
+    console.error('Revive Error:', _error);
     return res.status(500).json({
       success: false,
       data: null,

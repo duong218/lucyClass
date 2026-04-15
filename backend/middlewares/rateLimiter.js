@@ -134,8 +134,8 @@ const resetPasswordLimiter = rateLimit({
  * DEV: 10000 attempts / 1 min
  */
 const streakLimiter = rateLimit({
-  windowMs: isProduction ? 5 * 60 * 1000 : 60 * 1000,
-  max: isProduction ? 20 : 10000,
+  windowMs: 60 * 1000, // 1 minute
+  max: isProduction ? 5 : 10000,
   handler: rateLimitHandler,
   standardHeaders: true,
   legacyHeaders: false,

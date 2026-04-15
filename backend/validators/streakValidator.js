@@ -7,10 +7,8 @@ const phoneValidation = body('phone')
   .trim()
   .notEmpty()
   .withMessage('Số điện thoại là bắt buộc')
-  .matches(/^\d+$/)
-  .withMessage('Số điện thoại chỉ được chứa chữ số')
-  .isLength({ min: minPhone, max: maxPhone })
-  .withMessage(`Số điện thoại phải từ ${minPhone} đến ${maxPhone} ký tự`);
+  .matches(/^0(3|5|7|8|9)[0-9]{8}$/)
+  .withMessage('Số điện thoại không hợp lệ (phải có 10 chữ số, bắt đầu bằng 03, 05, 07, 08 hoặc 09)');
 
 const streakValidation = [
   phoneValidation,
