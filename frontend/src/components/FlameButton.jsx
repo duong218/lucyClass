@@ -42,11 +42,11 @@ const FlameButton = () => {
     try {
       const res = await fetchStreak(targetPhone);
 
-      if (res.success && res.data) {
-        const data = res.data;
+      if (res.success) {
+        const data = res.data || {};
         const today = getVietnamDateString();
 
-        setStreakCount(data.streakCount);
+        setStreakCount(data.streakCount || 0);
         setHasCheckedInToday(data.lastCheckin === today);
         setLostStreak(!!data.lostStreak);
         setJustCheckedIn(false);
@@ -95,7 +95,7 @@ const FlameButton = () => {
 
         setStreakCount(data.streakCount);
         setHasCheckedInToday(true);
-        setLostStreak(false);
+        setLostStreak(!!data.lostStreak);
         setJustCheckedIn(true);
       }
 
@@ -148,7 +148,6 @@ const FlameButton = () => {
       setStreakCount(0);
       setHasCheckedInToday(false);
       setJustCheckedIn(false);
-      setLostStreak(false);
     }
   };
 
@@ -172,7 +171,6 @@ const FlameButton = () => {
         localStorage.setItem(`streak_name_${user.phone}`, user.name);
 
         // Reload state from API
-        setLostStreak(false);
         setEmail(user.email || '');
         setErrorMsg('');
         await loadUserSession(user.phone);
@@ -194,7 +192,6 @@ const FlameButton = () => {
     setHasCheckedInToday(false);
     setErrorMsg('');
     setJustCheckedIn(false);
-    setLostStreak(false);
 
     setTimeout(() => {
       phoneInputRef.current?.focus();
