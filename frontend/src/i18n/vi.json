@@ -322,6 +322,7 @@
     "greeting_back": "👋 Chào bé {{name}}, quay lại rồi nè!",
     "greeting_default": "bé yêu",
     "streak_label": "🔥 Chuỗi của con:",
+    "error_expired_soft": "Chuỗi của bạn đã bị gián đoạn, nhưng vẫn có thể khôi phục",
     "days": "ngày",
     "lost_streak_msg": "😢 Ôi không! Lửa đã tắt mất rồi. Hãy thắp lại ngay nhé! ✨",
     "check_in_success": "🥰 Giỏi quá! +1 ngày thắp lửa! 🔥",

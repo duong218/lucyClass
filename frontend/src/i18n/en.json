@@ -332,6 +332,7 @@
     "lost_streak_msg": "😢 Oh no! The flame went out. Let's light it up again! ✨",
     "check_in_success": "🥰 Great job! +1 day of learning! 🔥",
     "already_checked_in": "✅ You've kept the flame today!",
+    "error_expired_soft": "Your streak was interrupted, but it can still be recovered",
     "check_in_btn": "🔥 LIGHT UP NOW",
     "switch_user": "🔄 Switch Phone Number",
     "error_phone": "Please enter your parents' phone number! ✨",

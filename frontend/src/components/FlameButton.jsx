@@ -285,7 +285,10 @@ const FlameButton = () => {
         handleReviveModalOpen();
       } else {
         setUserData(res.data);
-        handleReviveModalClose();
+        // FIX #3: Không gọi handleReviveModalClose() ở đây vì nó sẽ gọi closeModal()
+        // thêm lần nữa trong khi main modal vẫn đang mở → modalCount bị âm.
+        // Chỉ cần tắt state revive modal. Scroll lock sẽ được giải phóng khi main modal đóng.
+        setIsReviveModalOpen(false);
       }
     } else {
       setErrorMsg(res.message || t('streak.unknown_error'));
@@ -319,11 +322,22 @@ const FlameButton = () => {
 
   const today = getVNDate(0);
   const twoDaysAgo = getVNDate(-2);
+  const threeDaysAgo = getVNDate(-3); // FIX #2: backend cho phép revive khi diffDays === 2 hoặc 3
 
   const hasCheckedInToday = userData?.lastCheckin === today;
-  const missedYesterday = userData?.lastCheckin === twoDaysAgo;
-  const canRevive = missedYesterday && !userData?.reviveUsed;
-  const hasMultipleMissed = userData?.lastCheckin && userData.lastCheckin !== today && userData.lastCheckin !== getVNDate(-1) && userData.lastCheckin !== twoDaysAgo;
+
+  // FIX #2: canRevive đúng với cả 2 trường hợp backend hỗ trợ (diffDays 2 hoặc 3)
+  const isRevivableDate =
+    userData?.lastCheckin === twoDaysAgo ||
+    userData?.lastCheckin === threeDaysAgo;
+  const canRevive = isRevivableDate && !userData?.reviveUsed;
+
+  // hasMultipleMissed chỉ đúng khi quá 3 ngày (streak đã mất hoàn toàn)
+  const hasMultipleMissed = userData?.lastCheckin &&
+    userData.lastCheckin !== today &&
+    userData.lastCheckin !== getVNDate(-1) &&
+    userData.lastCheckin !== twoDaysAgo &&
+    userData.lastCheckin !== threeDaysAgo;
 
   // ─── Milestone badge shown on left panel ─────────────────────────────────────
   const isMilestone = FIREWORK_MILESTONES.includes(userData?.streakCount);
