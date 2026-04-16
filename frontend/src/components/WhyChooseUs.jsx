@@ -54,7 +54,7 @@ const FloatingDeco = ({ src, className, delay, yRange, rotate }) => (
 );
 
 // ─── Single rank row ─────────────────────────
-const RankRow = ({ entry, rank, delay }) => {
+const RankRow = ({ entry, rank, delay, mode }) => {
   const isTop3 = rank <= 3;
   const isFirst = rank === 1;
   const avatarSrc = rankingAvatars[(rank - 1) % rankingAvatars.length];
@@ -64,7 +64,7 @@ const RankRow = ({ entry, rank, delay }) => {
     <motion.div
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: delay * 0.1 + 0.3, duration: 0.5, type: 'spring', stiffness: 200 }}
+      transition={{ delay: delay * 0.08 + 0.15, duration: 0.4, type: 'spring', stiffness: 220, damping: 22 }}
       whileHover={isFirst
         ? { scale: 1.1, y: -2, boxShadow: '0 18px 45px rgba(255,170,0,0.45)' }
         : isTop3
@@ -127,7 +127,7 @@ const RankRow = ({ entry, rank, delay }) => {
           {entry.courseName || '—'}
         </p>
         <div className={`mt-1 inline-flex items-center gap-1 px-2.5 py-1 rounded-full ${isFirst ? 'bg-white/50 text-amber-900' : 'bg-gray-100 text-gray-700'}`}>
-          <span className="text-sm">⭐</span>
+          <span className="text-sm">{mode === 'streak' ? '🔥' : '⭐'}</span>
           <span className="font-black text-sm">{entry.stars}</span>
         </div>
       </div>
@@ -149,7 +149,7 @@ const RankRow = ({ entry, rank, delay }) => {
 
 // ─── Skeleton loader ─────────────────────────
 const SkeletonRow = ({ i }) => (
-  <div className={`flex items-center gap-3 rounded-2xl px-4 py-3 bg-gray-50 border border-gray-100 animate-pulse`} style={{ animationDelay: `${i * 0.1}s` }}>
+  <div className="flex items-center gap-3 rounded-2xl px-4 py-3 bg-gray-50 border border-gray-100 animate-pulse" style={{ animationDelay: `${i * 0.1}s` }}>
     <div className="w-10 h-10 rounded-full bg-gray-200" />
     <div className="w-9 h-9 rounded-full bg-gray-200" />
     <div className="flex-1 space-y-1.5">
@@ -160,30 +160,39 @@ const SkeletonRow = ({ i }) => (
   </div>
 );
 
+// ─── Tab indicator (dot) ─────────────────────
+const TabDots = ({ mode, onToggle }) => (
+  <button
+    onClick={onToggle}
+    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/20 hover:bg-white/30 transition-colors cursor-pointer"
+    aria-label="Switch ranking mode"
+  >
+    <span className={`w-2 h-2 rounded-full transition-all duration-300 ${mode === 'ranking' ? 'bg-white scale-125' : 'bg-white/40'}`} />
+    <span className={`w-2 h-2 rounded-full transition-all duration-300 ${mode === 'streak' ? 'bg-white scale-125' : 'bg-white/40'}`} />
+  </button>
+);
+
 // ─── Ranking Board ───────────────────────────
 const RankingBoard = () => {
   const { t } = useTranslation();
   const [mode, setMode] = useState('ranking'); // 'ranking' | 'streak'
   const [rankings, setRankings] = useState([]);
   const [streaks, setStreaks] = useState([]);
-  const [loading, setLoading]   = useState(true);
+  const [loading, setLoading] = useState(true);
+
+  // FIX: Track previous mode to know slide direction
+  const [slideDirection, setSlideDirection] = useState(1); // 1 = left→right, -1 = right→left
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Dynamically import api to avoid import issues
         const { default: api } = await import('../services/api');
         const [rankRes, streakRes] = await Promise.all([
           api.get('/rankings/top').catch(() => ({ data: { success: false } })),
           api.get('/streak/leaderboard').catch(() => ({ data: { success: false } }))
         ]);
-        
-        if (rankRes.data?.success) {
-          setRankings(rankRes.data.data.slice(0, 5));
-        }
-        if (streakRes.data?.success) {
-          setStreaks(streakRes.data.data.slice(0, 5));
-        }
+        if (rankRes.data?.success) setRankings(rankRes.data.data.slice(0, 5));
+        if (streakRes.data?.success) setStreaks(streakRes.data.data.slice(0, 5));
       } catch (err) {
         console.warn('[RankingBoard] Fetch failed:', err);
       } finally {
@@ -195,12 +204,37 @@ const RankingBoard = () => {
 
   useEffect(() => {
     const interval = setInterval(() => {
+      setSlideDirection(1);
       setMode(prev => prev === 'ranking' ? 'streak' : 'ranking');
     }, 5000);
     return () => clearInterval(interval);
   }, []);
 
+  const handleToggle = () => {
+    const next = mode === 'ranking' ? 'streak' : 'ranking';
+    setSlideDirection(next === 'streak' ? 1 : -1);
+    setMode(next);
+  };
+
   const displayData = mode === 'ranking' ? rankings : streaks;
+
+  // FIX: Normalize data once so list height is always consistent (5 items)
+  const normalizedData = loading
+    ? []
+    : displayData.length > 0
+      ? displayData.map((entry, i) =>
+          mode === 'ranking'
+            ? entry
+            : { ...entry, childName: entry.name, stars: entry.streakCount, courseName: '🔥 Streak', skill: 'Daily streak' }
+        )
+      : [];
+
+  // FIX: slide variants — no height change, only opacity + translateX
+  const listVariants = {
+    enter: (dir) => ({ opacity: 0, x: dir * 30 }),
+    center: { opacity: 1, x: 0 },
+    exit: (dir) => ({ opacity: 0, x: dir * -30 }),
+  };
 
   return (
     <div className="relative w-full max-w-[420px] mx-auto">
@@ -247,58 +281,85 @@ const RankingBoard = () => {
                 </motion.div>
               )}
             </AnimatePresence>
-            <div>
-              <h3 className="text-lg font-black text-white leading-none tracking-tight">
-                {mode === 'ranking' ? t('ranking.title') : t('streak.title')}
-              </h3>
-              <p className="text-yellow-100 text-xs font-medium mt-0.5">
-                {mode === 'ranking' ? t('ranking.subtitle') : t('streak.subtitle')}
-              </p>
+
+            {/* Title + subtitle with crossfade */}
+            <div className="flex-1 min-w-0">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={mode}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.25 }}
+                >
+                  <h3 className="text-lg font-black text-white leading-none tracking-tight">
+                    {mode === 'ranking' ? t('ranking.title') : t('streak.title')}
+                  </h3>
+                  <p className="text-yellow-100 text-xs font-medium mt-0.5">
+                    {mode === 'ranking' ? t('ranking.subtitle') : t('streak.subtitle')}
+                  </p>
+                </motion.div>
+              </AnimatePresence>
             </div>
+
+            {/* Dot navigator — lets user manually switch too */}
+            <TabDots mode={mode} onToggle={handleToggle} />
           </div>
         </div>
 
-        {/* List */}
-        <div className="p-5 space-y-3">
-          <AnimatePresence mode="sync">
-            {loading ? (
-              [...Array(5)].map((_, i) => <SkeletonRow key={i} i={i} />)
-            ) : displayData.length === 0 ? (
+        {/* 
+          FIX: List container has a FIXED min-height so switching modes never 
+          changes the card height → eliminates page jump on mobile.
+          5 rows × ~64px each ≈ 320px, plus spacing = ~380px
+        */}
+        <div className="p-5 relative" style={{ minHeight: '380px' }}>
+          {loading ? (
+            <div className="space-y-3">
+              {[...Array(5)].map((_, i) => <SkeletonRow key={i} i={i} />)}
+            </div>
+          ) : (
+            <AnimatePresence mode="wait" custom={slideDirection}>
               <motion.div
-                key={`empty-${mode}`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="py-10 text-center text-gray-300"
+                key={mode}
+                custom={slideDirection}
+                variants={listVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
+                className="space-y-3"
+                // FIX: absolute during transition so height doesn't collapse
+                style={{ width: '100%' }}
               >
-                <div className="mb-2">
-                  {mode === 'ranking' ? (
-                    <img
-                      src="/ranking/cup.png"
-                      alt="Ranking Cup"
-                      className="w-10 h-10 object-contain mx-auto grayscale"
+                {normalizedData.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-gray-300" style={{ minHeight: '300px' }}>
+                    <div className="mb-2">
+                      {mode === 'ranking' ? (
+                        <img
+                          src="/ranking/cup.png"
+                          alt="Ranking Cup"
+                          className="w-10 h-10 object-contain mx-auto grayscale"
+                        />
+                      ) : (
+                        <Flame className="w-10 h-10 mx-auto text-gray-300" />
+                      )}
+                    </div>
+                    <p className="text-sm font-bold">Chưa có danh sách nào</p>
+                  </div>
+                ) : (
+                  normalizedData.map((entry, i) => (
+                    <RankRow
+                      key={`${mode}-${entry._id || i}`}
+                      entry={entry}
+                      rank={i + 1}
+                      delay={i}
+                      mode={mode}
                     />
-                  ) : (
-                    <Flame className="w-10 h-10 mx-auto text-gray-300" />
-                  )}
-                </div>
-                <p className="text-sm font-bold">Chưa có danh sách nào</p>
+                  ))
+                )}
               </motion.div>
-            ) : (
-              displayData.map((entry, i) => {
-                const mappedEntry = mode === 'ranking'
-                  ? entry
-                  : {
-                      ...entry,
-                      childName: entry.name,
-                      stars: entry.streakCount,
-                      courseName: '🔥 Streak',
-                      skill: 'Daily streak'
-                    };
-                return <RankRow key={`${mode}-${mappedEntry._id || i}`} entry={mappedEntry} rank={i + 1} delay={i} />;
-              })
-            )}
-          </AnimatePresence>
+            </AnimatePresence>
+          )}
         </div>
       </motion.div>
 
