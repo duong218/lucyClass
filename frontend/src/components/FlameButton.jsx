@@ -411,15 +411,16 @@ const FlameButton = () => {
       {/* ── Main Modal ────────────────────────────────────────────────────────── */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-in fade-in duration-300"
+          className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-300"
           style={{ background: 'rgba(100, 110, 120, 0.55)', backdropFilter: 'blur(12px)' }}
           onClick={(e) => e.target === e.currentTarget && handleClose()}
         >
           <div className={`
-            relative bg-white/95 backdrop-blur-sm rounded-[3rem]
+            relative bg-white/95 backdrop-blur-sm rounded-[2rem] sm:rounded-[3rem]
             shadow-[0_32px_64px_-12px_rgba(0,0,0,0.18)]
             w-full
-            max-w-[95%] sm:max-w-lg md:max-w-3xl lg:max-w-4xl
+            max-w-[88%] sm:max-w-lg md:max-w-3xl lg:max-w-4xl
+            max-h-[85vh] sm:max-h-[90vh]
             border-4 ${styles.border}
             animate-scaleIn overflow-hidden
           `}>
@@ -471,7 +472,7 @@ const FlameButton = () => {
               <div className={`
                 relative flex flex-col items-center justify-center gap-3
                 md:w-[42%] md:min-h-[520px]
-                p-8 md:p-10
+                p-4 sm:p-6 md:p-8 lg:p-10
                 ${styles.bg}
                 md:rounded-l-[2.8rem] md:rounded-r-none
                 rounded-t-[2.8rem] rounded-b-none
@@ -538,7 +539,7 @@ const FlameButton = () => {
               </div>
 
               {/* ── RIGHT PANEL: Info / Form ────────────────────────────────── */}
-              <div className="flex-1 flex flex-col p-6 md:p-8 lg:p-10 gap-5 overflow-y-auto max-h-[80vh] md:max-h-none">
+              <div className="flex-1 flex flex-col p-4 sm:p-6 md:p-8 lg:p-10 gap-5 overflow-y-auto max-h-[75vh] sm:max-h-[80vh] md:max-h-none">
 
                 {/* Title */}
                 <h2 className="text-xl md:text-2xl font-black text-center text-gray-800 tracking-tight">

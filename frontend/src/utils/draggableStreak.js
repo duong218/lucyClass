@@ -30,7 +30,8 @@ export const useDraggableStreak = () => {
 
     const getBounds = (width, height) => {
       const sw = window.innerWidth;
-      const sh = window.innerHeight;
+      // iOS fix: visualViewport?.height to calculate real mobile screen without keyboard/navbars
+      const sh = window.visualViewport?.height || window.innerHeight; 
       return {
         maxX: Math.max(margin, sw - width - margin),
         maxY: Math.max(margin, sh - height - margin),
@@ -71,21 +72,21 @@ export const useDraggableStreak = () => {
     };
     
     const forceRepaintAndFixScale = () => {
-    if (!element) return;
-
-    // Reset mọi transform có thể gây scale
-    element.style.transform = "scale(1)";
-    element.style.zoom = "1";
-
-    // Force GPU repaint
-    element.style.transform = "translateZ(0)";
-
-    // Force reflow (rất quan trọng)
-    void element.offsetHeight;
-
-    // Reset lại transform chuẩn
-    element.style.transform = "scale(1)";
-  };
+      if (!element) return;
+  
+      // Reset mọi transform có thể gây scale
+      element.style.transform = "scale(1)";
+      element.style.zoom = "1";
+  
+      // Force GPU repaint
+      element.style.transform = "translateZ(0)";
+  
+      // Force reflow (rất quan trọng)
+      void element.offsetHeight;
+  
+      // Reset lại transform chuẩn
+      element.style.transform = "scale(1)";
+    };
 
     const handleResize = () => {
       if (isDragging) return;
@@ -137,20 +138,28 @@ export const useDraggableStreak = () => {
       enforceBounds(false); // Double check layout
     }, 50);
 
+    const getClientCoords = (e) => {
+      return {
+        clientX: e.clientX ?? (e.touches?.[0]?.clientX || e.changedTouches?.[0]?.clientX),
+        clientY: e.clientY ?? (e.touches?.[0]?.clientY || e.changedTouches?.[0]?.clientY),
+      };
+    };
+
     const onPointerDown = (e) => {
-      if (e.button !== 0 && e.type !== 'touchstart') return;
+      if (e.button !== undefined && e.button !== 0 && e.type !== 'touchstart') return;
 
       isDragging = true;
       setHasMoved(false);
       
       element.style.transition = "none";
 
+      const { clientX, clientY } = getClientCoords(e);
       const rect = element.getBoundingClientRect();
-      offsetX = e.clientX - rect.left;
-      offsetY = e.clientY - rect.top;
+      offsetX = clientX - rect.left;
+      offsetY = clientY - rect.top;
       
       lastEventTime = performance.now();
-      lastClientX = e.clientX;
+      lastClientX = clientX;
       velocityX = 0;
 
       element.style.left = `${rect.left}px`;
@@ -159,32 +168,41 @@ export const useDraggableStreak = () => {
       element.style.bottom = 'auto';
       element.style.cursor = "grabbing";
 
+      // iOS fix: only call setPointerCapture if it exists and pointerId exists
       try {
-        element.setPointerCapture(e.pointerId);
+        if (typeof element.setPointerCapture === 'function' && e.pointerId !== undefined) {
+          element.setPointerCapture(e.pointerId);
+        }
       } catch (err) {}
     };
 
     const onPointerMove = (e) => {
       if (!isDragging) return;
       
+      // iOS fix: elegantly block scroll bouncing while dragging
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+      
       setHasMoved(prev => {
         if (!prev) return true;
         return prev;
       });
 
+      const { clientX, clientY } = getClientCoords(e);
       const now = performance.now();
       const dt = now - lastEventTime;
       if (dt > 0) {
-        velocityX = (e.clientX - lastClientX) / dt;
+        velocityX = (clientX - lastClientX) / dt;
       }
       lastEventTime = now;
-      lastClientX = e.clientX;
+      lastClientX = clientX;
 
       const { width, height } = getElementSize();
       const { maxX, maxY } = getBounds(width, height);
 
-      let x = e.clientX - offsetX;
-      let y = e.clientY - offsetY;
+      let x = clientX - offsetX;
+      let y = clientY - offsetY;
 
       // Strict Clamp
       x = Math.max(margin, Math.min(x, maxX));
@@ -200,8 +218,11 @@ export const useDraggableStreak = () => {
       isDragging = false;
       element.style.cursor = "grab";
 
+      // iOS fix: only release capture if supported/present
       try {
-        element.releasePointerCapture(e.pointerId);
+        if (typeof element.releasePointerCapture === 'function' && e.pointerId !== undefined) {
+          element.releasePointerCapture(e.pointerId);
+        }
       } catch (err) {}
 
       const { width, height } = getElementSize();
@@ -237,20 +258,34 @@ export const useDraggableStreak = () => {
       }, 50);
     };
 
+    // Standard pointer events
     element.addEventListener("pointerdown", onPointerDown);
-    element.addEventListener("pointermove", onPointerMove);
+    // iOS fix: use passive false
+    element.addEventListener("pointermove", onPointerMove, { passive: false });
     element.addEventListener("pointerup", onPointerUp);
     element.addEventListener("pointercancel", onPointerUp);
     window.addEventListener("resize", handleResize);
 
+    // iOS fix: touch fallback using named handlers ensuring correct cleanup
+    element.addEventListener("touchstart", onPointerDown, { passive: false });
+    element.addEventListener("touchmove", onPointerMove, { passive: false });
+    element.addEventListener("touchend", onPointerUp);
+    element.addEventListener("touchcancel", onPointerUp);
+
     return () => {
       clearTimeout(initTimer);
       if (resizeTimeout) clearTimeout(resizeTimeout);
+      
       element.removeEventListener("pointerdown", onPointerDown);
       element.removeEventListener("pointermove", onPointerMove);
       element.removeEventListener("pointerup", onPointerUp);
       element.removeEventListener("pointercancel", onPointerUp);
       window.removeEventListener("resize", handleResize);
+      
+      element.removeEventListener("touchstart", onPointerDown);
+      element.removeEventListener("touchmove", onPointerMove);
+      element.removeEventListener("touchend", onPointerUp);
+      element.removeEventListener("touchcancel", onPointerUp);
     };
   }, []);
 
