@@ -9,6 +9,7 @@ import {
   checkinStreak,
   reviveStreak
 } from '../services/streakService';
+import { makeDraggable } from "../utils/draggableStreak";
 
 /**
  * Gets date in YYYY-MM-DD format (Vietnam timezone)
