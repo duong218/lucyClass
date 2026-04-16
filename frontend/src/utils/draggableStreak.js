@@ -313,7 +313,7 @@ export const useDraggableStreak = () => {
         element.removeEventListener("touchcancel", onPointerUp);
       }
     };
-  }, []);
+  }, [supportsPointer]);
 
   return { elementRef, hasMoved };
 };
