@@ -22,7 +22,7 @@ const normalizePhone = (phone = '') => {
 const getDateOffsetVN = (offsetDays = 0) => {
   const tz = process.env.STREAK_TZ || 'Asia/Ho_Chi_Minh';
   const now = new Date();
-  
+
   // Convert current time to target timezone string
   const formatter = new Intl.DateTimeFormat('en-CA', {
     timeZone: tz,
@@ -30,16 +30,16 @@ const getDateOffsetVN = (offsetDays = 0) => {
     month: '2-digit',
     day: '2-digit'
   });
-  
+
   // parts[0]=year, [2]=month, [4]=day
   const parts = formatter.formatToParts(now);
   const year = parseInt(parts.find(p => p.type === 'year').value);
   const month = parseInt(parts.find(p => p.type === 'month').value) - 1;
   const day = parseInt(parts.find(p => p.type === 'day').value);
-  
+
   const date = new Date(Date.UTC(year, month, day));
   date.setUTCDate(date.getUTCDate() + offsetDays);
-  
+
   return date.toISOString().split('T')[0];
 };
 
@@ -104,6 +104,26 @@ exports.startStreak = async (req, res) => {
     return res.status(500).json({
       success: false,
       data: null,
+      message: 'Server error'
+    });
+  }
+};
+
+exports.getLeaderboard = async (req, res) => {
+  try {
+    const topUsers = await Streak.find({})
+      .sort({ streakCount: -1 })
+      .limit(20)
+      .select('name streakCount');
+
+    return res.json({
+      success: true,
+      data: topUsers
+    });
+  } catch (err) {
+    console.error('Leaderboard Error:', err);
+    return res.status(500).json({
+      success: false,
       message: 'Server error'
     });
   }
@@ -194,7 +214,7 @@ exports.checkIn = async (req, res) => {
       if (!user) {
         return res.status(409).json({ success: false, message: 'Check-in conflict. Vui lòng thử lại.' });
       }
-    } 
+    }
     // CASE 3: Need revive (missed 1-2 days)
     else if ((diffDays === 2 || diffDays === 3) && !forceReset) {
       return res.json({
@@ -291,6 +311,35 @@ exports.reviveStreak = async (req, res) => {
     return res.status(500).json({
       success: false,
       data: null,
+      message: 'Server error'
+    });
+  }
+};
+
+exports.getWeeklyLeaderboard = async (req, res) => {
+  try {
+    const now = new Date();
+    const day = now.getDay(); // 0 = Sunday
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Monday
+
+    const startOfWeek = new Date(now.setDate(diff));
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const topUsers = await Streak.find({
+      updatedAt: { $gte: startOfWeek }
+    })
+      .sort({ streakCount: -1 })
+      .limit(20)
+      .select('name streakCount');
+
+    return res.json({
+      success: true,
+      data: topUsers
+    });
+  } catch (err) {
+    console.error('Weekly Leaderboard Error:', err);
+    return res.status(500).json({
+      success: false,
       message: 'Server error'
     });
   }

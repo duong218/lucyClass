@@ -25,6 +25,12 @@ router.get(
   controller.getStreak
 );
 
+router.get(
+  '/leaderboard',
+  streakLimiter,
+  controller.getLeaderboard
+);
+
 router.post(
   '/checkin',
   streakLimiter,
@@ -39,6 +45,12 @@ router.post(
   reviveValidation,
   validate,
   controller.reviveStreak
+);
+
+router.get(
+  '/leaderboard-weekly',
+  streakLimiter,
+  controller.getWeeklyLeaderboard
 );
 
 module.exports = router;

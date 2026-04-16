@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Flame } from 'lucide-react';
 import step1Img from '../assets/why-us-step1.png';
 import step2Img from '../assets/why-us-step2.png';
 import step3Img from '../assets/why-us-step3.png';
@@ -162,28 +162,45 @@ const SkeletonRow = ({ i }) => (
 
 // ─── Ranking Board ───────────────────────────
 const RankingBoard = () => {
+  const { t } = useTranslation();
+  const [mode, setMode] = useState('ranking'); // 'ranking' | 'streak'
   const [rankings, setRankings] = useState([]);
+  const [streaks, setStreaks] = useState([]);
   const [loading, setLoading]   = useState(true);
 
   useEffect(() => {
-    const fetchRankings = async () => {
+    const fetchData = async () => {
       try {
         // Dynamically import api to avoid import issues
         const { default: api } = await import('../services/api');
-        const res = await api.get('/rankings/top');
-        if (res.data.success) {
-          setRankings(res.data.data.slice(0, 5));
+        const [rankRes, streakRes] = await Promise.all([
+          api.get('/rankings/top').catch(() => ({ data: { success: false } })),
+          api.get('/streak/leaderboard').catch(() => ({ data: { success: false } }))
+        ]);
+        
+        if (rankRes.data?.success) {
+          setRankings(rankRes.data.data.slice(0, 5));
+        }
+        if (streakRes.data?.success) {
+          setStreaks(streakRes.data.data.slice(0, 5));
         }
       } catch (err) {
-        console.warn('[Rankings] Failed to load:', err);
-        // Graceful fallback – show empty state
-        setRankings([]);
+        console.warn('[RankingBoard] Fetch failed:', err);
       } finally {
         setLoading(false);
       }
     };
-    fetchRankings();
+    fetchData();
   }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMode(prev => prev === 'ranking' ? 'streak' : 'ranking');
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const displayData = mode === 'ranking' ? rankings : streaks;
 
   return (
     <div className="relative w-full max-w-[420px] mx-auto">
@@ -205,16 +222,38 @@ const RankingBoard = () => {
           <div className="absolute -top-4 -right-4 w-20 h-20 bg-white/10 rounded-full blur-xl" />
           <div className="absolute -bottom-4 -left-4 w-16 h-16 bg-white/10 rounded-full blur-xl" />
           <div className="relative z-10 flex items-center gap-3">
-          <motion.img
-            src="/ranking/cup.png"
-            alt="Ranking Cup"
-            className="w-10 h-10 object-contain"
-            animate={{ rotate: [0, -10, 10, 0], scale: [1, 1.1, 1] }}
-            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-          />
+            <AnimatePresence mode="wait">
+              {mode === 'ranking' ? (
+                <motion.img
+                  key="cup"
+                  src="/ranking/cup.png"
+                  alt="Ranking Cup"
+                  className="w-10 h-10 object-contain"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: [1, 1.1, 1], rotate: [0, -10, 10, 0] }}
+                  exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.2 } }}
+                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                />
+              ) : (
+                <motion.div
+                  key="flame"
+                  className="w-10 h-10 flex items-center justify-center rounded-full bg-white/20"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: [1, 1.1, 1] }}
+                  exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.2 } }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <Flame className="w-6 h-6 text-orange-500 fill-orange-500" />
+                </motion.div>
+              )}
+            </AnimatePresence>
             <div>
-              <h3 className="text-lg font-black text-white leading-none tracking-tight">Học Viên Xuất Sắc</h3>
-              <p className="text-yellow-100 text-xs font-medium mt-0.5">Bảng xếp hạng tháng này</p>
+              <h3 className="text-lg font-black text-white leading-none tracking-tight">
+                {mode === 'ranking' ? t('ranking.title', 'Học Viên Xuất Sắc') : t('streak.title', 'Top Chuỗi')}
+              </h3>
+              <p className="text-yellow-100 text-xs font-medium mt-0.5">
+                {mode === 'ranking' ? t('ranking.subtitle', 'Bảng xếp hạng tháng này') : t('streak.subtitle', 'Xếp hạng streak tuần này')}
+              </p>
             </div>
           </div>
         </div>
@@ -224,25 +263,40 @@ const RankingBoard = () => {
           <AnimatePresence mode="sync">
             {loading ? (
               [...Array(5)].map((_, i) => <SkeletonRow key={i} i={i} />)
-            ) : rankings.length === 0 ? (
+            ) : displayData.length === 0 ? (
               <motion.div
+                key={`empty-${mode}`}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
                 className="py-10 text-center text-gray-300"
               >
                 <div className="mb-2">
-                  <img
-                    src="/ranking/cup.png"
-                    alt="Ranking Cup"
-                    className="w-10 h-10 object-contain mx-auto grayscale"
-                  />
+                  {mode === 'ranking' ? (
+                    <img
+                      src="/ranking/cup.png"
+                      alt="Ranking Cup"
+                      className="w-10 h-10 object-contain mx-auto grayscale"
+                    />
+                  ) : (
+                    <Flame className="w-10 h-10 mx-auto text-gray-300" />
+                  )}
                 </div>
-                <p className="text-sm font-bold">Chưa có xếp hạng nào</p>
+                <p className="text-sm font-bold">Chưa có danh sách nào</p>
               </motion.div>
             ) : (
-              rankings.map((entry, i) => (
-                <RankRow key={entry._id || i} entry={entry} rank={i + 1} delay={i} />
-              ))
+              displayData.map((entry, i) => {
+                const mappedEntry = mode === 'ranking'
+                  ? entry
+                  : {
+                      ...entry,
+                      childName: entry.name,
+                      stars: entry.streakCount,
+                      courseName: '🔥 Streak',
+                      skill: 'Daily streak'
+                    };
+                return <RankRow key={`${mode}-${mappedEntry._id || i}`} entry={mappedEntry} rank={i + 1} delay={i} />;
+              })
             )}
           </AnimatePresence>
         </div>
