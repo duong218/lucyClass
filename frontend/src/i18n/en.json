@@ -359,6 +359,12 @@
     "revive_warning": "⚠️ You missed yesterday!",
     "revive_warning_desc": "Checking in normally might reset your streak.",
     "lost_streak_hint": "💔 Your streak was broken...",
-    "lost_streak_desc": "Let's start fresh today!"
+    "lost_streak_desc": "Let's start fresh today!",
+    "title": "Top Streaks",
+    "subtitle": "This week's streak ranking"
+  },
+  "ranking": {
+    "title": "Top Students",
+    "subtitle": "Monthly leaderboard"
   }
 }

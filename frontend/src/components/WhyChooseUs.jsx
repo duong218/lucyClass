@@ -249,10 +249,10 @@ const RankingBoard = () => {
             </AnimatePresence>
             <div>
               <h3 className="text-lg font-black text-white leading-none tracking-tight">
-                {mode === 'ranking' ? t('ranking.title', 'Học Viên Xuất Sắc') : t('streak.title', 'Top Chuỗi')}
+                {mode === 'ranking' ? t('ranking.title') : t('streak.title')}
               </h3>
               <p className="text-yellow-100 text-xs font-medium mt-0.5">
-                {mode === 'ranking' ? t('ranking.subtitle', 'Bảng xếp hạng tháng này') : t('streak.subtitle', 'Xếp hạng streak tuần này')}
+                {mode === 'ranking' ? t('ranking.subtitle') : t('streak.subtitle')}
               </p>
             </div>
           </div>

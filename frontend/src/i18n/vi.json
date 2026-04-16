@@ -353,6 +353,12 @@
     "revive_warning": "⚠️ Bé đã bỏ lỡ ngày hôm qua!",
     "revive_warning_desc": "Check-in thường sẽ làm mất hết chuỗi cũ đó.",
     "lost_streak_hint": "💔 Chuỗi của con đã bị ngắt rồi...",
-    "lost_streak_desc": "Chúng mình cùng bắt đầu lại từ hôm nay nha!"
+    "lost_streak_desc": "Chúng mình cùng bắt đầu lại từ hôm nay nha!",
+    "title": "Chuỗi Học Tập",
+    "subtitle": "Xếp hạng streak tuần này"
+  },
+  "ranking": {
+    "title": "Học Viên Xuất Sắc",
+    "subtitle": "Bảng xếp hạng tháng này"
   }
 }
