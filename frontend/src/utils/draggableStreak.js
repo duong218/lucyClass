@@ -3,6 +3,7 @@ import { useRef, useEffect, useState } from 'react';
 export const useDraggableStreak = () => {
   const elementRef = useRef(null);
   const [hasMoved, setHasMoved] = useState(false);
+  const supportsPointer = !!window.PointerEvent;
 
   useEffect(() => {
     const element = elementRef.current;
@@ -10,9 +11,13 @@ export const useDraggableStreak = () => {
 
     const margin = 10;
     const defaultSize = 80; // Reasonable fallback size
+    const dragThreshold = 8; // px: small finger jitter should still count as tap
     let isDragging = false;
+    let didDrag = false;
     let offsetX = 0;
     let offsetY = 0;
+    let startClientX = 0;
+    let startClientY = 0;
     let lastEventTime = 0;
     let lastClientX = 0;
     let velocityX = 0;
@@ -148,15 +153,20 @@ export const useDraggableStreak = () => {
     const onPointerDown = (e) => {
       if (e.button !== undefined && e.button !== 0 && e.type !== 'touchstart') return;
 
+      const { clientX, clientY } = getClientCoords(e);
+      if (clientX === undefined || clientY === undefined) return;
+
       isDragging = true;
+      didDrag = false;
       setHasMoved(false);
       
       element.style.transition = "none";
 
-      const { clientX, clientY } = getClientCoords(e);
       const rect = element.getBoundingClientRect();
       offsetX = clientX - rect.left;
       offsetY = clientY - rect.top;
+      startClientX = clientX;
+      startClientY = clientY;
       
       lastEventTime = performance.now();
       lastClientX = clientX;
@@ -178,18 +188,25 @@ export const useDraggableStreak = () => {
 
     const onPointerMove = (e) => {
       if (!isDragging) return;
-      
-      // iOS fix: elegantly block scroll bouncing while dragging
+
+      const { clientX, clientY } = getClientCoords(e);
+      if (clientX === undefined || clientY === undefined) return;
+
+      if (!didDrag) {
+        const dx = clientX - startClientX;
+        const dy = clientY - startClientY;
+        if ((dx * dx) + (dy * dy) < (dragThreshold * dragThreshold)) {
+          return;
+        }
+        didDrag = true;
+        setHasMoved(true);
+      }
+
+      // iOS fix: block scroll bouncing only after this is a real drag gesture
       if (e.cancelable) {
         e.preventDefault();
       }
-      
-      setHasMoved(prev => {
-        if (!prev) return true;
-        return prev;
-      });
 
-      const { clientX, clientY } = getClientCoords(e);
       const now = performance.now();
       const dt = now - lastEventTime;
       if (dt > 0) {
@@ -225,6 +242,12 @@ export const useDraggableStreak = () => {
         }
       } catch (err) {}
 
+      // Tap: keep position and allow normal click to open modal
+      if (!didDrag) {
+        setHasMoved(false);
+        return;
+      }
+
       const { width, height } = getElementSize();
       const { maxX, maxY, sw } = getBounds(width, height);
       const rect = element.getBoundingClientRect();
@@ -257,35 +280,38 @@ export const useDraggableStreak = () => {
         setHasMoved(false);
       }, 50);
     };
-
+    if (supportsPointer) {
     // Standard pointer events
-    element.addEventListener("pointerdown", onPointerDown);
+      element.addEventListener("pointerdown", onPointerDown);
     // iOS fix: use passive false
-    element.addEventListener("pointermove", onPointerMove, { passive: false });
-    element.addEventListener("pointerup", onPointerUp);
-    element.addEventListener("pointercancel", onPointerUp);
-    window.addEventListener("resize", handleResize);
-
+      element.addEventListener("pointermove", onPointerMove, { passive: false });
+      element.addEventListener("pointerup", onPointerUp);
+      element.addEventListener("pointercancel", onPointerUp);
+      window.addEventListener("resize", handleResize);
+    } else {
     // iOS fix: touch fallback using named handlers ensuring correct cleanup
-    element.addEventListener("touchstart", onPointerDown, { passive: false });
-    element.addEventListener("touchmove", onPointerMove, { passive: false });
-    element.addEventListener("touchend", onPointerUp);
-    element.addEventListener("touchcancel", onPointerUp);
+      element.addEventListener("touchstart", onPointerDown, { passive: false });
+      element.addEventListener("touchmove", onPointerMove, { passive: false });
+      element.addEventListener("touchend", onPointerUp);
+      element.addEventListener("touchcancel", onPointerUp);
+    }
 
     return () => {
       clearTimeout(initTimer);
       if (resizeTimeout) clearTimeout(resizeTimeout);
-      
-      element.removeEventListener("pointerdown", onPointerDown);
-      element.removeEventListener("pointermove", onPointerMove);
-      element.removeEventListener("pointerup", onPointerUp);
-      element.removeEventListener("pointercancel", onPointerUp);
-      window.removeEventListener("resize", handleResize);
-      
-      element.removeEventListener("touchstart", onPointerDown);
-      element.removeEventListener("touchmove", onPointerMove);
-      element.removeEventListener("touchend", onPointerUp);
-      element.removeEventListener("touchcancel", onPointerUp);
+
+      if (supportsPointer) {
+        element.removeEventListener("pointerdown", onPointerDown);
+        element.removeEventListener("pointermove", onPointerMove);
+        element.removeEventListener("pointerup", onPointerUp);
+        element.removeEventListener("pointercancel", onPointerUp);
+        window.removeEventListener("resize", handleResize);
+      } else {
+        element.removeEventListener("touchstart", onPointerDown);
+        element.removeEventListener("touchmove", onPointerMove);
+        element.removeEventListener("touchend", onPointerUp);
+        element.removeEventListener("touchcancel", onPointerUp);
+      }
     };
   }, []);
 
