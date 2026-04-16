@@ -55,9 +55,9 @@ const calculateDiffDays = (lastCheckinStr, todayStr) => {
 };
 
 const formatUser = (user) => ({
-  //phone: user.phone,
+  phone: user.phone,
   name: user.name,
-  //email: user.email || '',
+  email: user.email || '',
   streakCount: user.streakCount || 0,
   lastCheckin: user.lastCheckin || null,
   reviveUsed: user.reviveUsed || false

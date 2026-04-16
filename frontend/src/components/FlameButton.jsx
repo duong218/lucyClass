@@ -427,7 +427,7 @@ const FlameButton = () => {
             max-w-[88%] sm:max-w-lg md:max-w-3xl lg:max-w-4xl
             max-h-[85vh] sm:max-h-[90vh]
             border-4 ${styles.border}
-            animate-scaleIn overflow-hidden
+            animate-scaleIn overflow-hidden flex flex-col max-h-[90vh] md:max-h-none
           `}>
 
             {/* Background blobs */}
