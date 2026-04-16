@@ -431,3 +431,101 @@ Cấu hình bảo mật của "Lucy's Class" đã được thắt chặt đáng 
 - **Tăng cường khả năng truy vết**: Đảm bảo tất cả các hành động quan trọng đều để lại nhật ký vĩnh viễn, có thể xác minh được.
 
 Hệ thống hiện đã chuẩn bị tốt hơn cho việc triển khai thực tế với các biện pháp bảo vệ mạnh mẽ chống lại cả bot tự động và các hình thức lạm dụng phiên làm việc tinh vi.
+
+---
+
+# 🔐 Security Audit Report (Auto Generated)
+
+## 🟢 Summary
+
+* **Overall risk level:** LOW
+* **Key concerns:** The system implements a robust defense-in-depth strategy. Core vulnerabilities like XSS and backup abuse have been structurally neutralized. Minor concerns exist regarding deprecated dependency usage, missing strict typing on password inputs, and potential rate-limit scalability.
+
+## 🔴 Critical Issues
+
+*None found.*
+
+## 🟠 Medium Issues
+
+*None found.*
+
+## 🟡 Minor Issues
+
+1. **Unstrict Password Typing in Authentication**
+   * **Explanation:** In `backend/controllers/authController.js`, `req.body.password` is passed directly to `bcrypt.compare`. If an attacker passes an object (e.g., `{ $gt: "" }`) instead of a string, `bcrypt` might crash, leading to an unhandled rejection (500 error). 
+   * **File Path:** `backend/controllers/authController.js`
+   * **Fix:** Explicitly cast to string: `const isMatch = await bcrypt.compare(String(password), user.password);`
+
+2. **Deprecated Security Dependencies**
+   * **Explanation:** The project uses `xss-clean` (v0.1.4), which is unmaintained and considered deprecated. While effective for basic cases, it might not cover all modern XSS vectors. The project currently supplements this safely with `sanitize-html`.
+   * **File Path:** `backend/package.json`
+   * **Fix:** Migrate entirely to `sanitize-html` configured as a global middleware, or adopt `dompurify` in a Node environment.
+
+3. **Inconsistent CSRF Application**
+   * **Explanation:** As noted in comments, the `/api/auth/login` route intentionally skips CSRF enforcement. This introduces a theoretical Login-CSRF vulnerability (where an attacker logs the victim into the attacker's account). 
+   * **File Path:** `backend/routes/authRoutes.js` 
+   * **Fix:** Enforce CSRF on login, or accept the risk if Login-CSRF has minimal impact on this system's threat model.
+
+## 🛠 Recommendations
+
+* **Input Type Validation:** Implement strict schema validation (e.g., via `Joi` or `express-validator`) across all auth routes, not just registrations and streaks. This prevents NoSQL object injection vectors proactively.
+* **Rate-Limit Store:** `express-rate-limit` is configured using memory storage. If scaling to multiple instances, configure it to use the already-installed `rate-limit-redis` to prevent users from bypassing limits by hitting different load-balanced nodes.
+* **Security Middleware Review:** Ensure `CORS_ORIGINS` is strictly defined in production without permissive defaults. The fallback to local dev URLs if empty is convenient but could be unsafe in misconfigured production environments.
+
+## 📁 Files Reviewed
+
+* `backend/server.js`
+* `backend/controllers/authController.js`
+* `backend/routes/authRoutes.js`
+* `backend/middlewares/rateLimiter.js`
+* `frontend/src/services/api.js`
+* `backend/package.json` & `frontend/package.json`
+
+---
+
+# 🔐 Báo cáo Kiểm tra Bảo mật (Tự động tạo)
+
+## 🟢 Tóm tắt
+
+* **Mức độ rủi ro tổng thể:** THẤP (LOW)
+* **Các mối quan tâm chính:** Hệ thống triển khai chiến lược phòng thủ theo chiều sâu (defense-in-depth) mạnh mẽ. Các lỗ hổng cốt lõi như XSS và lạm dụng khôi phục dữ liệu đã được vô hiệu hóa về mặt cấu trúc. Một số quan ngại nhỏ bao gồm việc sử dụng thư viện đã lỗi thời, thiếu ràng buộc kiểu dữ liệu nghiêm ngặt cho mật khẩu và khả năng mở rộng của hệ thống giới hạn tốc độ (rate-limit).
+
+## 🔴 Vấn đề Nghiêm trọng (Critical)
+
+*Không phát hiện.*
+
+## 🟠 Vấn đề Trung bình (Medium)
+
+*Không phát hiện.*
+
+## 🟡 Vấn đề Nhỏ (Minor)
+
+1. **Thiếu kiểu dữ liệu chặt chẽ cho Mật khẩu trong Xác thực**
+   * **Giải thích:** Trong `backend/controllers/authController.js`, `req.body.password` được truyền trực tiếp vào `bcrypt.compare`. Nếu kẻ tấn công truyền vào một object (ví dụ: `{ $gt: "" }`) thay vì một chuỗi (string), `bcrypt` có thể gặp lỗi crash hệ thống, dẫn đến lỗi unhandled rejection (lỗi 500). 
+   * **Đường dẫn tệp:** `backend/controllers/authController.js`
+   * **Cách khắc phục:** Ép kiểu rõ ràng sang dạng chuỗi: `const isMatch = await bcrypt.compare(String(password), user.password);`
+
+2. **Các thư viện bảo mật đã lỗi thời**
+   * **Giải thích:** Dự án sử dụng `xss-clean` (v0.1.4), một thư viện không còn được bảo trì và bị coi là lỗi thời. Mặc dù vẫn hiệu quả với các trường hợp cơ bản, nó có thể không bao phủ hết các kỹ thuật XSS hiện đại. Hệ thống hiện tại đã bổ sung an toàn bằng `sanitize-html`.
+   * **Đường dẫn tệp:** `backend/package.json`
+   * **Cách khắc phục:** Chuyển đổi hoàn toàn sang `sanitize-html` được cấu hình dưới dạng một middleware toàn cục (global middleware), hoặc áp dụng `dompurify` trong môi trường Node.
+
+3. **Áp dụng CSRF không nhất quán**
+   * **Giải thích:** Như đã ghi chú trong code, luồng `/api/auth/login` cố ý bỏ qua kiểm tra CSRF. Điều này gây ra một lỗ hổng Login-CSRF trên lý thuyết (nơi kẻ tấn công đăng nhập nạn nhân vào tài khoản của kẻ tấn công). 
+   * **Đường dẫn tệp:** `backend/routes/authRoutes.js` 
+   * **Cách khắc phục:** Buộc kiểm tra CSRF khi đăng nhập, hoặc chấp nhận rủi ro nếu Login-CSRF có tác động tối thiểu đến mô hình mối đe dọa của hệ thống này.
+
+## 🛠 Khuyến nghị
+
+* **Xác thực Kiểu dữ liệu Đầu vào:** Triển khai xác thực schema nghiêm ngặt (ví dụ: qua `Joi` hoặc `express-validator`) trên toàn bộ các tuyến (routes) xác thực, không chỉ giới hạn ở đăng ký và streak. Điều này ngăn chặn chủ động các vector chèn object NoSQL.
+* **Bộ lưu trữ giới hạn tốc độ (Rate-Limit Store):** `express-rate-limit` đang được cấu hình sử dụng bộ nhớ (memory storage). Nếu mở rộng lên nhiều server (instances), hãy cấu hình để sử dụng thư viện `rate-limit-redis` đã được cài đặt sẵn nhằm ngăn người dùng lách giới hạn bằng cách truy cập các node cân bằng tải khác nhau.
+* **Đánh giá Security Middleware:** Đảm bảo `CORS_ORIGINS` được định nghĩa nghiêm ngặt trong môi trường production không có các mặc định dễ dãi. Việc dùng URL local dev làm phương án dự phòng khi trống là tiện lợi nhưng có thể không an toàn nếu môi trường production cấu hình sai.
+
+## 📁 Các tệp đã xem xét
+
+* `backend/server.js`
+* `backend/controllers/authController.js`
+* `backend/routes/authRoutes.js`
+* `backend/middlewares/rateLimiter.js`
+* `frontend/src/services/api.js`
+* `backend/package.json` & `frontend/package.json`

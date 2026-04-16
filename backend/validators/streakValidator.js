@@ -16,8 +16,10 @@ const streakValidation = [
     .trim()
     .notEmpty()
     .withMessage('Tên là bắt buộc')
-    .isLength({ max: 80 })
-    .withMessage('Tên quá dài'),
+    .isLength({ max: 32 })
+    .withMessage('Tên quá dài')
+    .matches(/^[a-zA-Z0-9À-ỹ\s._-]+$/)
+    .withMessage('Tên chứa ký tự không hợp lệ'),
 
   body('email')
     .optional({ checkFalsy: true })

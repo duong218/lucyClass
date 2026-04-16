@@ -412,7 +412,12 @@ const FlameButton = () => {
       {isOpen && (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-300"
-          style={{ background: 'rgba(100, 110, 120, 0.55)', backdropFilter: 'blur(12px)' }}
+          style={{ 
+            background: 'rgba(100, 110, 120, 0.55)', 
+            backdropFilter: 'blur(12px)',
+            overscrollBehavior: 'contain',
+            touchAction: 'pan-y'
+          }}
           onClick={(e) => e.target === e.currentTarget && handleClose()}
         >
           <div className={`
@@ -539,7 +544,10 @@ const FlameButton = () => {
               </div>
 
               {/* ── RIGHT PANEL: Info / Form ────────────────────────────────── */}
-              <div className="flex-1 flex flex-col p-4 sm:p-6 md:p-8 lg:p-10 gap-5 overflow-y-auto max-h-[75vh] sm:max-h-[80vh] md:max-h-none">
+              <div 
+                className="flex-1 flex flex-col p-4 sm:p-6 md:p-8 lg:p-10 gap-5 overflow-y-auto max-h-[85vh] sm:max-h-[80vh] md:max-h-none"
+                style={{ WebkitOverflowScrolling: 'touch' }}
+              >
 
                 {/* Title */}
                 <h2 className="text-xl md:text-2xl font-black text-center text-gray-800 tracking-tight">
@@ -730,17 +738,22 @@ const FlameButton = () => {
                 )}
 
                 {/* Close button */}
-                <button
-                  onClick={handleClose}
-                  className="w-full mt-2 bg-gray-50 hover:bg-gray-100 
-                  text-gray-500 hover:text-pink-500 
-                  font-bold py-3 rounded-xl 
-                  transition-all text-xs uppercase tracking-[0.25em] 
-                  flex items-center justify-center gap-2 
-                  border border-gray-200"
+                <div 
+                  className="sticky bottom-0 z-20 mt-auto pt-2 pb-2 -mx-2 px-2 bg-white/95 backdrop-blur-md rounded-t-xl"
+                  style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))' }}
                 >
-                  <span>{t('streak.close_hint')}</span>
-                </button>
+                  <button
+                    onClick={handleClose}
+                    className="w-full bg-gray-50 hover:bg-gray-100 
+                    text-gray-500 hover:text-pink-500 
+                    font-bold py-3 rounded-xl 
+                    transition-all text-xs uppercase tracking-[0.25em] 
+                    flex items-center justify-center gap-2 
+                    border border-gray-200 shadow-sm"
+                  >
+                    <span>{t('streak.close_hint')}</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
