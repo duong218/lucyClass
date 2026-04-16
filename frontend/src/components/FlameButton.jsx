@@ -9,7 +9,7 @@ import {
   checkinStreak,
   reviveStreak
 } from '../services/streakService';
-import { makeDraggable } from "../utils/draggableStreak";
+import { useDraggableStreak } from "../utils/draggableStreak";
 
 /**
  * Gets date in YYYY-MM-DD format (Vietnam timezone)
@@ -30,6 +30,7 @@ const FIREWORK_MILESTONES = [1, 3, 7, 30, 100];
 
 const FlameButton = () => {
   const { t } = useTranslation();
+  const { elementRef, hasMoved } = useDraggableStreak();
   const [isOpen, setIsOpen] = useState(false);
   const [isBouncing, setIsBouncing] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -105,6 +106,7 @@ const FlameButton = () => {
       sparkle: true,
       galaxy: true,
       hint: t('streak.milestone_100'),
+      icon: '🔥',
       badge: '🌌',
       milestoneLabel: '🏆 HUYỀN THOẠI',
       milestoneColor: 'text-purple-500',
@@ -119,7 +121,7 @@ const FlameButton = () => {
       btn: 'bg-gradient-to-r from-purple-400 to-purple-600',
       shadow: 'shadow-purple-200',
       hint: t('streak.milestone_30'),
-      icon: '🟣',
+      icon: '🔥',
       badge: '💜',
       milestoneLabel: '🌟 SIÊU SAO',
       milestoneColor: 'text-purple-500',
@@ -134,7 +136,7 @@ const FlameButton = () => {
       btn: 'bg-gradient-to-r from-blue-400 to-cyan-500',
       shadow: 'shadow-blue-200',
       hint: t('streak.milestone_7'),
-      icon: '🔵',
+      icon: '🔥',
       badge: '🥈',
       milestoneLabel: '🔥 ĐỈNH CAO',
       milestoneColor: 'text-blue-500',
@@ -149,9 +151,9 @@ const FlameButton = () => {
       btn: 'bg-gradient-to-r from-orange-400 to-yellow-400',
       shadow: 'shadow-orange-200',
       hint: t('streak.milestone_3'),
-      icon: '🟠',
+      icon: '🔥',
       badge: '⭐',
-      milestoneLabel: '✨ ĐÃ VÀO NHỊ P',
+      milestoneLabel: '✨ ĐÃ VÀO NHỊP',
       milestoneColor: 'text-orange-500',
     };
 
@@ -164,7 +166,7 @@ const FlameButton = () => {
       btn: 'bg-gradient-to-r from-red-400 to-pink-400',
       shadow: 'shadow-red-200',
       hint: '',
-      icon: '🔴',
+      icon: '🔥',
       badge: '🌱',
       milestoneLabel: '',
       milestoneColor: '',
@@ -333,8 +335,17 @@ const FlameButton = () => {
 
       {/* ── Floating flame button ─────────────────────────────────────────────── */}
       <div
-        className="fixed bottom-[20px] right-[16px] sm:bottom-[24px] sm:right-[20px] md:bottom-[28px] md:right-[28px] lg:bottom-[36px] lg:right-[36px] z-[40] cursor-pointer group"
-        onClick={handleOpen}
+        ref={elementRef}
+        className="fixed bottom-[20px] right-[16px] sm:bottom-[24px] sm:right-[20px] md:bottom-[28px] md:right-[28px] lg:bottom-[36px] lg:right-[36px] z-[40] group select-none touch-none"
+        style={{ touchAction: 'none' }}
+        onClick={(e) => {
+          if (!hasMoved) {
+            handleOpen();
+          } else {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }}
       >
         {/* Glow behind flame */}
         <div className="absolute inset-0 bg-orange-400/20 blur-3xl rounded-full scale-150 md:scale-175 lg:scale-200 animate-pulse"></div>
@@ -342,6 +353,7 @@ const FlameButton = () => {
         <img
           src={flameImg}
           alt="Flame"
+          draggable={false}
           className={`
             w-[120px] h-[140px]
             sm:w-[140px] sm:h-[160px]
