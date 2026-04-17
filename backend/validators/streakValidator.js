@@ -1,9 +1,11 @@
 const { body } = require('express-validator');
 
 const minPhone = parseInt(process.env.STREAK_MIN_PHONE) || 9;
-const maxPhone = parseInt(process.env.STREAK_MAX_PHONE) || 15;
+const maxPhone = parseInt(process.env.STREAK_MAX_PHONE) || 11;
+const normalizePhone = require('../utils/normalizePhone');
 
 const phoneValidation = body('phone')
+  .customSanitizer(value => normalizePhone(value))
   .trim()
   .notEmpty()
   .withMessage('Số điện thoại là bắt buộc')

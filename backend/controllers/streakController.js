@@ -1,5 +1,6 @@
 const Streak = require('../models/Streak');
-
+const DeviceUsage = require('../models/DeviceUsage');
+const MAX_USAGE = parseInt(process.env.DEVICE_MAX_USAGE_PER_DAY) || 5;
 /**
  * Normalizes phone number:
  * - Convert +84 to 0
@@ -68,6 +69,41 @@ exports.startStreak = async (req, res) => {
     const { name, email } = req.body;
     const phone = normalizePhone(req.body.phone);
 
+    const deviceId = (req.body.deviceId || '').trim();
+    const today = getDateOffsetVN(0);
+
+    if (!deviceId) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Thiếu deviceId'
+      });
+    }
+
+    // tìm usage hôm nay
+    let usage = await DeviceUsage.findOne({ deviceId, date: today });
+
+    // nếu vượt quá limit
+if (usage && usage.count >= MAX_USAGE) {
+  return res.status(429).json({
+    success: false,
+    data: null,
+    message: `Bạn đã tạo quá ${MAX_USAGE} số trong ngày`
+  });
+}
+
+// nếu chưa có → tạo mới
+if (!usage) {
+  await DeviceUsage.create({
+    deviceId,
+    date: today,
+    count: 1
+  });
+} else {
+  usage.count += 1;
+  await usage.save();
+}
+
     if (!phone) {
       return res.status(400).json({
         success: false,
@@ -77,7 +113,6 @@ exports.startStreak = async (req, res) => {
     }
 
     let user = await Streak.findOne({ phone });
-    const today = getDateOffsetVN(0);
 
     if (!user) {
       user = await Streak.create({

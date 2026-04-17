@@ -2,12 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import heroBg from "../assets/hero-bg.png";
 import heroMobile from "../assets/hero-mobile.png";
+import { getDeviceId } from '../utils/deviceId';
 
 const HeroSection = () => {
   const { t } = useTranslation();
   const [scrollY, setScrollY] = useState(0);
   const [isTabletOrMobile, setIsTabletOrMobile] = useState(false);
 
+  useEffect(() => {
+    getDeviceId();
+  }, []);
+  
   useEffect(() => {
     const handleResize = () => {
       setIsTabletOrMobile(window.innerWidth < 1024);

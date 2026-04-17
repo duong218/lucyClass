@@ -1,4 +1,5 @@
 const API_BASE = import.meta.env.VITE_API_URL;
+import { getDeviceId } from '../utils/deviceId';
 
 const parseJsonSafe = async (res) => {
   try {
@@ -31,7 +32,7 @@ export const startStreak = async ({ phone, name, email }) => {
   const res = await fetch(`${API_BASE}/api/streak/start`, {
     method: 'POST',
     headers: getHeaders(),
-    body: JSON.stringify({ phone, name, email })
+    body: JSON.stringify({ phone, name, email, deviceId: getDeviceId() })
   });
 
   const payload = await parseJsonSafe(res);
@@ -55,7 +56,7 @@ export const checkinStreak = async (phone, forceReset = false) => {
   const res = await fetch(`${API_BASE}/api/streak/checkin`, {
     method: 'POST',
     headers: getHeaders(),
-    body: JSON.stringify({ phone, forceReset })
+    body: JSON.stringify({ phone, forceReset, deviceId: getDeviceId() })
   });
 
   const payload = await parseJsonSafe(res);
@@ -67,7 +68,7 @@ export const reviveStreak = async (phone) => {
   const res = await fetch(`${API_BASE}/api/streak/revive`, {
     method: 'POST',
     headers: getHeaders(),
-    body: JSON.stringify({ phone })
+    body: JSON.stringify({ phone, deviceId: getDeviceId() })
   });
 
   const payload = await parseJsonSafe(res);
