@@ -83,7 +83,6 @@ const FlameButton = () => {
       const current = userData.streakCount;
       const prev = prevStreakRef.current;
 
-      // Fire on milestone if streak just reached it (transitioned to it)
       if (prev !== null && prev !== current && FIREWORK_MILESTONES.includes(current)) {
         setShowFireworks(true);
       }
@@ -287,7 +286,6 @@ const FlameButton = () => {
         setUserData(res.data);
         // FIX #3: Không gọi handleReviveModalClose() ở đây vì nó sẽ gọi closeModal()
         // thêm lần nữa trong khi main modal vẫn đang mở → modalCount bị âm.
-        // Chỉ cần tắt state revive modal. Scroll lock sẽ được giải phóng khi main modal đóng.
         setIsReviveModalOpen(false);
       }
     } else {
@@ -322,24 +320,21 @@ const FlameButton = () => {
 
   const today = getVNDate(0);
   const twoDaysAgo = getVNDate(-2);
-  const threeDaysAgo = getVNDate(-3); // FIX #2: backend cho phép revive khi diffDays === 2 hoặc 3
+  const threeDaysAgo = getVNDate(-3);
 
   const hasCheckedInToday = userData?.lastCheckin === today;
 
-  // FIX #2: canRevive đúng với cả 2 trường hợp backend hỗ trợ (diffDays 2 hoặc 3)
   const isRevivableDate =
     userData?.lastCheckin === twoDaysAgo ||
     userData?.lastCheckin === threeDaysAgo;
   const canRevive = isRevivableDate && !userData?.reviveUsed;
 
-  // hasMultipleMissed chỉ đúng khi quá 3 ngày (streak đã mất hoàn toàn)
   const hasMultipleMissed = userData?.lastCheckin &&
     userData.lastCheckin !== today &&
     userData.lastCheckin !== getVNDate(-1) &&
     userData.lastCheckin !== twoDaysAgo &&
     userData.lastCheckin !== threeDaysAgo;
 
-  // ─── Milestone badge shown on left panel ─────────────────────────────────────
   const isMilestone = FIREWORK_MILESTONES.includes(userData?.streakCount);
 
   return (
@@ -361,7 +356,6 @@ const FlameButton = () => {
           }
         }}
       >
-        {/* Glow behind flame */}
         <div className="absolute inset-0 bg-orange-400/20 blur-3xl rounded-full scale-150 md:scale-175 lg:scale-200 animate-pulse"></div>
 
         <img
@@ -394,7 +388,6 @@ const FlameButton = () => {
           }}
         />
 
-        {/* Random sparkles around flame */}
         <div className="absolute inset-0 pointer-events-none overflow-visible">
           {[...Array(5)].map((_, i) => (
             <div
@@ -422,7 +415,7 @@ const FlameButton = () => {
         )}
       </div>
 
-    {/* ── Main Modal ────────────────────────────────────────────────────────── */}
+      {/* ── Main Modal ────────────────────────────────────────────────────────── */}
       {isOpen && (
         <div
           className="fixed inset-0 z-[60] flex items-end md:items-center justify-center max-md:p-0 p-2 sm:p-4 animate-in fade-in duration-300"
@@ -438,10 +431,10 @@ const FlameButton = () => {
             relative bg-white/95 backdrop-blur-sm max-md:rounded-t-[24px] max-md:rounded-b-none rounded-[2rem] sm:rounded-[3rem]
             shadow-[0_32px_64px_-12px_rgba(0,0,0,0.18)]
             w-full
-            max-md:max-w-full max-w-[88%] sm:max-w-lg md:max-w-3xl lg:max-w-4xl
-            max-h-[86dvh] sm:max-h-[90vh]
+            max-md:max-w-full max-w-[88%] sm:max-w-lg md:max-w-2xl lg:max-w-3xl
+            max-h-[86dvh] sm:max-h-[90vh] md:max-h-[84vh]
             border-t-[3px] md:border-4 ${styles.border} max-md:border-b-0 max-md:border-x-0
-            max-md:animate-in max-md:slide-in-from-bottom-full max-md:duration-300 md:animate-scaleIn overflow-hidden flex flex-col md:max-h-none
+            max-md:animate-in max-md:slide-in-from-bottom-full max-md:duration-300 md:animate-scaleIn overflow-hidden flex flex-col
           `}>
 
             {/* Mobile handle puller */}
@@ -488,20 +481,19 @@ const FlameButton = () => {
             )}
 
             {/* ── Desktop: horizontal layout | Mobile: vertical ── */}
-            <div className="flex flex-col md:flex-row min-h-0">
+            <div className="flex flex-col md:flex-row min-h-0 flex-1 overflow-hidden">
 
               {/* ── LEFT PANEL: Streak display ─────────────────────────────── */}
               <div className={`
                 relative flex max-md:flex-row flex-col items-center max-md:justify-between justify-center max-md:gap-3 gap-3
-                md:w-[42%] md:min-h-[520px]
-                max-md:px-5 max-md:py-3.5 p-4 sm:p-6 md:p-8 lg:p-10
+                md:w-[40%] md:min-h-[400px]
+                max-md:px-5 max-md:py-3.5 p-4 sm:p-5 md:p-6 lg:p-8
                 ${styles.bg}
                 md:rounded-l-[2.8rem] md:rounded-r-none
                 max-md:rounded-none
                 border-b-2 md:border-b-0 md:border-r-4 ${styles.border} max-md:border-x-0 max-md:border-t-0
-                overflow-hidden
+                overflow-hidden flex-shrink-0
               `}>
-                {/* Decorative circles */}
                 <div className="max-md:hidden absolute -top-12 -left-12 w-36 h-36 rounded-full bg-white/20 pointer-events-none"></div>
                 <div className="max-md:hidden absolute -bottom-8 -right-8 w-28 h-28 rounded-full bg-white/15 pointer-events-none"></div>
 
@@ -511,12 +503,11 @@ const FlameButton = () => {
 
                 {/* Big streak number */}
                 <div className="relative inline-flex items-center justify-center" key={userData?.streakCount ?? 'none'}>
-                  {/* Milestone ring glow */}
                   {isMilestone && (
                     <div className={`absolute inset-0 scale-125 rounded-full blur-2xl ${styles.bg} animate-pulse pointer-events-none`}></div>
                   )}
                   <p className={`
-                    text-[28px] md:text-[96px] lg:text-[112px]
+                    text-[28px] md:text-[72px] lg:text-[88px]
                     font-black leading-none max-md:tracking-tighter
                     ${styles.textStrong}
                     drop-shadow-[0_6px_20px_rgba(0,0,0,0.15)]
@@ -531,7 +522,6 @@ const FlameButton = () => {
                   {t('streak.days')}
                 </p>
 
-                {/* Milestone badge */}
                 {isMilestone && styles.milestoneLabel && (
                   <div className={`
                     max-md:mt-0 md:mt-3 px-2.5 md:px-4 py-1 md:py-1.5 rounded-full font-black text-[10px] md:text-[11px] tracking-widest
@@ -543,14 +533,12 @@ const FlameButton = () => {
                   </div>
                 )}
 
-                {/* Milestone hint */}
                 {styles.hint && !isMilestone && (
                   <p className={`max-md:hidden text-[11px] font-black italic mt-2 animate-pulse text-center px-2 relative z-10 ${styles.milestoneColor || 'text-orange-400'}`}>
                     {styles.hint}
                   </p>
                 )}
 
-                {/* Stars row for milestone days */}
                 {isMilestone && (
                   <div className="max-md:hidden flex gap-1 mt-2 relative z-10">
                     {[...Array(Math.min((userData?.streakCount ?? 0) >= 100 ? 5 : (userData?.streakCount ?? 0) >= 30 ? 4 : (userData?.streakCount ?? 0) >= 7 ? 3 : 2, 5))].map((_, i) => (
@@ -562,12 +550,11 @@ const FlameButton = () => {
 
               {/* ── RIGHT PANEL: Info / Form ────────────────────────────────── */}
               <div
-                className="flex-1 flex flex-col p-4 sm:p-6 md:p-8 lg:p-10 max-md:gap-3 gap-5 max-md:px-5 overflow-y-auto max-h-[85vh] sm:max-h-[80vh] md:max-h-none"
+                className="flex-1 flex flex-col p-4 sm:p-5 md:p-6 lg:p-8 max-md:gap-3 gap-4 max-md:px-5 overflow-y-auto"
                 style={{ WebkitOverflowScrolling: 'touch' }}
               >
-
                 {/* Title */}
-                <h2 className="text-base md:text-2xl font-black text-center text-gray-800 tracking-tight">
+                <h2 className="text-base md:text-xl font-black text-center text-gray-800 tracking-tight">
                   <span className="bg-gradient-to-r from-orange-400 via-pink-400 to-purple-500 bg-clip-text text-transparent">
                     {t('streak.title_fun')}
                   </span>
@@ -575,7 +562,7 @@ const FlameButton = () => {
 
                 {/* Error */}
                 {errorMsg && (
-                  <div className="bg-red-50 border-2 border-red-100 rounded-[1rem] md:rounded-[1.5rem] p-3 md:p-4 animate-bounce-subtle">
+                  <div className="bg-red-50 border-2 border-red-100 rounded-[1rem] md:rounded-[1.5rem] p-3 animate-bounce-subtle">
                     <p className="text-red-500 text-sm font-bold text-center leading-relaxed">
                       {errorMsg}
                     </p>
@@ -584,8 +571,7 @@ const FlameButton = () => {
 
                 {savedPhone && userData ? (
                   /* ── Logged-in view ── */
-                  <div className="flex flex-col gap-3 md:gap-4">
-                    {/* Greeting */}
+                  <div className="flex flex-col gap-3">
                     <div className="text-center">
                       <p className="text-base md:text-lg font-bold text-gray-700">
                         {t('streak.greeting_back', { name: userData.name || t('streak.greeting_default') })}
@@ -597,9 +583,8 @@ const FlameButton = () => {
                       )}
                     </div>
 
-                    {/* Revive warning */}
                     {canRevive && (
-                      <div className="bg-red-50/80 backdrop-blur-sm border-2 border-red-100 rounded-xl md:rounded-[2rem] p-3 md:p-4 text-center animate-pulse">
+                      <div className="bg-red-50/80 backdrop-blur-sm border-2 border-red-100 rounded-xl md:rounded-[2rem] p-3 text-center animate-pulse">
                         <p className="text-red-600 text-[12px] md:text-[13px] font-black flex items-center justify-center gap-1">
                           <span>{t('streak.revive_warning')}</span>
                         </p>
@@ -609,9 +594,8 @@ const FlameButton = () => {
                       </div>
                     )}
 
-                    {/* Multiple missed days */}
                     {hasMultipleMissed && (
-                      <div className="bg-orange-50 border-2 border-orange-100 rounded-xl md:rounded-[2rem] p-3 md:p-4 text-center">
+                      <div className="bg-orange-50 border-2 border-orange-100 rounded-xl md:rounded-[2rem] p-3 text-center">
                         <p className="text-orange-600 text-[12px] md:text-[13px] font-black">
                           {t('streak.lost_streak_hint')}
                         </p>
@@ -621,13 +605,12 @@ const FlameButton = () => {
                       </div>
                     )}
 
-                    {/* Action buttons */}
-                    <div className="flex flex-col max-md:gap-2.5 gap-3 mt-auto">
+                    <div className="flex flex-col max-md:gap-2.5 gap-2.5 mt-auto">
                       {canRevive && (
                         <button
                           onClick={handleRevive}
                           disabled={loading}
-                          className="w-full bg-gradient-to-r from-red-400 to-orange-400 hover:from-red-500 hover:to-orange-500 text-white font-black py-3.5 md:py-5 text-sm md:text-base rounded-2xl md:rounded-[2rem] transition-all shadow-xl shadow-red-100 hover:scale-105 active:scale-95 flex items-center justify-center gap-2 group"
+                          className="w-full bg-gradient-to-r from-red-400 to-orange-400 hover:from-red-500 hover:to-orange-500 text-white font-black py-3.5 md:py-4 text-sm md:text-base rounded-2xl md:rounded-[2rem] transition-all shadow-xl shadow-red-100 hover:scale-105 active:scale-95 flex items-center justify-center gap-2 group"
                         >
                           {loading ? t('streak.loading') : (
                             <>
@@ -642,11 +625,10 @@ const FlameButton = () => {
                       <button
                         onClick={() => handleCheckIn()}
                         disabled={loading || hasCheckedInToday}
-                        className={`w-full text-white font-black py-3.5 md:py-5 text-sm md:text-base rounded-2xl md:rounded-[2rem] transition-all shadow-xl hover:scale-105 active:scale-95 ${hasCheckedInToday
+                        className={`w-full text-white font-black py-3.5 md:py-4 text-sm md:text-base rounded-2xl md:rounded-[2rem] transition-all shadow-xl hover:scale-105 active:scale-95 ${hasCheckedInToday
                           ? 'bg-green-100 text-green-600 animate-pulse border-2 border-green-200 shadow-md cursor-not-allowed'
                           : `${styles.btn} ${styles.shadow}`
                           } ${loading ? 'opacity-70' : ''}`}
-
                       >
                         {hasCheckedInToday ? (
                           <span className="flex items-center justify-center gap-2">
@@ -665,7 +647,7 @@ const FlameButton = () => {
                         className="w-full bg-white border-2 border-gray-200 text-gray-600 
                         hover:bg-gray-50 hover:border-gray-300 
                         text-sm md:text-base
-                        font-bold py-3 md:py-4 rounded-xl md:rounded-[1.5rem] 
+                        font-bold py-3 md:py-3.5 rounded-xl md:rounded-[1.5rem] 
                         transition-all shadow-sm hover:shadow-md 
                         active:scale-95"
                       >
@@ -677,9 +659,8 @@ const FlameButton = () => {
                   </div>
                 ) : (
                   /* ── Register / login form ── */
-                  <div className="relative z-10 flex flex-col max-md:gap-4 gap-5">
-                    {/* Phone Input */}
-                    <div className="space-y-1.5 md:space-y-2">
+                  <div className="relative z-10 flex flex-col max-md:gap-4 gap-3.5">
+                    <div className="space-y-1.5">
                       <label className="text-[10px] md:text-[11px] font-black text-gray-400 ml-3 md:ml-4 uppercase tracking-[0.1em] flex items-center gap-1">
                         <span>📱</span> {t('streak.input_phone_label')}
                       </label>
@@ -698,22 +679,21 @@ const FlameButton = () => {
                             setEmail('');
                           }
                         }}
-                        className="w-full bg-blue-50/60 border-2 border-transparent text-gray-800 text-[16px] rounded-2xl md:rounded-[1.5rem] px-5 py-3 md:px-6 md:py-4 focus:outline-none focus:border-blue-200 focus:bg-white transition-all shadow-inner font-bold placeholder:text-gray-300"
+                        className="w-full bg-blue-50/60 border-2 border-transparent text-gray-800 text-[16px] rounded-2xl md:rounded-[1.5rem] px-5 py-3 md:px-6 md:py-3 focus:outline-none focus:border-blue-200 focus:bg-white transition-all shadow-inner font-bold placeholder:text-gray-300"
                       />
                     </div>
 
-                    {/* Name Input / Locked Name */}
-                    <div className="space-y-1.5 md:space-y-2">
+                    <div className="space-y-1.5">
                       <label className="text-[10px] md:text-[11px] font-black text-gray-400 ml-3 md:ml-4 uppercase tracking-[0.1em] flex items-center gap-1">
                         <span>🍭</span> {t('streak.input_name_label')}
                       </label>
                       {loadingUser ? (
-                        <div className="w-full bg-gray-50/60 text-gray-400 rounded-2xl md:rounded-[1.5rem] px-5 py-3 md:px-6 md:py-4 italic text-sm animate-pulse flex items-center gap-3 border-2 border-dashed border-gray-100">
+                        <div className="w-full bg-gray-50/60 text-gray-400 rounded-2xl md:rounded-[1.5rem] px-5 py-3 md:px-6 md:py-3 italic text-sm animate-pulse flex items-center gap-3 border-2 border-dashed border-gray-100">
                           <span className="w-4 h-4 md:w-5 md:h-5 border-2 border-orange-200 border-t-orange-500 rounded-full animate-spin"></span>
                           {t('streak.checking_user')}
                         </div>
                       ) : isExistingUser ? (
-                        <div className="w-full bg-orange-50 border-2 border-orange-100 text-gray-800 rounded-2xl md:rounded-[1.5rem] px-5 py-3 md:px-6 md:py-4 flex flex-col animate-scaleIn">
+                        <div className="w-full bg-orange-50 border-2 border-orange-100 text-gray-800 rounded-2xl md:rounded-[1.5rem] px-5 py-3 md:px-6 md:py-3 flex flex-col animate-scaleIn">
                           <span className="font-black text-lg md:text-xl text-orange-500">{name}</span>
                           <span className="text-[9px] md:text-[10px] text-orange-300 font-black uppercase tracking-wider mt-1">
                             {t('streak.name_locked_hint')}
@@ -725,13 +705,12 @@ const FlameButton = () => {
                           placeholder={t('streak.placeholder_name')}
                           value={name}
                           onChange={(e) => setName(e.target.value)}
-                          className="w-full bg-pink-50/60 border-2 border-transparent text-gray-800 text-[16px] rounded-2xl md:rounded-[1.5rem] px-5 py-3 md:px-6 md:py-4 focus:outline-none focus:border-pink-200 focus:bg-white transition-all shadow-inner font-bold placeholder:text-gray-300"
+                          className="w-full bg-pink-50/60 border-2 border-transparent text-gray-800 text-[16px] rounded-2xl md:rounded-[1.5rem] px-5 py-3 md:px-6 md:py-3 focus:outline-none focus:border-pink-200 focus:bg-white transition-all shadow-inner font-bold placeholder:text-gray-300"
                         />
                       )}
                     </div>
 
-                    {/* Email Input */}
-                    <div className="space-y-1.5 md:space-y-2">
+                    <div className="space-y-1.5">
                       <label className="text-[10px] md:text-[11px] font-black text-gray-400 ml-3 md:ml-4 uppercase tracking-[0.1em] flex items-center gap-1">
                         <span>✉️</span> {t('streak.input_email_label')}
                       </label>
@@ -740,14 +719,14 @@ const FlameButton = () => {
                         placeholder={t('streak.placeholder_email')}
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="w-full bg-purple-50/60 border-2 border-transparent text-gray-800 text-[16px] rounded-2xl md:rounded-[1.5rem] px-5 py-3 md:px-6 md:py-4 focus:outline-none focus:border-purple-200 focus:bg-white transition-all shadow-inner font-bold placeholder:text-gray-300"
+                        className="w-full bg-purple-50/60 border-2 border-transparent text-gray-800 text-[16px] rounded-2xl md:rounded-[1.5rem] px-5 py-3 md:px-6 md:py-3 focus:outline-none focus:border-purple-200 focus:bg-white transition-all shadow-inner font-bold placeholder:text-gray-300"
                       />
                     </div>
 
                     <button
                       onClick={handleStart}
                       disabled={loading}
-                      className={`w-full bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white font-black py-3.5 md:py-5 text-sm md:text-base rounded-2xl md:rounded-[2rem] transition-all shadow-2xl hover:scale-105 active:scale-95 mt-1 sm:mt-2 uppercase tracking-[0.2em] relative overflow-hidden group ${loading ? 'opacity-70' : ''
+                      className={`w-full bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white font-black py-3.5 md:py-4 text-sm md:text-base rounded-2xl md:rounded-[2rem] transition-all shadow-2xl hover:scale-105 active:scale-95 mt-1 uppercase tracking-[0.2em] relative overflow-hidden group ${loading ? 'opacity-70' : ''
                         }`}
                     >
                       <span className="relative z-10">{loading ? t('streak.loading') : t('streak.start_btn')}</span>
@@ -786,7 +765,6 @@ const FlameButton = () => {
           style={{ background: 'rgba(100, 110, 120, 0.55)', backdropFilter: 'blur(16px)' }}
         >
           <div className="bg-white rounded-[4rem] p-10 max-w-xs w-full shadow-2xl animate-scaleIn border-8 border-orange-50 relative overflow-hidden">
-            {/* Background Blob */}
             <div className="absolute -top-20 -right-20 w-40 h-40 bg-orange-100/30 blur-3xl rounded-full"></div>
 
             <div className="text-center relative z-10">
