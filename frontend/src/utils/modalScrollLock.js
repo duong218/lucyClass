@@ -8,14 +8,18 @@ let modalCount = 0;
 export const lockScroll = () => {
   if (typeof document === 'undefined') return;
 
+  // Chỉ lưu scrollPosition lần đầu tiên (tránh overwrite khi nested modal)
+  if (modalCount === 0) {
+    scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+  }
+
   // Calculate scrollbar width to prevent "jumping"
   const scrollBarWidth = window.innerWidth - document.documentElement.clientWidth;
-  scrollPosition = window.pageYOffset;
 
   // Apply styles to body
   document.body.style.overflow = 'hidden';
   document.body.style.paddingRight = `${scrollBarWidth}px`;
-  
+
   // Extra stability for iOS and specific browsers
   document.body.style.position = 'fixed';
   document.body.style.top = `-${scrollPosition}px`;
@@ -27,7 +31,10 @@ export const lockScroll = () => {
 export const unlockScroll = () => {
   if (typeof document === 'undefined') return;
 
-  // Restore styles
+  // Cache lại trước khi clear để tránh mất giá trị
+  const restorePosition = scrollPosition;
+
+  // Restore styles trước
   document.body.style.overflow = '';
   document.body.style.paddingRight = '';
   document.body.style.position = '';
@@ -36,8 +43,22 @@ export const unlockScroll = () => {
   document.body.style.right = '';
   document.body.style.width = '';
 
-  // Restore scroll position
-  window.scrollTo(0, scrollPosition);
+  // Double RAF: frame 1 chờ browser reflow xong layout,
+  // frame 2 scroll sau khi layout đã stable
+  // Fix race condition trên cả iOS Safari lẫn Android Chrome/WebView
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      window.scrollTo(0, restorePosition);
+
+      // Fallback thêm cho Android WebView / Samsung Internet
+      // Nếu scroll vẫn sai sau 100ms thì force lại, nếu đúng thì không làm gì
+      setTimeout(() => {
+        if (window.pageYOffset !== restorePosition) {
+          window.scrollTo(0, restorePosition);
+        }
+      }, 100);
+    });
+  });
 };
 
 export const openModal = () => {
