@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+Disallow: /admin/
+Disallow: /admin/login
+Disallow: /forgot-password
+Disallow: /reset-password/
+
+Sitemap: https://lucyclass.com/sitemap.xml
