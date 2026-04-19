@@ -15,6 +15,6 @@ router.post('/',
   authorizeRoles('teacher', 'admin'),
   csrfForRankingPost,
   rankingController.createOrUpdateRanking);
-router.get('/top', cacheMiddleware(300), rankingController.getTopRankings);
+router.get('/top', cacheMiddleware(1), rankingController.getTopRankings);
 
 module.exports = router;
