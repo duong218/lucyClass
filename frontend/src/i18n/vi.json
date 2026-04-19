@@ -34,7 +34,7 @@
     "scienceKidsDesc": "Khám phá khoa học qua các thí nghiệm vui bằng tiếng Anh",
     "musicMovement": "Âm Nhạc & Vận Động",
     "musicMovementDesc": "Học tiếng Anh qua bài hát, âm nhạc và các hoạt động vận động",
-    "explore": "Nhấn để xem chi tiết khóa học (mobile vuốt lên/xuống để xem)"
+    "explore": "Nhấn để xem chi tiết khóa học"
   },
   "whyUs": {
     "title": "Tại Sao Chọn Lucy's Class?",
@@ -361,5 +361,21 @@
   "ranking": {
     "title": "Học Viên Xuất Sắc",
     "subtitle": "Bảng xếp hạng tháng này"
+  },
+  "courseDetail": {
+  "badge": "Chi tiết khóa học",
+  "descriptionTitle": "Mô tả chi tiết:",
+  "highlightsTitle": "Điểm nổi bật:",
+  "teacherTitle": "Giáo viên phụ trách",
+  "registerBtn": "Đăng ký ngay",
+  "defaultAge": "4-6 tuổi",
+  "defaultClassSize": "8 - 10 học sinh",
+  "defaultDuration": "12 tuần – 2 buổi/tuần",
+  "defaultDesc": "Chương trình học tiếng Anh dành cho trẻ em, kết hợp với các hoạt động vui nhộn giúp trẻ tiếp thu ngôn ngữ một cách tự nhiên.",
+  "defaultHighlights": ["Phát âm chuẩn", "Học qua trò chơi", "Phản xạ tiếng Anh", "Giáo viên thân thiện"],
+  "defaultTeacher": "Ms. Emily",
+  "defaultSpecialization": "English Guide",
+  "closeBtnLabel": "Đóng",
+  "desktopBadge": "Course Details"
   }
 }

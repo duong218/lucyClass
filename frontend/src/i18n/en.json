@@ -34,7 +34,7 @@
     "scienceKidsDesc": "Explore science concepts through fun experiments in English",
     "musicMovement": "Music & Movement",
     "musicMovementDesc": "English through songs, music, and energetic movement activities",
-    "explore": "Click to explore course (Swipe up/down on the mobile to view)"
+    "explore": "Click to explore course"
   },
   "whyUs": {
     "title": "Why Choose Lucy's Class?",
@@ -367,5 +367,21 @@
   "ranking": {
     "title": "Top Students",
     "subtitle": "Monthly leaderboard"
+  },
+  "courseDetail": {
+  "badge": "Course Details",
+  "descriptionTitle": "Description:",
+  "highlightsTitle": "Highlights:",
+  "teacherTitle": "Teacher in charge",
+  "registerBtn": "Register now",
+  "defaultAge": "4-6 years old",
+  "defaultClassSize": "8 - 10 students",
+  "defaultDuration": "12 weeks – 2 sessions/week",
+  "defaultDesc": "An English learning program for children, combining fun activities to help kids acquire language naturally.",
+  "defaultHighlights": ["Correct pronunciation", "Learn through games", "English reflexes", "Friendly teachers"],
+  "defaultTeacher": "Ms. Emily",
+  "defaultSpecialization": "English Guide",
+  "closeBtnLabel": "Close",
+  "desktopBadge": "Course Details"
   }
 }

@@ -3,6 +3,7 @@ import { getImageUrl } from '../utils/getImageUrl';
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { openModal, closeModal } from '../utils/modalScrollLock';
+
 const CourseDetailModal = ({ course, onClose }) => {
   const { t } = useTranslation();
 
@@ -19,12 +20,15 @@ const CourseDetailModal = ({ course, onClose }) => {
 
   const handleRegisterClick = () => {
     onClose();
-    document.getElementById('register')?.scrollIntoView({ behavior: 'smooth' });
+    setTimeout(() => {
+      document.getElementById('register')?.scrollIntoView({ behavior: 'smooth' });
+    }, 50);
   };
 
-  const courseHighlights = course.highlights?.length > 0 
-    ? course.highlights 
-    : ['Phát âm chuẩn', 'Học qua trò chơi', 'Phản xạ tiếng Anh', 'Giáo viên thân thiện'];
+  const defaultHighlights = t('courseDetail.defaultHighlights', { returnObjects: true });
+  const courseHighlights = course.highlights?.length > 0
+    ? course.highlights
+    : defaultHighlights;
 
   const highlightIcons = ['🗣️', '🎲', '⚡', '👩‍🏫'];
 
@@ -60,7 +64,7 @@ const CourseDetailModal = ({ course, onClose }) => {
             {/* Course name + badge */}
             <div className="flex-1 min-w-0">
               <span className="bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide">
-                Chi tiết khóa học
+                {t('courseDetail.badge')}
               </span>
               <h2 className="text-lg font-black text-gray-900 mt-1 leading-tight truncate">
                 {course.name}
@@ -70,7 +74,7 @@ const CourseDetailModal = ({ course, onClose }) => {
             <button
               onClick={onClose}
               className="shrink-0 w-9 h-9 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-gray-500 font-bold text-sm transition-colors"
-              aria-label="Đóng"
+              aria-label={t('courseDetail.closeBtnLabel')}
             >
               ✕
             </button>
@@ -86,6 +90,7 @@ const CourseDetailModal = ({ course, onClose }) => {
           <button 
             onClick={onClose}
             className="hidden md:flex absolute top-6 right-6 w-10 h-10 bg-white shadow-md hover:bg-gray-200 rounded-full items-center justify-center font-bold text-gray-500 transition-colors z-20"
+            aria-label={t('courseDetail.closeBtnLabel')}
           >
             ✕
           </button>
@@ -99,7 +104,7 @@ const CourseDetailModal = ({ course, onClose }) => {
                 {/* Desktop-only title block */}
                 <div className="hidden md:block">
                   <span className="bg-yellow-100 text-yellow-800 text-sm font-bold px-3 py-1 rounded-full uppercase tracking-wide">
-                    Course Details
+                    {t('courseDetail.desktopBadge')}
                   </span>
                   <h2 className="text-4xl font-display font-black text-text-main mt-4 mb-2">{course.name}</h2>
                 </div>
@@ -107,27 +112,27 @@ const CourseDetailModal = ({ course, onClose }) => {
                 {/* Tags */}
                 <div className="flex flex-wrap gap-2 md:gap-3">
                   <span className="bg-[#D0EAF9] text-blue-900 border-2 border-blue-200 px-3 md:px-4 py-1 md:py-1.5 rounded-full font-bold flex items-center gap-1.5 md:gap-2 text-sm">
-                    <span className="text-base md:text-lg">👶</span> {course.ageGroup || '4-6 tuổi'}
+                    <span className="text-base md:text-lg">👶</span> {course.ageGroup || t('courseDetail.defaultAge')}
                   </span>
                   <span className="bg-[#D5F1D5] text-green-900 border-2 border-green-200 px-3 md:px-4 py-1 md:py-1.5 rounded-full font-bold flex items-center gap-1.5 md:gap-2 text-sm">
-                    <span className="text-base md:text-lg">👥</span> {course.classSize || '8 - 10 học sinh'}
+                    <span className="text-base md:text-lg">👥</span> {course.classSize || t('courseDetail.defaultClassSize')}
                   </span>
                   <span className="bg-[#FCD7C4] text-orange-900 border-2 border-orange-200 px-3 md:px-4 py-1 md:py-1.5 rounded-full font-bold flex items-center gap-1.5 md:gap-2 text-sm">
-                    <span className="text-base md:text-lg">🕐</span> {course.duration || '12 tuần – 2 buổi/tuần'}
+                    <span className="text-base md:text-lg">🕐</span> {course.duration || t('courseDetail.defaultDuration')}
                   </span>
                 </div>
 
                 {/* Description */}
                 <div>
-                  <h3 className="text-base md:text-xl font-bold mb-2">Mô tả chi tiết:</h3>
+                  <h3 className="text-base md:text-xl font-bold mb-2">{t('courseDetail.descriptionTitle')}</h3>
                   <p className="text-text-main opacity-80 font-medium leading-relaxed text-sm md:text-base">
-                    {course.description || 'Chương trình học tiếng Anh dành cho trẻ em, kết hợp với các hoạt động vui nhộn giúp trẻ tiếp thu ngôn ngữ một cách tự nhiên.'}
+                    {course.description || t('courseDetail.defaultDesc')}
                   </p>
                 </div>
 
                 {/* Highlights */}
                 <div>
-                  <h3 className="text-base md:text-xl font-bold mb-3 md:mb-4">Điểm nổi bật:</h3>
+                  <h3 className="text-base md:text-xl font-bold mb-3 md:mb-4">{t('courseDetail.highlightsTitle')}</h3>
                   <div className="grid grid-cols-2 gap-3 md:gap-4">
                     {courseHighlights.map((hl, idx) => (
                       <div key={idx} className="flex items-center gap-2 md:gap-3">
@@ -146,7 +151,7 @@ const CourseDetailModal = ({ course, onClose }) => {
                 {/* Teacher card — horizontal on mobile, vertical on desktop */}
                 <div className="bg-[#FDF0C6] rounded-2xl md:rounded-[2rem] p-4 md:p-6 border-2 border-yellow-100 shadow-sm">
                   <h3 className="font-bold text-yellow-800 mb-3 bg-yellow-200 px-3 py-1 rounded-full text-xs md:text-sm w-fit mx-auto md:mx-auto text-center">
-                    Giáo viên phụ trách
+                    {t('courseDetail.teacherTitle')}
                   </h3>
                   <div className="flex items-center gap-4 md:flex-col md:items-center md:text-center md:gap-0">
                     <div className="w-16 h-16 md:w-28 md:h-28 bg-white/50 rounded-full overflow-hidden border-4 border-white shadow-sm flex items-center justify-center shrink-0 md:mb-4">
@@ -162,8 +167,8 @@ const CourseDetailModal = ({ course, onClose }) => {
                       )}
                     </div>
                     <div>
-                      <h4 className="text-base md:text-xl font-bold text-text-main">{course.teacher?.name || 'Ms. Emily'}</h4>
-                      <p className="font-bold text-gray-500 text-sm">{course.teacher?.specialization || 'English Guide'}</p>
+                      <h4 className="text-base md:text-xl font-bold text-text-main">{course.teacher?.name || t('courseDetail.defaultTeacher')}</h4>
+                      <p className="font-bold text-gray-500 text-sm">{course.teacher?.specialization || t('courseDetail.defaultSpecialization')}</p>
                     </div>
                   </div>
                 </div>
@@ -173,7 +178,7 @@ const CourseDetailModal = ({ course, onClose }) => {
                   onClick={handleRegisterClick}
                   className="w-full bg-[#4A90E2] text-white py-3.5 md:py-4 rounded-2xl text-lg md:text-xl font-bold transition-all shadow-[0_6px_0_#2b6cb0] hover:shadow-[0_2px_0_#2b6cb0] hover:translate-y-1 active:translate-y-1 active:shadow-[0_2px_0_#2b6cb0]"
                 >
-                  Đăng ký ngay
+                  {t('courseDetail.registerBtn')}
                 </button>
               </div>
 
