@@ -1,6 +1,7 @@
 const Ranking = require('../models/Ranking');
 const mongoose = require('mongoose');
 const { cleanInput } = require('../utils/sanitize');
+const { clearCache } = require('../middlewares/cacheMiddleware');
 
 const getPreviousMonthYear = () => {
   const now = new Date();
@@ -148,6 +149,9 @@ const createOrUpdateRanking = async (req, res) => {
         throw error;
       }
     }
+
+    // 👈 Xóa cache sau khi tạo/update thành công
+    await clearCache('/api/rankings');
 
     return res.status(201).json({
       success: true,

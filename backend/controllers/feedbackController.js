@@ -4,6 +4,7 @@ const { logAction } = require('../utils/logger');
 const logAdminAction = require('../utils/logAdminAction');
 const { uploadImageBuffer, deleteImageFromCloudinary } = require('../utils/cloudinary');
 const { cleanInput } = require('../utils/sanitize');
+const { clearCache } = require('../middlewares/cacheMiddleware');
 
 // GET /api/feedback
 exports.getAll = async (req, res, next) => {
@@ -61,6 +62,7 @@ exports.create = async (req, res) => {
     }
 
     const fb = await Feedback.create(data);
+    await clearCache('/api/feedback');
     await logAction(req, 'CREATE_FEEDBACK', { feedbackId: fb._id, parentName: fb.parentName });
     return res.status(201).json({ success: true, data: fb, message: 'Feedback created successfully' });
   } catch (error) {
@@ -149,6 +151,7 @@ exports.update = async (req, res) => {
         req
       });
     } catch (_) {}
+    await clearCache('/api/feedback');
     return res.json({ success: true, data: fb, message: 'Feedback updated successfully' });
   } catch (error) {
     if (!dbUpdated && uploadResult?.public_id) {
@@ -180,7 +183,7 @@ exports.remove = async (req, res, next) => {
     if (fb.photoPublicId) {
       try { await deleteImageFromCloudinary(fb.photoPublicId); } catch (_) {}
     }
-
+    await clearCache('/api/feedback');
     await logAdminAction({
       adminId: req.admin?.id || null,
       adminName: req.admin?.username || 'system',

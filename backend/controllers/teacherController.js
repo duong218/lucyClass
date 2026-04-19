@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const logAdminAction = require('../utils/logAdminAction');
 const { uploadImageBuffer, deleteImageFromCloudinary } = require('../utils/cloudinary');
 const { cleanInput } = require('../utils/sanitize');
+const { clearCache } = require('../middlewares/cacheMiddleware');
 
 function pickTeacherInput(body) {
   if (!body || typeof body !== 'object') return {};
@@ -105,6 +106,7 @@ exports.create = async (req, res) => {
     }
 
     const teacher = await Teacher.create(data);
+    await clearCache('/api/teachers');
     await logAdminAction({
       adminId: req.admin?.id || null,
       adminName: req.admin?.username || 'system',
@@ -219,6 +221,7 @@ exports.update = async (req, res) => {
         req
       });
     } catch (_) {}
+    await clearCache('/api/teachers');
     return res.json({ success: true, data: teacher, message: 'Teacher updated successfully' });
   } catch (error) {
     // Rollback newly uploaded image if DB update fails
@@ -251,7 +254,7 @@ exports.remove = async (req, res, next) => {
     if (teacher.avatarPublicId) {
       try { await deleteImageFromCloudinary(teacher.avatarPublicId); } catch (_) {}
     }
-
+    await clearCache('/api/teachers');
     await logAdminAction({
       adminId: req.admin?.id || null,
       adminName: req.admin?.username || 'system',

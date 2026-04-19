@@ -4,6 +4,7 @@ const { logAction } = require('../utils/logger');
 const logAdminAction = require('../utils/logAdminAction');
 const { uploadImageBuffer, deleteImageFromCloudinary } = require('../utils/cloudinary');
 const { cleanInput } = require('../utils/sanitize');
+const { clearCache } = require('../middlewares/cacheMiddleware');
 
 // GET /api/courses
 exports.getAll = async (req, res, next) => {
@@ -100,6 +101,7 @@ exports.create = async (req, res) => {
     }
 
     const course = await Course.create(data);
+    await clearCache('/api/courses');
     await logAdminAction({
       adminId: req.admin?.id || null,
       adminName: req.admin?.username || 'system',
@@ -194,12 +196,12 @@ exports.update = async (req, res) => {
       }
       throw dbError;
     }
-
+    await clearCache('/api/courses');
     // Delete old image ONLY after DB update succeeds
     if (uploadResult && existing.imagePublicId) {
       try { await deleteImageFromCloudinary(existing.imagePublicId); } catch (_) {}
     }
-
+    await clearCache('/api/courses');
     try {
       await logAdminAction({
         adminId: req.admin?.id || null,
@@ -242,7 +244,7 @@ exports.remove = async (req, res, next) => {
     if (course.imagePublicId) {
       try { await deleteImageFromCloudinary(course.imagePublicId); } catch (_) {}
     }
-
+    await clearCache('/api/courses');
     await logAdminAction({
       adminId: req.admin?.id || null,
       adminName: req.admin?.username || 'system',

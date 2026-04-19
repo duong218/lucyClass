@@ -3,6 +3,7 @@ const rankingController = require('../controllers/rankingController');
 const auth = require('../middlewares/auth');
 const authorizeRoles = require('../middlewares/authorizeRoles');
 const { verifyCSRF } = require('../middlewares/securityMiddleware');
+const { cacheMiddleware } = require('../middlewares/cacheMiddleware');
 
 const router = express.Router();
 const csrfForRankingPost = process.env.NODE_ENV === 'production'
@@ -14,6 +15,6 @@ router.post('/',
   authorizeRoles('teacher', 'admin'),
   csrfForRankingPost,
   rankingController.createOrUpdateRanking);
-router.get('/top', rankingController.getTopRankings);
+router.get('/top', cacheMiddleware(300), rankingController.getTopRankings);
 
 module.exports = router;

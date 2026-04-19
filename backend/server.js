@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const systemLogger = require('./utils/systemLogger');
 
@@ -13,6 +15,14 @@ const gracefulShutdown = () => {
       console.log('✅ HTTP server closed');
       await mongoose.connection.close();
       console.log('✅ MongoDB connection closed');
+
+      try {
+        await redisClient.quit();
+        console.log('✅ Redis connection closed');
+      } catch (err) {
+        console.warn('⚠️ Redis close error:', err.message);
+      }
+    
       process.exit(0);
     });
     
@@ -41,7 +51,6 @@ const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-require('dotenv').config();
 
 // 🚨 ENV VALIDATION
 const requiredEnvs = ['MONGO_URI', 'BACKUP_PATH', 'CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET', 'BACKUP_ENCRYPTION_KEY', 'RECAPTCHA_SECRET_KEY'];
@@ -60,6 +69,7 @@ const mongoSanitize = require('express-mongo-sanitize');
 const xss = require('xss-clean');
 const connectDB = require('./config/db');
 const { verifyCSRF } = require('./middlewares/securityMiddleware');
+const redisClient = require('./config/redis');
 
 // --- 🎯 ABSOLUTE PRIORITY MIDDLEWARE ---
 const app = express();
@@ -336,7 +346,7 @@ const PORT = process.env.PORT || 5000;
 process.on('SIGINT', gracefulShutdown);
 process.on('SIGTERM', gracefulShutdown);
 
-connectDB().then(() => {
+connectDB().then(async () => {
   // Retry any interrupted backup uploads on startup
   (async () => {
     try {
@@ -346,6 +356,14 @@ connectDB().then(() => {
       console.error('[Startup] Retry pending backups failed:', err.message);
     }
   })();
+
+  try {
+    await redisClient.connect();
+    console.log('✅ Redis connected on startup');
+  } catch (err) {
+    console.warn('⚠️ Redis unavailable, caching disabled:', err.message);
+  }
+
   initCronJobs();
   require('./utils/scheduledTasks');
   server = app.listen(PORT, () => console.log(`🚀 Lucy's Class Server running on port ${PORT}`));

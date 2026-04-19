@@ -2,6 +2,7 @@ const Announcement = require('../models/Announcement');
 const mongoose = require('mongoose');
 const { uploadImageBuffer, deleteImageFromCloudinary } = require('../utils/cloudinary');
 const { cleanInput } = require('../utils/sanitize');
+const { clearCache } = require('../middlewares/cacheMiddleware');
 
 /**
  * Standard Success Response
@@ -74,6 +75,7 @@ exports.create = async (req, res) => {
     }
 
     const announcement = await Announcement.create(announcementData);
+    await clearCache('/api/announcements');
     return sendSuccess(res, announcement, 'Announcement created successfully', 201);
   } catch (error) {
     if (uploadResult && uploadResult.public_id) {
@@ -140,7 +142,7 @@ exports.update = async (req, res) => {
       if (uploadResult && announcement.imagePublicId) {
         try { await deleteImageFromCloudinary(announcement.imagePublicId); } catch (_) {}
       }
-
+      await clearCache('/api/announcements');
       return sendSuccess(res, updatedAnnouncement, 'Announcement updated successfully');
     } catch (dbError) {
       // Rollback newly uploaded image if DB update fails
@@ -168,7 +170,7 @@ exports.remove = async (req, res) => {
       try { await deleteImageFromCloudinary(announcement.imagePublicId); } catch (_) {}
     }
     await Announcement.findByIdAndDelete(id);
-
+    await clearCache('/api/announcements');
     return sendSuccess(res, null, 'Announcement deleted successfully');
   } catch (error) {
     return sendError(res, 'Failed to delete announcement', error);

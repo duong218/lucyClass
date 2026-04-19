@@ -7,12 +7,13 @@ const isAdmin = require('../middlewares/isAdmin');
 const { upload, validateMagicNumber } = require('../middlewares/upload');
 const { courseValidationRules, validate } = require('../middlewares/adminValidator');
 const csrfProtection = require('../middlewares/csrf');
+const { cacheMiddleware } = require('../middlewares/cacheMiddleware');
 
 const catchAsync = require('../utils/catchAsync');
 
-router.get('/', catchAsync(courseController.getAll));
+router.get('/', cacheMiddleware(600), catchAsync(courseController.getAll));
 router.get('/:id/students', auth, isAdmin, catchAsync(registrationController.getStudentsByCourse));
-router.get('/:id', catchAsync(courseController.getById));
+router.get('/:id', cacheMiddleware(600), catchAsync(courseController.getById));
 router.post('/', auth, isAdmin, csrfProtection, upload.single('image'), validateMagicNumber, courseValidationRules, validate, catchAsync(courseController.create));
 router.put('/:id', auth, isAdmin, csrfProtection, upload.single('image'), validateMagicNumber, courseValidationRules, validate, catchAsync(courseController.update));
 router.delete('/:id', auth, isAdmin, csrfProtection, catchAsync(courseController.remove));
