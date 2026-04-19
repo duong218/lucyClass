@@ -66,14 +66,14 @@ const HeroSection = () => {
           <div className="max-w-4xl animate-fadeInUp">
             <h1
               className="text-gray-900 text-[26px] md:text-[38px] lg:text-[50px] font-display font-black mb-6 md:mb-8 leading-[1.2] uppercase tracking-tight"
-              style={{ textShadow: '0 2px 6px rgba(255, 255, 255, 0.4)' }}
+              style={{ textShadow: '0 0 4px rgba(255,255,255,0.8), 0 0 8px rgba(255,255,255,0.6), 0 2px 6px rgba(255,255,255,0.4)' }}
             >
               {t('hero.title')}
             </h1>
 
             <p
               className="text-gray-700 text-[14px] md:text-[16px] lg:text-[18px] font-bold mb-10 md:mb-14 max-w-3xl mx-auto leading-[1.6]"
-              style={{ textShadow: '0 2px 6px rgba(255, 255, 255, 0.4)' }}
+              style={{ textShadow: '0 0 4px rgba(255,255,255,0.8), 0 0 8px rgba(255,255,255,0.6), 0 2px 6px rgba(255,255,255,0.4)' }}
             >
               {t('hero.subtitle')}
             </p>
