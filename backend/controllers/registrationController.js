@@ -309,7 +309,7 @@ exports.create = async (req, res) => {
     message: reg.message || ''
   };
   appendToSheet(sheetData).catch(err => console.error('[Sheets] Background sync failed:', err));
-
+  await clearCache('/api/courses');
   // Success response
   res.status(201).json({ success: true, data: reg, message: 'Registration created successfully' });
 };
