@@ -106,7 +106,10 @@ exports.create = async (req, res) => {
     }
 
     const teacher = await Teacher.create(data);
-    await clearCache('/api/teachers');
+    await Promise.all([
+      clearCache('/api/teachers'),
+      clearCache('/api/courses')
+    ]);
     await logAdminAction({
       adminId: req.admin?.id || null,
       adminName: req.admin?.username || 'system',
@@ -221,7 +224,10 @@ exports.update = async (req, res) => {
         req
       });
     } catch (_) {}
-    await clearCache('/api/teachers');
+    await Promise.all([
+      clearCache('/api/teachers'),
+      clearCache('/api/courses')
+    ]);
     return res.json({ success: true, data: teacher, message: 'Teacher updated successfully' });
   } catch (error) {
     // Rollback newly uploaded image if DB update fails
@@ -254,7 +260,10 @@ exports.remove = async (req, res, next) => {
     if (teacher.avatarPublicId) {
       try { await deleteImageFromCloudinary(teacher.avatarPublicId); } catch (_) {}
     }
-    await clearCache('/api/teachers');
+    await Promise.all([
+      clearCache('/api/teachers'),
+      clearCache('/api/courses')
+    ]);
     await logAdminAction({
       adminId: req.admin?.id || null,
       adminName: req.admin?.username || 'system',

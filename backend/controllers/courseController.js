@@ -201,7 +201,6 @@ exports.update = async (req, res) => {
     if (uploadResult && existing.imagePublicId) {
       try { await deleteImageFromCloudinary(existing.imagePublicId); } catch (_) {}
     }
-    await clearCache('/api/courses');
     try {
       await logAdminAction({
         adminId: req.admin?.id || null,

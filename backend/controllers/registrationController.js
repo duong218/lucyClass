@@ -8,6 +8,7 @@ const logAdminAction = require('../utils/logAdminAction');
 const emailService = require('../utils/emailService');
 const { appendToSheet } = require("../googleSheets");
 const { cleanInput } = require("../utils/sanitize");
+const { clearCache } = require('../middlewares/cacheMiddleware');
 
 // Lightweight regex escape utility
 const escapeStringRegexp = (string) => {
@@ -356,6 +357,7 @@ exports.update = async (req, res) => {
         );
         await session.commitTransaction();
         session.endSession();
+        await clearCache('/api/courses');
         return res.json({ success: true, data: reg, message: 'Registration updated successfully' });
       }
 
@@ -386,6 +388,7 @@ exports.update = async (req, res) => {
 
       await session.commitTransaction();
       session.endSession();
+      await clearCache('/api/courses');
       return res.json({ success: true, data: reg, message: 'Registration updated successfully' });
     } catch (error) {
       await session.abortTransaction();
@@ -411,6 +414,7 @@ exports.remove = async (req, res, next) => {
   try {
     const reg = await Registration.findByIdAndDelete(req.params.id);
     if (!reg) return res.status(404).json({ success: false, message: 'Registration not found' });
+    await clearCache('/api/courses');
     res.json({ success: true, message: 'Registration deleted successfully' });
   } catch (error) {
     next(error);
@@ -471,6 +475,7 @@ exports.removeStudent = async (req, res, next) => {
     }
 
     await session.commitTransaction();
+    await clearCache('/api/courses');
     res.json({ success: true, message: 'Đã cho học sinh nghỉ' });
   } catch (error) {
     try { await session.abortTransaction(); } catch (_) { /* already aborted */ }
