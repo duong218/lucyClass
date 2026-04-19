@@ -225,6 +225,64 @@ const TeacherModal = ({ teacher, index, onClose }) => {
 };
 
 /* ═══════════════════════════════════════
+   Show All Modal Component (Mobile)
+   ═══════════════════════════════════════ */
+const ShowAllModal = ({ teachers, onClose, onSelectTeacher, t }) => {
+  useEffect(() => {
+    openModal();
+    return () => closeModal();
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-[10000] flex items-end justify-center p-0 md:hidden">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        className="relative bg-white w-full rounded-t-[3rem] shadow-heavy overflow-hidden max-h-[85vh] flex flex-col"
+      >
+        <div className="p-6 pb-20 overflow-y-auto custom-scrollbar">
+          <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6" />
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-2xl font-black text-text-main">{t('teachersSection.viewAll')}</h3>
+            <button onClick={onClose} className="text-2xl">✕</button>
+          </div>
+          <div className="space-y-4">
+            {teachers.map((teacher, i) => (
+              <div
+                key={teacher._id}
+                className="flex items-center gap-4 p-4 rounded-3xl bg-gray-50 border border-gray-100 active:scale-95 transition-transform"
+                onClick={() => onSelectTeacher(teacher, i)}
+              >
+                <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white shadow-sm ring-2 ring-white">
+                  {teacher.avatar ? (
+                    <img src={getImageUrl(teacher.avatar)} alt={teacher.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-2xl">👩‍🏫</div>
+                  )}
+                </div>
+                <div>
+                  <h4 className="font-bold text-text-main">{teacher.name}</h4>
+                  <p className="text-xs text-text-light">{teacher.specialization}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+/* ═══════════════════════════════════════
    Main TeachersSection Component
    ═══════════════════════════════════════ */
 const TeachersSection = () => {
@@ -670,56 +728,16 @@ const TeachersSection = () => {
       {/* ── All teachers list modal (Mobile) ── */}
       <AnimatePresence>
         {showAllModal && (
-          <div className="fixed inset-0 z-[10000] flex items-end justify-center p-0 md:hidden">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-              onClick={() => { setShowAllModal(false); setIsPaused(false); closeModal(); }}
-            />
-            <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="relative bg-white w-full rounded-t-[3rem] shadow-heavy overflow-hidden max-h-[85vh] flex flex-col"
-              onMouseEnter={() => openModal()}
-            >
-              <div className="p-6 pb-20 overflow-y-auto custom-scrollbar">
-                <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6" />
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-2xl font-black text-text-main">{t('teachersSection.viewAll')}</h3>
-                  <button onClick={() => { setShowAllModal(false); setIsPaused(false); closeModal(); }} className="text-2xl">✕</button>
-                </div>
-                <div className="space-y-4">
-                  {displayTeachers.map((teacher, i) => (
-                    <div
-                      key={teacher._id}
-                      className="flex items-center gap-4 p-4 rounded-3xl bg-gray-50 border border-gray-100 active:scale-95 transition-transform"
-                      onClick={() => {
-                        setSelectedTeacher(teacher);
-                        setSelectedIndex(i);
-                        setShowAllModal(false);
-                      }}
-                    >
-                      <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white shadow-sm ring-2 ring-white">
-                        {teacher.avatar ? (
-                          <img src={getImageUrl(teacher.avatar)} alt={teacher.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-2xl">👩‍🏫</div>
-                        )}
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-text-main">{teacher.name}</h4>
-                        <p className="text-xs text-text-light">{teacher.specialization}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          </div>
+          <ShowAllModal
+            teachers={displayTeachers}
+            t={t}
+            onClose={() => { setShowAllModal(false); setIsPaused(false); }}
+            onSelectTeacher={(teacher, i) => {
+              setSelectedTeacher(teacher);
+              setSelectedIndex(i);
+              setShowAllModal(false);
+            }}
+          />
         )}
       </AnimatePresence>
     </section>
