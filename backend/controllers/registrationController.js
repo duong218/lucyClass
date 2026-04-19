@@ -403,6 +403,7 @@ exports.update = async (req, res) => {
       req.params.id, { $set: updateData }, { new: true, runValidators: true }
     );
     if (!reg) return res.status(404).json({ success: false, message: 'Registration not found' });
+    await clearCache('/api/courses');
     return res.json({ success: true, data: reg, message: 'Registration updated successfully' });
   } catch (error) {
     return res.status(400).json({ success: false, message: error.message });
