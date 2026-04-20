@@ -7,7 +7,13 @@ const Navbar = () => {
   const [activeSection, setActiveSection] = useState("hero");
 
   const toggleLang = () => {
-    i18n.changeLanguage(i18n.language === "en" ? "vi" : "en");
+    const nextLang =
+      i18n.language === "vi"
+        ? "en"
+        : i18n.language === "en"
+        ? "zh"
+        : "vi";
+    i18n.changeLanguage(nextLang);
   };
 
   useEffect(() => {

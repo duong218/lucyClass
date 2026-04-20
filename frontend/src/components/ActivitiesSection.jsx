@@ -49,7 +49,7 @@ const ActivitiesSection = () => {
             {t('activities.title')}
           </h2>
           <p className="text-base md:text-lg text-[#666666] max-w-2xl mx-auto font-medium">
-            Khám phá những giờ học vui nhộn và bổ ích tại Lucy Class
+            {t('activities.description')}
           </p>
         </div>
 
