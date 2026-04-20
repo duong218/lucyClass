@@ -38,6 +38,11 @@ const courseSchema = new mongoose.Schema({
     ref: 'Teacher',
     default: null
   },
+  // Giáo viên phụ (tối đa 4 người)
+  additionalTeachers: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Teacher'
+  }],
   image: {
     type: String,
     default: ''

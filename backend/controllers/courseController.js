@@ -10,7 +10,10 @@ const { clearCache } = require('../middlewares/cacheMiddleware');
 exports.getAll = async (req, res, next) => {
   try {
     const Registration = require('../models/Registration');
-    const courses = await Course.find({ isDeleted: { $ne: true } }).populate('teacher').sort({ createdAt: -1 });
+    const courses = await Course.find({ isDeleted: { $ne: true } })
+      .populate('teacher')
+      .populate('additionalTeachers')
+      .sort({ createdAt: -1 });
 
     const counts = await Registration.aggregate([
       { $match: { status: 'registered', isActive: true } },
@@ -41,7 +44,9 @@ exports.getById = async (req, res, next) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ success: false, message: 'Invalid ID format' });
     }
-    const course = await Course.findOne({ _id: id, isDeleted: { $ne: true } }).populate('teacher');
+    const course = await Course.findOne({ _id: id, isDeleted: { $ne: true } })
+      .populate('teacher')
+      .populate('additionalTeachers');
     if (!course) return res.status(404).json({ success: false, message: 'Course not found' });
     return res.json({ success: true, data: course });
   } catch (error) {
@@ -63,11 +68,37 @@ const parseHighlights = (highlights) => {
   return arr;
 };
 
+// Helper: parse & validate additionalTeachers
+const parseAdditionalTeachers = (additionalTeachers) => {
+  if (additionalTeachers === undefined || additionalTeachers === null) return undefined;
+
+  let arr = Array.isArray(additionalTeachers)
+    ? additionalTeachers
+    : typeof additionalTeachers === 'string' && additionalTeachers.trim()
+      ? [additionalTeachers]
+      : [];
+
+  // Lọc chuỗi rỗng
+  arr = arr.filter(id => id && id.toString().trim());
+
+  if (arr.length > 4) {
+    throw Object.assign(new Error('Maximum 4 additional teachers allowed'), { status: 400 });
+  }
+
+  for (const id of arr) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      throw Object.assign(new Error(`Invalid teacher ID: ${id}`), { status: 400 });
+    }
+  }
+
+  return arr;
+};
+
 // POST /api/courses
 exports.create = async (req, res) => {
   let uploadResult = null;
   try {
-    const { name, description, highlights, teacher, ageGroup, duration, classSize } = req.body;
+    const { name, description, highlights, teacher, additionalTeachers, ageGroup, duration, classSize } = req.body;
 
     // Validation
     if (name?.length > 40) return res.status(400).json({ success: false, message: 'Course name max 40 characters' });
@@ -86,6 +117,13 @@ exports.create = async (req, res) => {
     try {
       const parsed = parseHighlights(highlights);
       if (parsed !== undefined) data.highlights = parsed.map(h => cleanInput(h));
+    } catch (err) {
+      return res.status(400).json({ success: false, message: err.message });
+    }
+
+    try {
+      const parsedAdditional = parseAdditionalTeachers(additionalTeachers);
+      if (parsedAdditional !== undefined) data.additionalTeachers = parsedAdditional;
     } catch (err) {
       return res.status(400).json({ success: false, message: err.message });
     }
@@ -129,7 +167,7 @@ exports.update = async (req, res) => {
   let uploadResult = null;
   let dbUpdated = false;
   try {
-    const { name, description, highlights, teacher, ageGroup, duration, classSize } = req.body;
+    const { name, description, highlights, teacher, additionalTeachers, ageGroup, duration, classSize } = req.body;
 
     // Validation
     if (name !== undefined && typeof name === 'string' && name.trim().length === 0) {
@@ -176,6 +214,16 @@ exports.update = async (req, res) => {
       return res.status(400).json({ success: false, message: err.message });
     }
 
+    // additionalTeachers: kể cả trường hợp gửi mảng rỗng để xóa hết GV phụ
+    if (additionalTeachers !== undefined) {
+      try {
+        const parsedAdditional = parseAdditionalTeachers(additionalTeachers);
+        data.additionalTeachers = parsedAdditional ?? [];
+      } catch (err) {
+        return res.status(400).json({ success: false, message: err.message });
+      }
+    }
+
     if (req.file && req.file.buffer) {
       try {
         uploadResult = await uploadImageBuffer(req.file.buffer, "courses");
@@ -188,7 +236,9 @@ exports.update = async (req, res) => {
 
     let course;
     try {
-      course = await Course.findByIdAndUpdate(id, data, { new: true, runValidators: true });
+      course = await Course.findByIdAndUpdate(id, data, { new: true, runValidators: true })
+        .populate('teacher')
+        .populate('additionalTeachers');
       dbUpdated = true;
     } catch (dbError) {
       if (uploadResult?.public_id) {
@@ -197,7 +247,6 @@ exports.update = async (req, res) => {
       throw dbError;
     }
     await clearCache('/api/courses');
-    // Delete old image ONLY after DB update succeeds
     if (uploadResult && existing.imagePublicId) {
       try { await deleteImageFromCloudinary(existing.imagePublicId); } catch (_) {}
     }
@@ -239,7 +288,6 @@ exports.remove = async (req, res, next) => {
     );
     if (!course) return res.status(404).json({ success: false, message: 'Course not found' });
 
-    // Delete image from Cloudinary after soft-delete
     if (course.imagePublicId) {
       try { await deleteImageFromCloudinary(course.imagePublicId); } catch (_) {}
     }

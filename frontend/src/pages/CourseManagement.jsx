@@ -5,13 +5,15 @@ import ConfirmModal from '../components/common/ConfirmModal';
 import PrimaryButton from '../components/common/PrimaryButton';
 import { showToast } from '../utils/toastUtils';
 
-
 const CourseManagement = () => {
   const [courses, setCourses] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [formData, setFormData] = useState({ name: '', ageGroup: '', duration: '', classSize: '', description: '', highlights: '', teacher: '' });
+  const [formData, setFormData] = useState({
+    name: '', ageGroup: '', duration: '', classSize: '',
+    description: '', highlights: '', teacher: '', additionalTeachers: []
+  });
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
   const [errors, setErrors] = useState({});
@@ -33,37 +35,50 @@ const CourseManagement = () => {
     }
   };
 
-  const handleImageError = (e) => {
-    e.target.src = '/placeholder.jpg';
+  const handleImageError = (e) => { e.target.src = '/placeholder.jpg'; };
+
+  useEffect(() => { fetchData(); }, []);
+
+  const openAdd = () => {
+    setEditing(null);
+    setFormData({ name: '', ageGroup: '', duration: '', classSize: '', description: '', highlights: '', teacher: '', additionalTeachers: [] });
+    setImageFile(null);
+    setImagePreview('');
+    setErrors({});
+    setShowForm(true);
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const openAdd = () => { 
-    setEditing(null); 
-    setFormData({ name: '', ageGroup: '', duration: '', classSize: '', description: '', highlights: '', teacher: '' }); 
-    setImageFile(null); 
-    setImagePreview(''); 
+  const openEdit = (c) => {
+    setEditing(c);
+    setFormData({
+      name: c.name,
+      ageGroup: c.ageGroup,
+      duration: c.duration,
+      classSize: c.classSize?.toString() || '',
+      description: c.description,
+      highlights: c.highlights?.join(', ') || '',
+      teacher: c.teacher?._id || '',
+      additionalTeachers: c.additionalTeachers?.map(t => t._id || t) || []
+    });
+    setImageFile(null);
+    setImagePreview(getImageUrl(c.image));
     setErrors({});
-    setShowForm(true); 
+    setShowForm(true);
   };
-  const openEdit = (c) => { 
-    setEditing(c); 
-    setFormData({ 
-      name: c.name, 
-      ageGroup: c.ageGroup, 
-      duration: c.duration, 
-      classSize: c.classSize?.toString() || '', 
-      description: c.description, 
-      highlights: c.highlights?.join(', ') || '', 
-      teacher: c.teacher?._id || '' 
-    }); 
-    setImageFile(null); 
-    setImagePreview(getImageUrl(c.image)); 
-    setErrors({});
-    setShowForm(true); 
+
+  // Toggle chọn/bỏ giáo viên phụ
+  const toggleAdditionalTeacher = (teacherId) => {
+    setFormData(prev => {
+      const current = prev.additionalTeachers;
+      if (current.includes(teacherId)) {
+        return { ...prev, additionalTeachers: current.filter(id => id !== teacherId) };
+      }
+      if (current.length >= 4) {
+        showToast.error('Tối đa 4 giáo viên phụ thôi nhé! 🙈');
+        return prev;
+      }
+      return { ...prev, additionalTeachers: [...current, teacherId] };
+    });
   };
 
   const validate = () => {
@@ -83,6 +98,15 @@ const CourseManagement = () => {
       if (items.some(h => h.length > 40)) newErrors.highlights = 'Each highlight max 40 characters';
     }
 
+    if (formData.additionalTeachers.length > 4) {
+      newErrors.additionalTeachers = 'Maximum 4 additional teachers';
+    }
+
+    // GV phụ không được trùng GV chính
+    if (formData.teacher && formData.additionalTeachers.includes(formData.teacher)) {
+      newErrors.additionalTeachers = 'Giáo viên phụ không được trùng giáo viên chính';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -100,10 +124,17 @@ const CourseManagement = () => {
 
     const fd = new FormData();
     Object.entries(formData).forEach(([k, v]) => {
-      if (k === 'teacher' && !v) return; // Prevent casting error
+      if (k === 'teacher' && !v) return;
       if (k === 'highlights' && typeof v === 'string') {
         const arr = v.split(',').map(h => h.trim()).filter(Boolean);
-        arr.forEach(item => fd.append('highlights', item)); // Send as array multiple appends
+        arr.forEach(item => fd.append('highlights', item));
+      } else if (k === 'additionalTeachers') {
+        // Gửi mảng: mỗi ID append riêng. Nếu rỗng gửi chuỗi rỗng để backend biết xóa hết
+        if (Array.isArray(v) && v.length > 0) {
+          v.forEach(id => fd.append('additionalTeachers', id));
+        } else {
+          fd.append('additionalTeachers', '');
+        }
       } else {
         fd.append(k, v);
       }
@@ -111,18 +142,16 @@ const CourseManagement = () => {
 
     if (imageFile) fd.append('image', imageFile);
 
-    console.log("Submitting Course Payload:");
-    for (let [key, value] of fd.entries()) {
-      console.log(`${key}: ${value}`);
-    }
-
     try {
-      if (editing) { await api.put(`/courses/${editing._id}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }); }
-      else { await api.post('/courses', fd, { headers: { 'Content-Type': 'multipart/form-data' } }); }
+      if (editing) {
+        await api.put(`/courses/${editing._id}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      } else {
+        await api.post('/courses', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      }
       setShowForm(false);
       showToast.success('Tadaa! Lưu thành công rồi nhé! 🎉');
       fetchData();
-    } catch (err) { 
+    } catch (err) {
       console.error("Course Operation Failed:", err.response?.data || err);
       showToast.error('Úi, xui quá, thử lại lần nữa xem sao! 🛠️');
       setErrors({ submit: err.response?.data?.message || 'Operation failed' });
@@ -131,23 +160,24 @@ const CourseManagement = () => {
     }
   };
 
-  const handleDeleteClick = (id) => {
-    setConfirmModal({ isOpen: true, id });
-  };
+  const handleDeleteClick = (id) => { setConfirmModal({ isOpen: true, id }); };
 
   const confirmDelete = async () => {
     if (!confirmModal.id) return;
-    try { 
-      await api.delete(`/courses/${confirmModal.id}`); 
+    try {
+      await api.delete(`/courses/${confirmModal.id}`);
       showToast.success('Tuyệt vời! Xoá xong xuôi! ✨');
-      fetchData(); 
-    } catch (err) { 
-      console.error(err); 
+      fetchData();
+    } catch (err) {
+      console.error(err);
       showToast.error('Ôi hỏng! Có lỗi xảy ra mất rồi 😢');
     } finally {
       setConfirmModal({ isOpen: false, id: null });
     }
   };
+
+  // Danh sách GV có thể chọn làm GV phụ (loại trừ GV chính đang chọn)
+  const availableAdditionalTeachers = teachers.filter(t => t._id !== formData.teacher);
 
   if (showForm) {
     return (
@@ -200,13 +230,65 @@ const CourseManagement = () => {
               {errors.classSize && <p className="text-red-500 text-[10px] mt-1 ml-1 font-semibold">{errors.classSize}</p>}
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Assigned Teacher</label>
-              <select value={formData.teacher} onChange={e => setFormData({...formData, teacher: e.target.value})}
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Giáo viên chính ⭐</label>
+              <select
+                value={formData.teacher}
+                onChange={e => {
+                  const newMain = e.target.value;
+                  // Nếu GV chính mới đang có trong danh sách GV phụ → tự động bỏ ra
+                  setFormData(prev => ({
+                    ...prev,
+                    teacher: newMain,
+                    additionalTeachers: prev.additionalTeachers.filter(id => id !== newMain)
+                  }));
+                }}
                 className="w-full px-4 py-2.5 rounded-xl border-2 border-gray-200 focus:border-primary-400 outline-none text-sm">
                 <option value="">Select Teacher</option>
                 {teachers.map(tc => <option key={tc._id} value={tc._id}>👩‍🏫 {tc.name}</option>)}
               </select>
             </div>
+          </div>
+
+          {/* ── Giáo viên phụ ── */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+              Giáo viên phụ
+              <span className="ml-2 text-xs font-normal text-gray-400">(tùy chọn, tối đa 4 người)</span>
+            </label>
+            {availableAdditionalTeachers.length === 0 ? (
+              <p className="text-xs text-gray-400 italic py-2">
+                {teachers.length === 0 ? 'Chưa có giáo viên nào.' : 'Không còn giáo viên khả dụng (đã chọn làm GV chính).'}
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2 mt-1">
+                {availableAdditionalTeachers.map(tc => {
+                  const selected = formData.additionalTeachers.includes(tc._id);
+                  return (
+                    <button
+                      key={tc._id}
+                      type="button"
+                      onClick={() => toggleAdditionalTeacher(tc._id)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold border-2 transition-all duration-150
+                        ${selected
+                          ? 'bg-blue-500 text-white border-blue-500 shadow-sm'
+                          : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-500'
+                        }`}
+                    >
+                      <span>{selected ? '✓' : '+'}</span>
+                      <span>👩‍🏫 {tc.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {formData.additionalTeachers.length > 0 && (
+              <p className="text-xs text-blue-500 mt-1.5 font-medium">
+                Đã chọn {formData.additionalTeachers.length}/4 giáo viên phụ
+              </p>
+            )}
+            {errors.additionalTeachers && (
+              <p className="text-red-500 text-[10px] mt-1 font-semibold">{errors.additionalTeachers}</p>
+            )}
           </div>
 
           <div>
@@ -238,12 +320,7 @@ const CourseManagement = () => {
                 <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
               </label>
               {imagePreview && (
-                <img 
-                  src={imagePreview} 
-                  alt="" 
-                  className="w-20 h-20 rounded-xl object-cover" 
-                  onError={handleImageError}
-                />
+                <img src={imagePreview} alt="" className="w-20 h-20 rounded-xl object-cover" onError={handleImageError} />
               )}
             </div>
           </div>
@@ -277,12 +354,7 @@ const CourseManagement = () => {
         {courses.map(course => (
           <div key={course._id} className="bg-white rounded-2xl shadow-sm border p-5 hover:shadow-md transition-all">
             {course.image && (
-              <img 
-                src={getImageUrl(course.image)} 
-                alt={course.name} 
-                className="w-full h-40 object-cover rounded-xl mb-3" 
-                onError={handleImageError}
-              />
+              <img src={getImageUrl(course.image)} alt={course.name} className="w-full h-40 object-cover rounded-xl mb-3" onError={handleImageError} />
             )}
             <h3 className="font-bold text-lg text-gray-800 mb-1">{course.name}</h3>
             <div className="flex flex-wrap gap-2 mb-2">
@@ -291,8 +363,21 @@ const CourseManagement = () => {
               <span className="bg-purple-50 text-purple-700 text-xs px-2 py-0.5 rounded-full font-semibold">👥 {course.classSize}</span>
             </div>
             <p className="text-sm text-gray-600 mb-2 line-clamp-2">{course.description}</p>
-            {course.teacher && <p className="text-xs text-primary-500 mb-3 font-semibold">👩‍🏫 {course.teacher.name}</p>}
-            <div className="flex gap-2">
+            {/* Giáo viên chính */}
+            {course.teacher && (
+              <p className="text-xs text-primary-500 font-semibold">⭐ {course.teacher.name}</p>
+            )}
+            {/* Giáo viên phụ */}
+            {course.additionalTeachers?.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1 mb-2">
+                {course.additionalTeachers.map(t => (
+                  <span key={t._id} className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-medium">
+                    👩‍🏫 {t.name}
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2 mt-3">
               <button onClick={() => openEdit(course)} className="flex-1 bg-green-500 text-white py-2 rounded-xl text-sm font-semibold hover:bg-green-600 hover:shadow-button hover:-translate-y-0.5 transition-all">✏️ Edit</button>
               <button onClick={() => handleDeleteClick(course._id)} className="flex-1 bg-red-50 text-red-600 py-2 rounded-xl text-sm font-semibold hover:bg-red-100 hover:shadow-button hover:-translate-y-0.5 transition-all">🗑️ Delete</button>
             </div>
@@ -301,7 +386,7 @@ const CourseManagement = () => {
         {courses.length === 0 && <p className="text-gray-400 col-span-3 text-center py-8">No courses yet. Add one!</p>}
       </div>
 
-      <ConfirmModal 
+      <ConfirmModal
         isOpen={confirmModal.isOpen}
         onClose={() => setConfirmModal({ isOpen: false, id: null })}
         onConfirm={confirmDelete}
