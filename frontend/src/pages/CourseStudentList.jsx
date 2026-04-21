@@ -18,6 +18,7 @@ const TITLE_OPTIONS = [
 ];
 
 const RankingModal = ({ student, course, onClose, onSaved }) => {
+  const { t } = useTranslation();
   const [stars, setStars]   = useState('');
   const [title, setTitle]   = useState('');
   const [skill, setSkill]   = useState('');
@@ -26,7 +27,7 @@ const RankingModal = ({ student, course, onClose, onSaved }) => {
 
   const handleSubmit = async () => {
     if (!stars || !title || !skill.trim()) {
-      showToast.error('Vui lòng điền đầy đủ thông tin! 📝');
+      showToast.error(t('ranking.fillRequired'));
       return;
     }
     setSaving(true);
@@ -40,11 +41,11 @@ const RankingModal = ({ student, course, onClose, onSaved }) => {
         title,
         skill:      skill.trim(),
       });
-      showToast.success('Đã thêm vào bảng xếp hạng! 🏆');
+      showToast.success(t('ranking.saveSuccess'));
       onSaved?.();
       onClose();
     } catch (err) {
-      showToast.error(err?.message || 'Lỗi khi lưu xếp hạng 😢');
+      showToast.error(err?.message || t('ranking.saveError'));
     } finally {
       setSaving(false);
     }
@@ -82,8 +83,8 @@ const RankingModal = ({ student, course, onClose, onSaved }) => {
               <div className="flex items-center gap-3">
                 <span className="text-3xl">🏆</span>
                 <div>
-                  <h3 className="text-xl font-black text-white tracking-tight">Lên Bảng Xếp Hạng</h3>
-                  <p className="text-yellow-100 text-xs font-medium">Ghi nhận thành tích tháng này</p>
+                  <h3 className="text-xl font-black text-white tracking-tight">{t('ranking.modalTitle')}</h3>
+                  <p className="text-yellow-100 text-xs font-medium">{t('ranking.modalSubtitle')}</p>
                 </div>
               </div>
             </div>
@@ -93,11 +94,11 @@ const RankingModal = ({ student, course, onClose, onSaved }) => {
             {/* Readonly fields */}
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-gray-50 rounded-2xl p-3 border border-gray-100">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Học Sinh</label>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">{t('admin.child')}</label>
                 <p className="font-bold text-gray-800 text-sm truncate">{student.childName}</p>
               </div>
               <div className="bg-gray-50 rounded-2xl p-3 border border-gray-100">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Khóa Học</label>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">{t('admin.course')}</label>
                 <p className="font-bold text-gray-800 text-sm truncate">{course?.name || '—'}</p>
               </div>
             </div>
@@ -105,7 +106,7 @@ const RankingModal = ({ student, course, onClose, onSaved }) => {
             {/* Stars - interactive */}
             <div>
               <label className="text-[11px] font-black text-gray-500 uppercase tracking-widest block mb-2">
-                ⭐ Số Sao Tháng Này
+                ⭐ {t('ranking.starsLabel')}
               </label>
               <div className="flex items-center gap-2">
                 {[...Array(100)].slice(0, 10).map((_, i) => {
@@ -140,7 +141,7 @@ const RankingModal = ({ student, course, onClose, onSaved }) => {
             {/* Title select */}
             <div>
               <label className="text-[11px] font-black text-gray-500 uppercase tracking-widest block mb-2">
-                🎖️ Danh Hiệu Tháng Này
+                🎖️ {t('ranking.titleLabel')}
               </label>
               <div className="grid grid-cols-1 gap-2">
                 {TITLE_OPTIONS.map(opt => (
@@ -164,7 +165,7 @@ const RankingModal = ({ student, course, onClose, onSaved }) => {
             {/* Skill input */}
             <div>
               <label className="text-[11px] font-black text-gray-500 uppercase tracking-widest block mb-2">
-                💡 Kỹ Năng Nổi Bật
+                💡 {t('ranking.skillLabel')}
               </label>
               <input
                 type="text"
@@ -181,7 +182,7 @@ const RankingModal = ({ student, course, onClose, onSaved }) => {
                 onClick={onClose}
                 className="flex-1 py-3 rounded-2xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 transition-all"
               >
-                Huỷ
+                {t('admin.cancel')}
               </button>
               <button
                 onClick={handleSubmit}
@@ -191,7 +192,7 @@ const RankingModal = ({ student, course, onClose, onSaved }) => {
                 {saving ? (
                   <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
-                  <>🏅 Xác Nhận</>
+                  <>🏅 {t('admin.confirm')}</>
                 )}
               </button>
             </div>
@@ -237,7 +238,7 @@ const CourseStudentList = () => {
             if (courseRes.data.success)   setCourse(courseRes.data.data);
         } catch (error) {
             console.error('Failed to fetch data:', error);
-            showToast.error('Lỗi khi tải dữ liệu 😢');
+            showToast.error(t('admin.fetchError'));
         } finally {
             setLoading(false);
         }
@@ -249,12 +250,12 @@ const CourseStudentList = () => {
         setStudents(prev => prev.map(s => s._id === studentId ? { ...s, isActive: false } : s));
         try {
             const res = await api.put(`/students/${studentId}/remove`);
-            if (res.data.success) showToast.success('Đã cập nhật xong! 🎉');
+            if (res.data.success) showToast.success(t('admin.updateSuccess'));
             else throw new Error(res.data.message);
         } catch (error) {
             console.error('Remove failed:', error);
             setStudents(originalStudents);
-            showToast.error(error.response?.data?.message || 'Không thể cập nhật trạng thái 😢');
+            showToast.error(error.response?.data?.message || t('admin.updateFailed'));
         }
     };
 
@@ -287,7 +288,7 @@ const CourseStudentList = () => {
                     className="p-3 bg-white border rounded-2xl hover:bg-gray-50 transition-all shadow-sm"
                 >←</button>
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-800">{course?.name || 'Khóa học'}</h1>
+                    <h1 className="text-2xl font-bold text-gray-800">{course?.name || t('admin.course')}</h1>
                     <p className="text-sm text-gray-400 capitalize">{t('admin.studentMgmt')} / {course?.ageGroup}</p>
                 </div>
             </div>
@@ -307,7 +308,11 @@ const CourseStudentList = () => {
                     </div>
                     <div className="flex gap-2">
                         {['all', 'active', 'inactive'].map(f => {
-                            const labels = { all: 'Tất cả', active: 'Hoạt động', inactive: 'Đã nghỉ' };
+                            const labels = { 
+                                all: t('admin.filterAll'), 
+                                active: t('admin.active'), 
+                                inactive: t('admin.inactive') 
+                            };
                             return (
                                 <button
                                     key={f}
@@ -334,7 +339,7 @@ const CourseStudentList = () => {
                                 <th className="pb-4 px-4">{t('admin.parent')}</th>
                                 <th className="pb-4 px-4">{t('admin.phone')}</th>
                                 <th className="pb-4 px-4">{t('admin.status')}</th>
-                                <th className="pb-4 px-4 text-center">Xếp Hạng</th>
+                                <th className="pb-4 px-4 text-center">{t('ranking.column')}</th>
                                 <th className="pb-4 px-4 text-center">{t('admin.actions')}</th>
                             </tr>
                         </thead>
@@ -377,7 +382,7 @@ const CourseStudentList = () => {
                                                             ? 'cursor-pointer drop-shadow-md hover:drop-shadow-lg'
                                                             : 'opacity-20 cursor-not-allowed grayscale'
                                                     }`}
-                                                    title="Thêm vào bảng xếp hạng"
+                                                    title={t('ranking.addToRanking')}
                                                 >
                                                     ⭐
                                                 </motion.button>

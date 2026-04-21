@@ -36,6 +36,13 @@
     "musicMovementDesc": "Học tiếng Anh qua bài hát, âm nhạc và các hoạt động vận động",
     "explore": "Nhấn để xem chi tiết khóa học"
   },
+  "ageGroup": {
+    "preschool": "Mầm non",
+    "primary": "Tiểu học",
+    "secondary": "Trung học",
+    "highschool": "Phổ thông",
+    "adult": "Người lớn"
+  },
   "whyUs": {
     "title": "Tại Sao Chọn Lucy's Class?",
     "subtitle": "Lý do phụ huynh tin tưởng trung tâm tiếng Anh của chúng tôi",
@@ -105,7 +112,7 @@
     "parentName": "Tên phụ huynh",
     "phone": "Số điện thoại",
     "childName": "Tên học sinh",
-    "childAge": "Tuổi",
+    "childAge": "Nhóm tuổi",
     "courseSelect": "Khóa học",
     "email": "Email phụ huynh (tùy chọn)",
     "message": "Tin nhắn (tùy chọn)",
@@ -128,7 +135,7 @@
     "copyright": "© 2026 Lucy's Class. Được thiết kế bởi Phạm Ngọc Dương. Mọi bản quyền được bảo lưu.",
     "phone": "Điện thoại: 0973702074",
     "emailAddr": "Email: lucyclass2019@gmail.com",
-    "website": "Website: lucysclass.com"
+    "website": "Website: lucyclass.com"
   },
   "success": "Thành công",
   "time_now": "Vừa xong",
@@ -158,6 +165,12 @@
     "teacherMgmt": "Quản lý giáo viên",
     "feedbackMgmt": "Quản lý feedback phụ huynh",
     "statistics": "Thống kê",
+    "courseStatus": {
+      "full": "Đã đầy",
+      "almostFull": "Gần đầy",
+      "available": "Còn chỗ",
+      "warning": "Lớp sắp đầy, đăng ký sớm!"
+    },
     "settings": "Cài đặt",
     "totalRegistrations": "Tổng số đăng ký",
     "activeCourses": "Khóa học hoạt động",
@@ -219,9 +232,14 @@
     "viewStudents": "Xem học sinh",
     "active": "Hoạt động",
     "inactive": "Đã nghỉ",
+    "filterAll": "Tất cả",
     "removeConfirm": "Bạn có chắc muốn cho học sinh này nghỉ?",
     "updateSuccess": "Đã cập nhật trạng thái học sinh",
+    "updateFailed": "Không thể cập nhật trạng thái 😢",
+    "fetchError": "Lỗi khi tải dữ liệu 😢",
     "emptyStudents": "Chưa có học sinh trong khóa này",
+    "noCourseFound": "Không tìm thấy khoá học nào",
+    "tryOtherKeyword": "Hãy thử từ khoá tìm kiếm khác",
     "timetable": "Thời khóa biểu",
     "rowManager": {
       "title": "Quản lý dòng (Phòng & Giờ)",
@@ -260,7 +278,7 @@
   "form": {
     "nameRequired": "Tên phụ huynh không được để trống",
     "childNameRequired": "Tên học sinh không được để trống",
-    "ageInvalid": "Tuổi phải từ 4 đến 16",
+    "ageInvalid": "Vui lòng chọn nhóm tuổi hợp lệ",
     "phoneInvalid": "Số điện thoại phải từ 9 đến 11 số",
     "emailInvalid": "Email không hợp lệ",
     "noteTooLong": "Ghi chú không được quá dài",
@@ -277,6 +295,7 @@
     "minutes_ago": "{{count}} phút trước",
     "hours_ago": "{{count}} giờ trước",
     "days_ago": "{{count}} ngày trước",
+    "loading": "Đang tải..." ,
     "close": "Đóng",
     "prev": "Trước",
     "next": "Tiếp"
@@ -361,23 +380,38 @@
   },
   "ranking": {
     "title": "Học Viên Xuất Sắc",
-    "subtitle": "Bảng xếp hạng tháng này"
+    "subtitle": "Bảng xếp hạng tháng này",
+    "modalTitle": "Lên Bảng Xếp Hạng",
+    "modalSubtitle": "Ghi nhận thành tích tháng này",
+    "starsLabel": "Số Sao Tháng Này",
+    "titleLabel": "Danh Hiệu Tháng Này",
+    "skillLabel": "Kỹ Năng Nổi Bật",
+    "fillRequired": "Vui lòng điền đầy đủ thông tin! 📝",
+    "saveSuccess": "Đã thêm vào bảng xếp hạng! 🏆",
+    "saveError": "Lỗi khi lưu xếp hạng 😢",
+    "column": "Xếp Hạng",
+    "addToRanking": "Thêm vào bảng xếp hạng"
   },
   "courseDetail": {
-  "badge": "Chi tiết khóa học",
-  "descriptionTitle": "Mô tả chi tiết:",
-  "highlightsTitle": "Điểm nổi bật:",
-  "teacherTitle": "Giáo viên phụ trách",
-  "registerBtn": "Đăng ký ngay",
-  "defaultAge": "4-6 tuổi",
-  "additionalTeachersTitle": "Giáo viên hỗ trợ",
-  "defaultClassSize": "8 - 10 học sinh",
-  "defaultDuration": "12 tuần – 2 buổi/tuần",
-  "defaultDesc": "Chương trình học tiếng Anh dành cho trẻ em, kết hợp với các hoạt động vui nhộn giúp trẻ tiếp thu ngôn ngữ một cách tự nhiên.",
-  "defaultHighlights": ["Phát âm chuẩn", "Học qua trò chơi", "Phản xạ tiếng Anh", "Giáo viên thân thiện"],
-  "defaultTeacher": "Ms. Emily",
-  "defaultSpecialization": "English Guide",
-  "closeBtnLabel": "Đóng",
-  "desktopBadge": "Course Details"
+    "badge": "Chi tiết khóa học",
+    "descriptionTitle": "Mô tả chi tiết:",
+    "highlightsTitle": "Điểm nổi bật:",
+    "teacherTitle": "Giáo viên phụ trách",
+    "registerBtn": "Đăng ký ngay",
+    "defaultAge": "Mầm non",
+    "additionalTeachersTitle": "Giáo viên hỗ trợ",
+    "defaultClassSize": "8 - 10 học sinh",
+    "defaultDuration": "12 tuần – 2 buổi/tuần",
+    "defaultDesc": "Chương trình học tiếng Anh dành cho trẻ em, kết hợp với các hoạt động vui nhộn giúp trẻ tiếp thu ngôn ngữ một cách tự nhiên.",
+    "defaultHighlights": [
+      "Phát âm chuẩn",
+      "Học qua trò chơi",
+      "Phản xạ tiếng Anh",
+      "Giáo viên thân thiện"
+    ],
+    "defaultTeacher": "Ms. Emily",
+    "defaultSpecialization": "English Guide",
+    "closeBtnLabel": "Đóng",
+    "desktopBadge": "Course Details"
   }
 }

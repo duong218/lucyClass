@@ -80,8 +80,8 @@ const StudentManagement = () => {
             {filteredCourses.length === 0 ? (
                 <div className="bg-gradient-to-b from-white to-slate-50 rounded-[2.5rem] p-20 text-center border-2 border-dashed border-slate-200 shadow-inner">
                     <div className="text-6xl mb-6 grayscale opacity-40">📭</div>
-                    <p className="text-slate-400 text-lg font-bold">Không tìm thấy khoá học nào</p>
-                    <p className="text-slate-300 text-sm mt-1">Hãy thử từ khoá tìm kiếm khác</p>
+                    <p className="text-slate-400 text-lg font-bold">{t('admin.noCourseFound')}</p>
+                    <p className="text-slate-300 text-sm mt-1">{t('admin.tryOtherKeyword')}</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">

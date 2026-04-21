@@ -16,8 +16,9 @@ const registrationSchema = new mongoose.Schema({
     trim: true
   },
   childAge: {
-    type: Number,
-    required: true
+    type: String,
+    required: true,
+    enum: ['preschool', 'primary', 'secondary', 'highschool', 'adult']
   },
   courseId: {
     type: mongoose.Schema.Types.ObjectId,

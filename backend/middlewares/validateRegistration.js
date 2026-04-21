@@ -58,9 +58,9 @@ const validateCooldown = (req, res, next) => {
   }
 
   // Age: must be a number between 4 and 16
-  const ageNum = Number(childAge);
-  if (isNaN(ageNum) || ageNum < 4 || ageNum > 16) {
-    return res.status(400).json({ message: 'Age must be a number between 4 and 16' });
+  const VALID_AGE_GROUPS = ['preschool', 'primary', 'secondary', 'highschool', 'adult'];
+  if (!childAge || !VALID_AGE_GROUPS.includes(childAge)) {
+    return res.status(400).json({ message: 'Invalid age group' });
   }
 
   // Email: optional, valid format

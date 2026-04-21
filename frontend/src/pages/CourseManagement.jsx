@@ -1,11 +1,17 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import { getImageUrl } from '../utils/getImageUrl';
 import ConfirmModal from '../components/common/ConfirmModal';
 import PrimaryButton from '../components/common/PrimaryButton';
 import { showToast } from '../utils/toastUtils';
 
+// Các key ageGroup — giá trị lưu DB là key tiếng Anh (preschool, primary...),
+// label hiển thị lấy từ i18n theo ngôn ngữ hiện tại
+const AGE_GROUP_KEYS = ['preschool', 'primary', 'secondary', 'highschool', 'adult'];
+
 const CourseManagement = () => {
+  const { t } = useTranslation();
   const [courses, setCourses] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [showForm, setShowForm] = useState(false);
@@ -39,6 +45,13 @@ const CourseManagement = () => {
 
   useEffect(() => { fetchData(); }, []);
 
+  // Hiển thị label ageGroup: nếu value khớp với key i18n thì dịch, không thì hiển thị raw
+  const getAgeGroupLabel = (value) => {
+    if (!value) return '';
+    if (AGE_GROUP_KEYS.includes(value)) return t(`ageGroup.${value}`);
+    return value; // fallback cho dữ liệu cũ (4-6, 7-10, 11-15)
+  };
+
   const openAdd = () => {
     setEditing(null);
     setFormData({ name: '', ageGroup: '', duration: '', classSize: '', description: '', highlights: '', teacher: '', additionalTeachers: [] });
@@ -66,7 +79,6 @@ const CourseManagement = () => {
     setShowForm(true);
   };
 
-  // Toggle chọn/bỏ giáo viên phụ
   const toggleAdditionalTeacher = (teacherId) => {
     setFormData(prev => {
       const current = prev.additionalTeachers;
@@ -101,8 +113,6 @@ const CourseManagement = () => {
     if (formData.additionalTeachers.length > 4) {
       newErrors.additionalTeachers = 'Maximum 4 additional teachers';
     }
-
-    // GV phụ không được trùng GV chính
     if (formData.teacher && formData.additionalTeachers.includes(formData.teacher)) {
       newErrors.additionalTeachers = 'Giáo viên phụ không được trùng giáo viên chính';
     }
@@ -129,7 +139,6 @@ const CourseManagement = () => {
         const arr = v.split(',').map(h => h.trim()).filter(Boolean);
         arr.forEach(item => fd.append('highlights', item));
       } else if (k === 'additionalTeachers') {
-        // Gửi mảng: mỗi ID append riêng. Nếu rỗng gửi chuỗi rỗng để backend biết xóa hết
         if (Array.isArray(v) && v.length > 0) {
           v.forEach(id => fd.append('additionalTeachers', id));
         } else {
@@ -176,8 +185,7 @@ const CourseManagement = () => {
     }
   };
 
-  // Danh sách GV có thể chọn làm GV phụ (loại trừ GV chính đang chọn)
-  const availableAdditionalTeachers = teachers.filter(t => t._id !== formData.teacher);
+  const availableAdditionalTeachers = teachers.filter(tc => tc._id !== formData.teacher);
 
   if (showForm) {
     return (
@@ -198,12 +206,16 @@ const CourseManagement = () => {
               <label className="block text-sm font-semibold text-gray-700 mb-1">Age Group</label>
               <div className="relative">
                 <span className="absolute left-3 top-2.5 text-gray-400">🎂</span>
-                <select value={formData.ageGroup} onChange={e => setFormData({...formData, ageGroup: e.target.value})} required
-                  className={`w-full pl-10 pr-4 py-2.5 rounded-xl border-2 outline-none text-sm ${errors.ageGroup ? 'border-red-400 focus:border-red-500' : 'border-gray-200 focus:border-primary-400'}`}>
+                <select
+                  value={formData.ageGroup}
+                  onChange={e => setFormData({...formData, ageGroup: e.target.value})}
+                  required
+                  className={`w-full pl-10 pr-4 py-2.5 rounded-xl border-2 outline-none text-sm ${errors.ageGroup ? 'border-red-400 focus:border-red-500' : 'border-gray-200 focus:border-primary-400'}`}
+                >
                   <option value="">Select Age Group</option>
-                  <option value="4-6">4 – 6 years old</option>
-                  <option value="7-10">7 – 10 years old</option>
-                  <option value="11-15">11 – 15 years old</option>
+                  {AGE_GROUP_KEYS.map(key => (
+                    <option key={key} value={key}>{t(`ageGroup.${key}`)}</option>
+                  ))}
                 </select>
               </div>
               {errors.ageGroup && <p className="text-red-500 text-[10px] mt-1 ml-1 font-semibold">{errors.ageGroup}</p>}
@@ -235,7 +247,6 @@ const CourseManagement = () => {
                 value={formData.teacher}
                 onChange={e => {
                   const newMain = e.target.value;
-                  // Nếu GV chính mới đang có trong danh sách GV phụ → tự động bỏ ra
                   setFormData(prev => ({
                     ...prev,
                     teacher: newMain,
@@ -249,7 +260,7 @@ const CourseManagement = () => {
             </div>
           </div>
 
-          {/* ── Giáo viên phụ ── */}
+          {/* Giáo viên phụ */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">
               Giáo viên phụ
@@ -257,7 +268,7 @@ const CourseManagement = () => {
             </label>
             {availableAdditionalTeachers.length === 0 ? (
               <p className="text-xs text-gray-400 italic py-2">
-                {teachers.length === 0 ? 'Chưa có giáo viên nào.' : 'Không còn giáo viên khả dụng (đã chọn làm GV chính).'}
+                {teachers.length === 0 ? 'Chưa có giáo viên nào.' : 'Không còn giáo viên khả dụng.'}
               </p>
             ) : (
               <div className="flex flex-wrap gap-2 mt-1">
@@ -358,21 +369,21 @@ const CourseManagement = () => {
             )}
             <h3 className="font-bold text-lg text-gray-800 mb-1">{course.name}</h3>
             <div className="flex flex-wrap gap-2 mb-2">
-              <span className="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full font-semibold">🎂 {course.ageGroup}</span>
+              <span className="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full font-semibold">
+                🎂 {getAgeGroupLabel(course.ageGroup)}
+              </span>
               <span className="bg-green-50 text-green-700 text-xs px-2 py-0.5 rounded-full font-semibold">🕐 {course.duration}</span>
               <span className="bg-purple-50 text-purple-700 text-xs px-2 py-0.5 rounded-full font-semibold">👥 {course.classSize}</span>
             </div>
             <p className="text-sm text-gray-600 mb-2 line-clamp-2">{course.description}</p>
-            {/* Giáo viên chính */}
             {course.teacher && (
               <p className="text-xs text-primary-500 font-semibold">⭐ {course.teacher.name}</p>
             )}
-            {/* Giáo viên phụ */}
             {course.additionalTeachers?.length > 0 && (
               <div className="flex flex-wrap gap-1 mt-1 mb-2">
-                {course.additionalTeachers.map(t => (
-                  <span key={t._id} className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-medium">
-                    👩‍🏫 {t.name}
+                {course.additionalTeachers.map(tc => (
+                  <span key={tc._id} className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-medium">
+                    👩‍🏫 {tc.name}
                   </span>
                 ))}
               </div>

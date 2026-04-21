@@ -7,6 +7,21 @@ import { formatDateTime, getRelativeTime } from '../utils/dateUtils';
 
 const RegistrationManagement = () => {
   const { t } = useTranslation();
+
+  // Helper: chuyển childAge key → label hiển thị, có fallback cho data cũ
+  const AGE_GROUP_KEYS = ['preschool', 'primary', 'secondary', 'highschool', 'adult'];
+  const LEGACY_AGE_MAP = {
+    5: 'preschool', '5': 'preschool', '4-6': 'preschool',
+    7: 'primary',   '7': 'primary',   '6-9': 'primary',  '7-10': 'primary',
+    12: 'secondary','12': 'secondary','9-15': 'secondary','11-15': 'secondary',
+  };
+  const getAgeGroupLabel = (value) => {
+    if (AGE_GROUP_KEYS.includes(value)) return t(`ageGroup.${value}`);
+    const mapped = LEGACY_AGE_MAP[value];
+    if (mapped) return t(`ageGroup.${mapped}`);
+    return value; // fallback tuyệt đối
+  };
+
   const [registrations, setRegistrations] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [courses, setCourses] = useState([]);
@@ -182,7 +197,7 @@ const RegistrationManagement = () => {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b">
               <tr>
-                {['Phụ huynh', 'Học sinh', 'Tuổi', 'Khoá học', 'Số điện thoại', 'Thời gian', 'Trạng thái', 'Hành động'].map(h => (
+                {['Phụ huynh', 'Học sinh', 'Nhóm tuổi', 'Khoá học', 'Số điện thoại', 'Thời gian', 'Trạng thái', 'Hành động'].map(h => (
                   <th key={h} className="text-left px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">{h}</th>
                 ))}
               </tr>
@@ -195,7 +210,7 @@ const RegistrationManagement = () => {
                     <span className="font-medium text-gray-800">{reg.parentName}</span>
                   </td>
                   <td className="px-4 py-3 text-gray-700">{reg.childName}</td>
-                  <td className="px-4 py-3 text-gray-600">{reg.childAge} tuổi</td>
+                  <td className="px-4 py-3 text-gray-600">{getAgeGroupLabel(reg.childAge)}</td>
                   <td className="px-4 py-3">
                     <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full text-xs font-bold border border-blue-100">
                       {reg.courseId?.name || 'N/A'}
@@ -264,7 +279,7 @@ const RegistrationManagement = () => {
               {[
                 { label: 'Tên phụ huynh', value: selected.parentName },
                 { label: 'Tên học sinh', value: selected.childName },
-                { label: 'Tuổi', value: `${selected.childAge} tuổi` },
+                { label: 'Nhóm tuổi', value: getAgeGroupLabel(selected.childAge) },
                 { label: 'Số điện thoại', value: selected.phone, highlight: true },
                 { label: 'Khoá học', value: selected.courseId?.name || 'N/A', badge: true },
               ].map(({ label, value, highlight, badge }) => (

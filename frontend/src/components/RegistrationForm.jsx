@@ -20,7 +20,7 @@ const RegistrationForm = () => {
 
   const [courses, setCourses] = useState([]);
   const [formData, setFormData] = useState({
-    parentName: '', phone: '', childName: '', childAge: 5, courseId: '', email: '', message: ''
+    parentName: '', phone: '', childName: '', childAge: 'preschool', courseId: '', email: '', message: ''
   });
   const [captchaToken, setCaptchaToken] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
@@ -84,7 +84,7 @@ const RegistrationForm = () => {
         icon: "🚀",
         style: { borderRadius: '20px', fontWeight: 'bold' }
       });
-      setFormData({ parentName: '', phone: '', childName: '', childAge: 5, courseId: '', email: '', message: '' });
+      setFormData({ parentName: '', phone: '', childName: '', childAge: 'preschool', courseId: '', email: '', message: '' });
       if (recaptchaRef.current) recaptchaRef.current.reset();
       setCaptchaToken(null);
       setDuplicateConfirm(null);
@@ -102,25 +102,25 @@ const RegistrationForm = () => {
           { autoClose: 6000, icon: "⏳" }
         );
 
-        // ✅ 403 — CSRF hoặc security policy
+      // ✅ 403 — CSRF hoặc security policy
       } else if (status === 403) {
         toast.error(
           t("form.securityError", "🔒 Phiên làm việc đã hết hạn. Vui lòng tải lại trang và thử lại."),
           { autoClose: 8000, icon: "🔒" }
         );
 
-        // ✅ Captcha hết hạn
+      // ✅ Captcha hết hạn
       } else if (msg === 'captcha_invalid' || msg === 'captcha_required' || msg?.includes('captcha')) {
         toast.error(
           t("form.captchaExpired", "🤖 Captcha đã hết hạn, vui lòng xác nhận lại."),
           { autoClose: 5000 }
         );
 
-        // ✅ Lớp đầy
+      // ✅ Lớp đầy
       } else if (msg === 'CLASS_FULL' || msg?.includes('CLASS_FULL')) {
         toast.error(t("form.CLASS_FULL"), { autoClose: 5000 });
 
-        // ✅ Validation errors từ backend
+      // ✅ Validation errors từ backend
       } else {
         const backendErrors = data?.errors;
         if (backendErrors && Array.isArray(backendErrors)) {
@@ -283,7 +283,7 @@ const RegistrationForm = () => {
               </div>
             </div>
 
-            {/* Child Age */}
+            {/* Child Age Group */}
             <div className="group">
               <label className="block font-bold text-text-main mb-2 ml-1 text-sm">{t('registration.childAge')}</label>
               <div className="relative">
@@ -291,15 +291,29 @@ const RegistrationForm = () => {
                 <select
                   name="childAge"
                   value={formData.childAge}
-                  onChange={e => handleChange('childAge', Number(e.target.value))}
+                  onChange={e => handleChange('childAge', e.target.value)}
                   className={`w-full bg-[#D0EAF9] rounded-full py-3.5 pl-12 pr-10 text-sm outline-none border-2 transition-all font-semibold appearance-none shadow-inner ${fieldErrors.childAge ? 'border-red-500 bg-red-50' : 'border-transparent focus:border-blue-400 focus:bg-white'
                     }`}
                 >
-                  <option value={5}>4-6 {t('admin.age')}</option>
-                  <option value={7}>6-9 {t('admin.age')}</option>
-                  <option value={12}>9-15 {t('admin.age')}</option>
+                  <option value="preschool">{t('ageGroup.preschool')}</option>
+                  <option value="primary">{t('ageGroup.primary')}</option>
+                  <option value="secondary">{t('ageGroup.secondary')}</option>
+                  <option value="highschool">{t('ageGroup.highschool')}</option>
+                  <option value="adult">{t('ageGroup.adult')}</option>
                 </select>
                 <span className="absolute right-5 top-4 text-gray-400 text-xs pointer-events-none">▼</span>
+                <AnimatePresence>
+                  {fieldErrors.childAge && (
+                    <motion.p
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      className="text-red-500 text-[11px] font-bold mt-1 ml-4"
+                    >
+                      ⚠️ {t(fieldErrors.childAge)}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           </div>
