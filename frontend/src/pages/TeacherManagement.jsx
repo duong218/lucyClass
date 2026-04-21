@@ -5,6 +5,83 @@ import ConfirmModal from '../components/common/ConfirmModal';
 import PrimaryButton from '../components/common/PrimaryButton';
 import { showToast } from '../utils/toastUtils';
 
+// ─── Modal hiển thị tài khoản tự động tạo (tái sử dụng pattern từ AccountManagement) ──
+const CredentialModal = ({ data, onClose }) => {
+  const [copied, setCopied] = useState('');
+  if (!data) return null;
+
+  const copy = (text, key) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(key);
+      setTimeout(() => setCopied(''), 2000);
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-3xl w-full max-w-md p-7 shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="text-center mb-5">
+          <div className="w-14 h-14 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+            <span className="text-3xl">🔐</span>
+          </div>
+          <h3 className="text-xl font-black text-gray-800">Tài khoản giáo viên vừa tạo</h3>
+          <p className="text-sm text-gray-500 mt-1">
+            Hệ thống đã tự động tạo tài khoản đăng nhập cho giáo viên này.<br />
+            Sao chép và gửi thông tin cho giáo viên ngay bây giờ.<br />
+            <span className="text-red-500 font-semibold">Mật khẩu chỉ hiển thị 1 lần!</span>
+          </p>
+        </div>
+
+        {/* Tên giáo viên */}
+        <div className="mb-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-2.5">
+          <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-0.5">Giáo viên</p>
+          <p className="font-bold text-gray-800 text-sm">👩‍🏫 {data.displayName}</p>
+        </div>
+
+        {/* Username */}
+        <div className="mb-3">
+          <label className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 block">
+            Tên đăng nhập
+          </label>
+          <div className="flex items-center gap-2 bg-gray-50 border-2 border-gray-200 rounded-xl px-4 py-3">
+            <span className="flex-1 font-mono font-bold text-gray-800 text-sm">{data.username}</span>
+            <button
+              onClick={() => copy(data.username, 'user')}
+              className="text-xs font-bold text-blue-500 hover:text-blue-700 transition-colors shrink-0"
+            >
+              {copied === 'user' ? '✅ Đã copy' : '📋 Copy'}
+            </button>
+          </div>
+        </div>
+
+        {/* Password */}
+        <div className="mb-5">
+          <label className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 block">
+            Mật khẩu ban đầu
+          </label>
+          <div className="flex items-center gap-2 bg-amber-50 border-2 border-amber-200 rounded-xl px-4 py-3">
+            <span className="flex-1 font-mono font-bold text-amber-800 text-sm tracking-widest">{data.password}</span>
+            <button
+              onClick={() => copy(data.password, 'pass')}
+              className="text-xs font-bold text-amber-600 hover:text-amber-800 transition-colors shrink-0"
+            >
+              {copied === 'pass' ? '✅ Đã copy' : '📋 Copy'}
+            </button>
+          </div>
+        </div>
+
+        <button
+          onClick={onClose}
+          className="w-full bg-blue-600 text-white py-3 rounded-2xl font-black text-base hover:bg-blue-700 transition-all active:scale-95"
+        >
+          Đã lưu thông tin, đóng lại
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ─── Main component ───────────────────────────────────────────────────────────
 const TeacherManagement = () => {
   const [teachers, setTeachers] = useState([]);
   const [search, setSearch] = useState('');
@@ -16,6 +93,8 @@ const TeacherManagement = () => {
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, id: null });
+  // State cho modal hiển thị tài khoản tự động tạo
+  const [credModal, setCredModal] = useState(null); // { username, password, displayName }
 
   const fetchData = async () => {
     try {
@@ -105,10 +184,23 @@ const TeacherManagement = () => {
     Object.entries(formData).forEach(([k, v]) => fd.append(k, k === 'rating' ? String(v) : v));
     if (avatarFile) fd.append('avatar', avatarFile);
     try {
-      if (editing) { await api.put(`/teachers/${editing._id}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }); }
-      else { await api.post('/teachers', fd, { headers: { 'Content-Type': 'multipart/form-data' } }); }
+      if (editing) {
+        await api.put(`/teachers/${editing._id}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        showToast.success('Cập nhật giáo viên thành công! 🎉');
+      } else {
+        const res = await api.post('/teachers', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        showToast.success('Thêm giáo viên thành công! 🎉');
+        // Hiển thị modal tài khoản tự động tạo
+        const sa = res.data?.staffAccount;
+        if (sa?.username && sa?.initialPassword) {
+          setCredModal({
+            username: sa.username,
+            password: sa.initialPassword,
+            displayName: sa.displayName || formData.name
+          });
+        }
+      }
       setShowForm(false);
-      showToast.success(editing ? 'Cập nhật giáo viên thành công! 🎉' : 'Thêm giáo viên thành công! 🎉');
       fetchData();
     } catch (err) {
       console.error(err);
@@ -152,44 +244,43 @@ const TeacherManagement = () => {
             placeholder="Tìm kiếm giáo viên theo tên..."
             className="w-full pl-10 pr-4 py-2.5 rounded-xl border-2 border-gray-200 focus:border-blue-400 outline-none text-sm transition-colors" />
         </div>
-        <button onClick={openAdd} className="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-blue-700 transition-all text-sm whitespace-nowrap shadow-sm hover:shadow-md hover:-translate-y-0.5">
-          + Thêm giáo viên
-        </button>
+        <PrimaryButton onClick={openAdd} variant="primary">➕ Thêm giáo viên</PrimaryButton>
       </div>
 
-      {/* Bảng giáo viên */}
-      <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
+      {/* Bảng danh sách */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                {['Ảnh đại diện', 'Họ tên', 'Chuyên môn', 'Kinh nghiệm', 'Xếp hạng', 'Hành động'].map(h => (
-                  <th key={h} className="text-left px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">{h}</th>
-                ))}
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-100">
+                <th className="px-4 py-3 text-left font-black text-gray-500 uppercase text-xs tracking-wider">Giáo viên</th>
+                <th className="px-4 py-3 text-left font-black text-gray-500 uppercase text-xs tracking-wider">Chuyên môn</th>
+                <th className="px-4 py-3 text-left font-black text-gray-500 uppercase text-xs tracking-wider">Kinh nghiệm</th>
+                <th className="px-4 py-3 text-left font-black text-gray-500 uppercase text-xs tracking-wider">Xếp hạng</th>
+                <th className="px-4 py-3 text-left font-black text-gray-500 uppercase text-xs tracking-wider">Mô tả</th>
+                <th className="px-4 py-3 text-left font-black text-gray-500 uppercase text-xs tracking-wider">Thao tác</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-gray-50">
               {filtered.map(tc => (
-                <tr key={tc._id} className="border-b last:border-0 hover:bg-gray-50/70 transition-colors">
+                <tr key={tc._id} className="hover:bg-gray-50/50 transition-colors">
                   <td className="px-4 py-3">
-                    <div className="w-10 h-10 rounded-full overflow-hidden bg-blue-100 flex items-center justify-center">
-                      {tc.avatar
-                        ? <img src={getImageUrl(tc.avatar)} alt={tc.name} className="w-full h-full object-cover" onError={handleImageError} />
-                        : <span className="text-xl">👩‍🏫</span>}
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={getImageUrl(tc.avatar) || '/placeholder.jpg'}
+                        alt={tc.name}
+                        onError={handleImageError}
+                        className="w-9 h-9 rounded-full object-cover bg-blue-100 shrink-0"
+                      />
+                      <span className="font-bold text-gray-800">{tc.name}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 font-semibold text-gray-800">{tc.name}</td>
                   <td className="px-4 py-3 text-gray-600">{tc.specialization}</td>
+                  <td className="px-4 py-3 text-gray-600">{tc.experience} năm</td>
                   <td className="px-4 py-3">
-                    <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full text-xs font-bold border border-emerald-100">
-                      {tc.experience} năm
-                    </span>
+                    <span className="text-amber-500 font-bold">{'★'.repeat(tc.rating)}{'☆'.repeat(5 - tc.rating)}</span>
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="flex text-amber-400 text-sm">
-                      {'★'.repeat(tc.rating || 5)}{'☆'.repeat(5 - (tc.rating || 5))}
-                    </div>
-                  </td>
+                  <td className="px-4 py-3 text-gray-500 max-w-[160px] truncate">{tc.description}</td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
                       <button onClick={() => openEdit(tc)} className="bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-600 transition-all hover:-translate-y-0.5">✏️ Sửa</button>
@@ -213,6 +304,16 @@ const TeacherManagement = () => {
             <h3 className="text-xl font-black text-gray-800 mb-5">
               {editing ? '✏️ Chỉnh sửa giáo viên' : '➕ Thêm giáo viên mới'}
             </h3>
+
+            {/* Info box: chỉ hiện khi tạo mới */}
+            {!editing && (
+              <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 mb-4">
+                <p className="text-xs text-blue-700 font-semibold leading-relaxed">
+                  💡 Hệ thống sẽ tự động tạo tài khoản đăng nhập (<span className="font-mono">LCxxxxxxxx</span>) cho giáo viên này. Thông tin đăng nhập sẽ hiện sau khi tạo thành công.
+                </p>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Họ tên */}
               <div>
@@ -330,12 +431,15 @@ const TeacherManagement = () => {
         </div>
       )}
 
+      {/* Modal hiển thị tài khoản tự động tạo */}
+      <CredentialModal data={credModal} onClose={() => setCredModal(null)} />
+
       <ConfirmModal
         isOpen={confirmModal.isOpen}
         onClose={() => setConfirmModal({ isOpen: false, id: null })}
         onConfirm={confirmDelete}
         title="Xoá giáo viên này?"
-        message="Hồ sơ giáo viên sẽ bị xoá vĩnh viễn và không thể khôi phục. Bạn chắc chắn chứ?"
+        message="Hồ sơ giáo viên sẽ bị xoá và tài khoản đăng nhập của giáo viên sẽ bị vô hiệu hoá. Bạn chắc chắn chứ?"
       />
     </div>
   );

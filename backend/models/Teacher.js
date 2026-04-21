@@ -43,6 +43,12 @@ const teacherSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  // Liên kết với tài khoản đăng nhập của giáo viên (StaffAccount role=teacher)
+  staffAccountId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'StaffAccount',
+    default: null
+  },
   isDeleted: {
     type: Boolean,
     default: false

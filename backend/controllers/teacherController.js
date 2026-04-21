@@ -1,4 +1,5 @@
 const Teacher = require('../models/Teacher');
+const StaffAccount = require('../models/StaffAccount');
 const mongoose = require('mongoose');
 const logAdminAction = require('../utils/logAdminAction');
 const { uploadImageBuffer, deleteImageFromCloudinary } = require('../utils/cloudinary');
@@ -67,6 +68,7 @@ exports.getById = async (req, res, next) => {
 // POST /api/teachers
 exports.create = async (req, res) => {
   let uploadResult = null;
+  let createdStaff = null;
   try {
     const raw = pickTeacherInput(req.body);
     const name = trimStr(raw.name);
@@ -105,23 +107,59 @@ exports.create = async (req, res) => {
       data.avatarPublicId = uploadResult.public_id;
     }
 
+    // ── Tự động tạo StaffAccount cho giáo viên ──────────────────────────────
+    const username = await StaffAccount.generateUniqueUsername();
+    const plainPassword = StaffAccount.generateRandomPassword();
+    createdStaff = await StaffAccount.create({
+      username,
+      password: plainPassword, // pre-save hook sẽ hash
+      role: 'teacher',
+      displayName: cleanInput(name), // dùng tên giáo viên luôn
+      phone: '',
+      email: '',
+      courseIds: []
+    });
+    // ────────────────────────────────────────────────────────────────────────
+
+    // Gắn staffAccountId vào teacher
+    data.staffAccountId = createdStaff._id;
+
     const teacher = await Teacher.create(data);
+
     await Promise.all([
       clearCache('/api/teachers'),
       clearCache('/api/courses')
     ]);
+
     await logAdminAction({
       adminId: req.admin?.id || null,
       adminName: req.admin?.username || 'system',
       action: 'CREATE_TEACHER',
       targetType: 'teacher',
       targetId: teacher._id,
-      description: `Created teacher: ${teacher.name}`,
+      description: `Created teacher: ${teacher.name} (auto-created staff account: ${username})`,
       req
     });
-    return res.status(201).json({ success: true, data: teacher, message: 'Teacher created successfully' });
+
+    return res.status(201).json({
+      success: true,
+      data: teacher,
+      message: 'Teacher created successfully',
+      // Trả về thông tin tài khoản để admin thông báo cho giáo viên — chỉ xuất hiện 1 lần
+      staffAccount: {
+        _id: createdStaff._id,
+        username: createdStaff.username,
+        initialPassword: plainPassword,
+        role: createdStaff.role,
+        displayName: createdStaff.displayName
+      }
+    });
   } catch (error) {
-    // Rollback uploaded image if DB save fails
+    // Rollback: xoá StaffAccount vừa tạo nếu Teacher.create() thất bại
+    if (createdStaff?._id) {
+      try { await StaffAccount.findByIdAndDelete(createdStaff._id); } catch (_) {}
+    }
+    // Rollback: xoá ảnh đã upload nếu có lỗi
     if (uploadResult?.public_id) {
       try { await deleteImageFromCloudinary(uploadResult.public_id); } catch (_) {}
     }
@@ -208,6 +246,15 @@ exports.update = async (req, res) => {
       throw dbError;
     }
 
+    // Đồng bộ displayName sang StaffAccount nếu tên giáo viên thay đổi
+    if (data.name && existing.staffAccountId) {
+      try {
+        await StaffAccount.findByIdAndUpdate(existing.staffAccountId, {
+          displayName: data.name
+        });
+      } catch (_) {}
+    }
+
     // Delete old image ONLY after DB update succeeds
     if (uploadResult && existing.avatarPublicId) {
       try { await deleteImageFromCloudinary(existing.avatarPublicId); } catch (_) {}
@@ -260,6 +307,18 @@ exports.remove = async (req, res, next) => {
     if (teacher.avatarPublicId) {
       try { await deleteImageFromCloudinary(teacher.avatarPublicId); } catch (_) {}
     }
+
+    // Deactivate StaffAccount liên kết (soft-disable, không xoá hẳn để giữ audit trail)
+    if (teacher.staffAccountId) {
+      try {
+        await StaffAccount.findByIdAndUpdate(teacher.staffAccountId, {
+          isActive: false,
+          refreshTokens: [],
+          activeSessionId: undefined
+        });
+      } catch (_) {}
+    }
+
     await Promise.all([
       clearCache('/api/teachers'),
       clearCache('/api/courses')
@@ -270,7 +329,7 @@ exports.remove = async (req, res, next) => {
       action: 'DELETE_TEACHER',
       targetType: 'teacher',
       targetId: teacher._id,
-      description: `Deleted teacher: ${teacher.name}`,
+      description: `Deleted teacher: ${teacher.name}${teacher.staffAccountId ? ' (staff account deactivated)' : ''}`,
       req
     });
     return res.json({ success: true, message: 'Teacher deleted successfully' });
