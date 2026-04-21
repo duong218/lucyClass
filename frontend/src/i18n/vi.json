@@ -164,6 +164,7 @@
     "courseMgmt": "Quản lý khóa học",
     "teacherMgmt": "Quản lý giáo viên",
     "feedbackMgmt": "Quản lý feedback phụ huynh",
+    "accounts_management": "Quản lý tài khoản nhân viên",
     "statistics": "Thống kê",
     "courseStatus": {
       "full": "Đã đầy",

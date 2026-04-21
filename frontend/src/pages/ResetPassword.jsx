@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../services/api';
+import { setAccessToken } from '../services/api';
 
 const ResetPassword = () => {
   const navigate = useNavigate();
@@ -13,10 +14,13 @@ const ResetPassword = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('[Frontend] Thử đặt lại mật khẩu với token:', token?.substring(0, 5) + '...');
-    
+
     if (password !== confirmPassword) {
       setError('Mật khẩu xác nhận không khớp!');
+      return;
+    }
+    if (password.length < 6) {
+      setError('Mật khẩu phải có ít nhất 6 ký tự');
       return;
     }
 
@@ -26,14 +30,16 @@ const ResetPassword = () => {
 
     try {
       const res = await api.post(`/auth/reset-password/${token}`, { password });
-      console.log('[Frontend] Reset Response:', res.data);
       if (res.data.success) {
-        setMessage('Đặt lại mật khẩu thành công! Đang chuyển hướng...');
-        setTimeout(() => navigate('/admin/login'), 2000);
+        // Xoá toàn bộ session cũ ở client — backend đã xoá session server-side
+        localStorage.removeItem('hasSession');
+        setAccessToken(null);
+
+        setMessage('Đặt lại mật khẩu thành công! Vui lòng đăng nhập lại với mật khẩu mới.');
+        setTimeout(() => navigate('/admin/login'), 2500);
       }
     } catch (err) {
-      console.error('[Frontend] Reset Error:', err);
-      setError(err.response?.data?.message || 'Có lỗi xảy ra hoặc liên kết đã hết hạn');
+      setError(err.response?.data?.message || err.message || 'Có lỗi xảy ra hoặc liên kết đã hết hạn');
     } finally {
       setLoading(false);
     }
@@ -41,13 +47,16 @@ const ResetPassword = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-purple-50 to-pink-100 relative overflow-hidden">
-      {/* Decorative */}
+      {/* Decorative — giữ nguyên style gốc */}
       <div className="absolute top-10 left-10 text-5xl opacity-20 animate-float">🔑</div>
       <div className="absolute bottom-20 left-20 text-5xl opacity-20 animate-float" style={{ animationDelay: '0.5s' }}>🛡️</div>
 
       <div className="w-full max-w-md animate-fadeInUp flex flex-col items-center">
         <div className="bg-white rounded-3xl shadow-2xl p-10 w-full relative z-10">
           <div className="text-center mb-6">
+            <div className="bg-blue-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <span className="text-3xl">🔐</span>
+            </div>
             <h1 className="text-2xl font-display text-gray-800 mb-1">Đặt lại mật khẩu</h1>
             <p className="text-gray-500 text-sm">Nhập mật khẩu mới của bạn bên dưới</p>
           </div>
@@ -59,8 +68,9 @@ const ResetPassword = () => {
                 <span className="absolute left-3 top-3 text-gray-400">🔒</span>
                 <input
                   type="password" value={password} onChange={e => setPassword(e.target.value)} required
+                  minLength={6}
                   className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
-                  placeholder="••••••••"
+                  placeholder="Ít nhất 6 ký tự"
                 />
               </div>
             </div>
@@ -72,7 +82,7 @@ const ResetPassword = () => {
                 <input
                   type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required
                   className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
-                  placeholder="••••••••"
+                  placeholder="Nhập lại mật khẩu"
                 />
               </div>
             </div>
@@ -81,17 +91,25 @@ const ResetPassword = () => {
               type="submit" disabled={loading}
               className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 rounded-xl font-bold text-lg hover:shadow-lg transition-all disabled:opacity-50 active:scale-95 shadow-md"
             >
-              {loading ? 'đang cập nhật...' : 'Cập nhật mật khẩu'}
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                  </svg>
+                  Đang cập nhật...
+                </span>
+              ) : 'Cập nhật mật khẩu'}
             </button>
 
             {message && (
               <div className="bg-green-50 p-4 rounded-xl border border-green-100">
-                <p className="text-green-600 text-center text-sm font-semibold">{message}</p>
+                <p className="text-green-700 text-center text-sm font-semibold">✅ {message}</p>
               </div>
             )}
             {error && (
               <div className="bg-red-50 p-4 rounded-xl border border-red-100">
-                <p className="text-red-600 text-center text-sm font-semibold">{error}</p>
+                <p className="text-red-600 text-center text-sm font-semibold">❌ {error}</p>
               </div>
             )}
           </form>

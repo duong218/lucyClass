@@ -1,16 +1,16 @@
-﻿# Frontend Structure (lucyClass-main/frontend)
+# Frontend Structure (lucyClass-main/frontend)
 
 ## 1. Tổng quan
 
 - Framework: React 18 + Vite.
-- Routing: `react-router-dom` (public + admin nested route).
+- Routing: `react-router-dom` (public + admin/staff nested route).
 - HTTP client:
-- Axios instance trung tâm tại `src/services/api.js` (CSRF header, refresh token flow, auto retry khi 401).
-- Một số module dùng `fetch` trực tiếp (`streakService`, `keepAlive`).
+  - Axios instance trung tâm tại `src/services/api.js` (CSRF header, refresh token flow, auto retry khi 401).
+  - Một số module dùng `fetch` trực tiếp (`streakService`, `keepAlive`).
 - State management:
-- Chủ yếu bằng React hooks (`useState`, `useEffect`, `useMemo`, `useCallback`).
-- Global auth state qua `AuthContext`.
-- Không dùng Redux/Zustand.
+  - Chủ yếu bằng React hooks (`useState`, `useEffect`, `useMemo`, `useCallback`).
+  - Global auth state qua `AuthContext`.
+  - Không dùng Redux/Zustand.
 - i18n: `i18next` + `react-i18next`.
 - UI: Tailwind CSS + Framer Motion + React Icons/Lucide + React Toastify + Chart.js.
 
@@ -18,83 +18,77 @@
 
 ```text
 frontend/
-├─ .env.example
+├─ .env.example              # File cấu hình biến môi trường mẫu (API URL, reCAPTCHA key)
 ├─ index.html
 ├─ package.json
 ├─ vite.config.js
 ├─ tailwind.config.js
 ├─ postcss.config.js
 ├─ vercel.json
-├─ public/
-│  ├─ bg-login.png, bg-announcement.png, logo.jpeg, placeholder.jpg...
-│  ├─ images/, ranking/, avatar-ranking/, decorate/, model-transform/, sounds/
+├─ public/                   # Tài nguyên tĩnh phục vụ trực tiếp qua URL
+│  ├─ images/
+│  ├─ ranking/
+│  ├─ avatar-ranking/
+│  ├─ decorate/
+│  ├─ model-transform/
+│  ├─ sounds/
+│  ├─ bg-login.png, bg-announcement.png, kids.png, placeholder.jpg
+│  ├─ logo.jpeg, logo.svg, robot.txt, sitemap.xml
 ├─ src/
-│  ├─ main.jsx
-│  ├─ App.jsx
-│  ├─ i18n.js
-│  ├─ index.css
-│  ├─ assets/
+│  ├─ main.jsx               # Điểm khởi tạo ứng dụng
+│  ├─ App.jsx                # Cấu hình Routing và Layout chính
+│  ├─ i18n.js                # Cấu hình đa ngôn ngữ i18next
+│  ├─ index.css              # Style toàn cục (Tailwind imports)
+│  ├─ assets/                # Hình ảnh và asset được import vào component
+│  │  ├─ 404.png, flame.png, hero-bg.png, why-us-main.png...
 │  ├─ config/
-│  │  └─ api.js
+│  │  └─ api.js              # Cấu hình endpoint API (từ biến môi trường)
 │  ├─ contexts/
-│  │  └─ AuthContext.jsx
+│  │  └─ AuthContext.jsx     # Quản lý trạng thái đăng nhập, user profile
 │  ├─ hooks/
 │  │  └─ useLockBodyScroll.js
 │  ├─ i18n/
 │  │  ├─ index.js
-│  │  ├─ vi.json
-│  │  └─ en.json
+│  │  ├─ vi.json, en.json    # File dịch nội dung tiếng Việt/Anh
 │  ├─ layouts/
-│  │  ├─ Navbar.jsx
-│  │  ├─ Footer.jsx
-│  │  └─ AdminLayout.jsx
+│  │  ├─ Navbar.jsx, Footer.jsx
+│  │  ├─ AdminLayout.jsx     # Bố cục trang quản trị
+│  │  └─ StaffLayout.jsx     # Bố cục trang nhân viên
 │  ├─ pages/
-│  │  ├─ HomePage.jsx
-│  │  ├─ AdminLogin.jsx
-│  │  ├─ Dashboard.jsx
+│  │  ├─ HomePage.jsx        # Landing page chính
+│  │  ├─ AdminLogin.jsx      # Trang đăng nhập hệ thống
+│  │  ├─ Dashboard.jsx       # Tổng quan số liệu admin
 │  │  ├─ RegistrationManagement.jsx
 │  │  ├─ CourseManagement.jsx
 │  │  ├─ TeacherManagement.jsx
 │  │  ├─ FeedbackManagement.jsx
-│  │  ├─ Statistics.jsx
-│  │  ├─ AdminHistory.jsx
+│  │  ├─ Statistics.jsx      # Thống kê chi tiết
+│  │  ├─ AdminHistory.jsx    # Nhật ký hoạt động admin
 │  │  ├─ AnnouncementManagement.jsx
 │  │  ├─ TimetableEditor.jsx
 │  │  ├─ StudentManagement.jsx
 │  │  ├─ CourseStudentList.jsx
-│  │  ├─ ForgotPassword.jsx
-│  │  ├─ ResetPassword.jsx
-│  │  └─ NotFound/
-│  │     ├─ NotFound.jsx
-│  │     ├─ NotFound.css
-│  │     └─ GameLogic.js
+│  │  ├─ ForgotPassword.jsx, ResetPassword.jsx
+│  │  ├─ Marketing/
+│  │  │  └─ MarketingDashboard.jsx
+│  │  ├─ Teacher/
+│  │  │  └─ TeacherDashboard.jsx
+│  │  └─ NotFound/           # Trang 404 tích hợp mini game
 │  ├─ components/
-│  │  ├─ HeroSection.jsx, CoursesSection.jsx, TeachersSection.jsx, ActivitiesSection.jsx
-│  │  ├─ WhyChooseUs.jsx, LearningJourney.jsx, TestimonialsSection.jsx
-│  │  ├─ RegistrationForm.jsx, AnnouncementSection.jsx, AnnouncementModal.jsx
-│  │  ├─ ActivityPopup.jsx, CreatorPopup.jsx, HeartRain.jsx
-│  │  ├─ FlameButton.jsx, Fireworks.jsx, ScrollHintButton.jsx
-│  │  ├─ ProtectedRoute.jsx, RecaptchaProvider.jsx, RecaptchaBox.jsx
-│  │  ├─ CourseDetailModal.jsx
-│  │  ├─ Timetable/
-│  │  │  ├─ WeekSelector.jsx
-│  │  │  ├─ RowManager.jsx
-│  │  │  └─ CellPopover.jsx
-│  │  └─ common/
-│  │     ├─ PrimaryButton.jsx
-│  │     └─ ConfirmModal.jsx
+│  │  ├─ Sections: HeroSection, CoursesSection, TeachersSection, ActivitiesSection...
+│  │  ├─ Forms: RegistrationForm, AnnouncementModal...
+│  │  ├─ Widgets: FlameButton (Streak), Fireworks, HeartRain, ScrollHintButton...
+│  │  ├─ Auth: ProtectedRoute, RecaptchaProvider, RecaptchaBox...
+│  │  ├─ Timetable: WeekSelector, RowManager, CellPopover...
+│  │  └─ common: PrimaryButton, ConfirmModal...
 │  ├─ services/
-│  │  ├─ api.js
+│  │  ├─ api.js              # Axios instance & interceptors
 │  │  ├─ streakService.js
 │  │  └─ timetableService.js
 │  └─ utils/
-│     ├─ dateUtils.js
-│     ├─ draggableStreak.js
-│     ├─ getImageUrl.js
-│     ├─ keepAlive.js
-│     ├─ modalScrollLock.js
-│     ├─ popupActivityData.js
-│     └─ toastUtils.jsx
+│     ├─ dateUtils.js, deviceId.js, draggableStreak.js
+│     ├─ getImageUrl.js, keepAlive.js, modalScrollLock.js
+│     ├─ popupActivityData.js, toastUtils.jsx
 ```
 
 ## 3. Components
@@ -119,8 +113,8 @@ frontend/
 - `ScrollHintButton`: nút cuộn xuống/lên trên mobile.
 - `CreatorPopup`, `HeartRain`: popup thông tin creator + hiệu ứng tim.
 - `RecaptchaProvider` + `RecaptchaBox`: nạp script Google reCAPTCHA và render widget an toàn.
-- `ProtectedRoute`: chặn route admin khi chưa xác thực.
-- `PrimaryButton`, `ConfirmModal`: UI component dùng lại trong admin pages.
+- `ProtectedRoute`: chặn route admin/staff khi chưa xác thực.
+- `PrimaryButton`, `ConfirmModal`: UI component dùng lại trong admin/staff pages.
 
 ### Timetable components
 
@@ -133,111 +127,46 @@ frontend/
 ### Router map (từ `App.jsx`)
 
 - Public:
-- `/` -> `HomePage`
-- `/admin/login` -> `AdminLogin`
-- `/forgot-password` -> `ForgotPassword`
-- `/reset-password/:token` -> `ResetPassword`
+  - `/` -> `HomePage`
+  - `/admin/login` -> `AdminLogin`
+  - `/forgot-password` -> `ForgotPassword`
+  - `/reset-password/:token` -> `ResetPassword`
 
 - Admin protected (`ProtectedRoute` + `AdminLayout`):
-- `/admin/dashboard` -> `Dashboard`
-- `/admin/registrations` -> `RegistrationManagement`
-- `/admin/courses` -> `CourseManagement`
-- `/admin/teachers` -> `TeacherManagement`
-- `/admin/feedback` -> `FeedbackManagement`
-- `/admin/statistics` -> `Statistics`
-- `/admin/students` -> `StudentManagement`
-- `/admin/students/course/:courseId` -> `CourseStudentList`
-- `/admin/announcements` -> `AnnouncementManagement`
-- `/admin/timetable` -> `TimetableEditor`
-- `/admin/history` -> `AdminHistory`
+  - `/admin/dashboard` -> `Dashboard`
+  - `/admin/registrations` -> `RegistrationManagement`
+  - `/admin/courses` -> `CourseManagement`
+  - `/admin/teachers` -> `TeacherManagement`
+  - `/admin/feedback` -> `FeedbackManagement`
+  - `/admin/statistics` -> `Statistics`
+  - `/admin/students` -> `StudentManagement`
+  - `/admin/students/course/:courseId` -> `CourseStudentList`
+  - `/admin/announcements` -> `AnnouncementManagement`
+  - `/admin/timetable` -> `TimetableEditor`
+  - `/admin/history` -> `AdminHistory`
+
+- Staff protected (`ProtectedRoute` + `StaffLayout`):
+  - `/staff/marketing` -> `MarketingDashboard`
+  - `/staff/teacher` -> `TeacherDashboard`
 
 - Catch-all:
-- `*` -> `NotFound` (game tìm Lucy).
+  - `*` -> `NotFound` (game tìm Lucy).
 
-### Chức năng chính từng page
+## 5. Hooks & Utilities
 
-- `HomePage`: ghép toàn bộ section landing + navbar/footer + flame widget hỗ trợ conversion.
-- `AdminLogin`: đăng nhập admin, captcha, xử lý redirect nếu đã auth.
-- `Dashboard`: số liệu tổng hợp, biểu đồ, backup/restore, export excel registrations.
-- `RegistrationManagement`: danh sách + filter + đổi status + xóa registration.
-- `CourseManagement`, `TeacherManagement`, `FeedbackManagement`, `AnnouncementManagement`: CRUD admin với upload ảnh multipart.
-- `Statistics`: biểu đồ thống kê sâu (`Bar`, `Line`, `Pie`).
-- `AdminHistory`: nhật ký thao tác, filter theo action/date, export CSV, backup Drive.
-- `TimetableEditor`: quản lý lịch tuần (row/cell), export Excel timetable.
-- `StudentManagement`: danh sách khóa học và điều hướng sang học viên theo khóa.
-- `CourseStudentList`: danh sách học viên của khóa, remove student, gán ranking sao.
-- `ForgotPassword` / `ResetPassword`: flow khôi phục mật khẩu admin.
-- `NotFound`: game mini tương tác + đa ngôn ngữ.
-
-## 5. Hooks
-
-- `hooks/useLockBodyScroll.js`
-- Custom hook khóa scroll khi mở modal, xử lý mobile/iOS để tránh jump layout.
-
-- `pages/NotFound/GameLogic.js` (`useLucyGame`)
-- Hook quản lý logic game tìm Lucy: lives, random vị trí, hint cooldown, win/loss.
-
-- `utils/draggableStreak.js` (`useDraggableStreak`)
-- Hook kéo-thả widget streak, nhớ vị trí bằng `localStorage`, hỗ trợ pointer/touch.
+- `hooks/useLockBodyScroll.js`: Khóa scroll khi mở modal.
+- `pages/NotFound/GameLogic.js`: Logic game Lucy.
+- `utils/draggableStreak.js`: Logic kéo thả widget streak, lưu vị trí qua `localStorage`.
+- `utils/deviceId.js`: Định danh thiết bị người dùng.
+- `utils/keepAlive.js`: Duy trì kết nối session.
 
 ## 6. API integration
 
-### Axios tập trung
-
-- `services/api.js`
-- Base URL theo `VITE_API_URL`.
-- Tự gắn `Authorization` access token in-memory.
-- Tự gắn `X-CSRF-Token` cho write methods.
-- Interceptor 401: refresh token qua `/auth/refresh-token`, queue request đang chờ, bắt `SESSION_CONFLICT`.
-
-### Service riêng
-
-- `services/timetableService.js`: wrap toàn bộ API timetable + normalize response rows/cells.
-- `services/streakService.js`: gọi `fetch` cho `/api/streak/*` và normalize payload.
-
-### Mapping nơi gọi API chính
-
-- Auth/session: `AuthContext.jsx` (`/auth/login`, `/auth/me`, `/auth/refresh-token`, `/auth/logout`, `/auth/check-session`).
-- Public data: `CoursesSection`, `TeachersSection`, `TestimonialsSection`, `AnnouncementSection`.
-- Form đăng ký: `RegistrationForm` -> `POST /registrations`.
-- Admin CRUD: các trang management gọi endpoint tương ứng (`/courses`, `/teachers`, `/feedback`, `/announcements`, `/registrations`).
-- Dashboard/history: `/stats`, `/stats/dashboard`, `/admin/history*`, `/auth/google/*`, `/restore/progress`.
-- Ranking/Streak: `WhyChooseUs` + `CourseStudentList` + `FlameButton`.
-- Timetable: `TimetableEditor` + `timetableService`.
-
-## 7. State / Logic
-
-- Global state duy nhất rõ ràng: `AuthContext`.
-- Lưu `user`, `loading`, `isInitialized`, `sessionConflict`.
-- Quản lý init auth có timeout, silent cleanup khi conflict.
-
-- Local UI state:
-- Mỗi page/component quản lý bằng `useState` (form, modal, filter, pagination, loading...).
-- Không có Redux/MobX.
-
-- Persistence cục bộ:
-- `localStorage.hasSession` để biết có session kỳ vọng.
-- `localStorage.streak_position` để lưu vị trí widget flame.
-
-- i18n state:
-- `i18next` với 2 ngôn ngữ `vi/en`, mặc định `vi`.
-
-## 8. UI / Animation
-
-- Thư viện và kỹ thuật:
-- `framer-motion`: modal transition, stagger reveal, ranking animation, timetable interactions.
-- `react-chartjs-2` + `chart.js`: chart dashboard/statistics.
-- `react-toastify`: toast notification (`utils/toastUtils.jsx`).
-- `react-icons` + `lucide-react`: icon hệ thống.
-- Tailwind CSS: utility-first styling + responsive layouts.
-
-- Animation logic nổi bật:
-- Home sections dùng fade/hover/scale + decorative floating assets.
-- `FlameButton` có logic drag + snap edge + popup + fireworks.
-- `TimetableEditor` dùng `AnimatePresence` cho modal row/cell.
-- `NotFound` có game-state animation (shake/hint/win/lose overlay).
+- `services/api.js`: Axios instance tập trung, xử lý 401 (refresh token) và CSRF token.
+- Mapping: Tương tác với các endpoint `/auth`, `/courses`, `/teachers`, `/registrations`, `/streak`, `/rankings`, `/timetable`.
 
 ## Ghi chú scan
 
-- Đã scan và cập nhật cả khu vực `docs/structure` (không phát hiện file `be.md`/`fe.md` cũ trước khi ghi).
-- Đã bỏ qua `.env` và `.env.production`; chỉ dùng `.env.example` theo yêu cầu.
+- Đã quét và cập nhật đúng cấu trúc thư mục thực tế của frontend.
+- **TUYỆT ĐỐI TUÂN THỦ QUY TẮC BẢO MẬT**: Không đọc và không trích dẫn nội dung file `.env` hay `.env.production`. Chỉ liệt kê `.env.example` như file mẫu.
+- Thêm StaffLayout và các chức năng phân quyền nhân viên.

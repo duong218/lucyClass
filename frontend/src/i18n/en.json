@@ -164,6 +164,7 @@
     "courseMgmt": "Course Management",
     "teacherMgmt": "Teacher Management",
     "feedbackMgmt": "Feedback Management",
+    "accounts_management": "Staff Accounts Management",
     "statistics": "Statistics",
     "courseStatus": {
       "full": "Full",

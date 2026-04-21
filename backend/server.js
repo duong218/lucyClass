@@ -178,6 +178,8 @@ const userIdentifier = require('./middlewares/userIdentifier');
 const { apiLimiter } = require('./middlewares/rateLimiter');
 const errorHandler = require('./middlewares/errorHandler');
 const streakRoutes = require('./routes/streakRoutes');
+const staffRoutes = require('./routes/staffRoutes');
+const staffDashboardRoutes = require('./routes/staffDashboardRoutes');
 
 // 7. Global Logic
 app.use(userIdentifier);
@@ -209,6 +211,8 @@ app.use('/api/announcements', announcementRoutes);
 app.use('/api/timetable', timetableRoutes);
 app.use('/api/rankings', rankingRoutes);
 app.use('/api/streak', streakRoutes);
+app.use('/api/staff', staffRoutes);
+app.use('/api/me', staffDashboardRoutes);
 
 // --- 📊 GOOGLE SHEETS SUBMISSION ENDPOINT ---
 // Helpers for /api/submit

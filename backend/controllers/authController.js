@@ -1,4 +1,5 @@
 const Admin = require('../models/Admin');
+const StaffAccount = require('../models/StaffAccount');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const axios = require('axios');
@@ -6,20 +7,13 @@ const crypto = require('crypto');
 const { sendEmail, getHtmlTemplate } = require('../utils/emailService');
 const systemLogger = require('../utils/systemLogger');
 
-// Helper to delay response
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const escapeStringRegexp = (string) => {
   return string.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&');
 };
 
-// --- 🎯 FULL COOKIE AUTH CONFIG ---
-
-/**
- * Robust cookie configuration
- * Local: secure: false, sameSite: 'lax'
- * Production: secure: true, sameSite: 'none' (required for cross-site)
- */
+// ─── Cookie config (không đổi) ────────────────────────────────────────────────
 const getCookieOptions = () => {
   const isProd = process.env.NODE_ENV === 'production';
   return {
@@ -27,12 +21,12 @@ const getCookieOptions = () => {
     secure: isProd,
     sameSite: isProd ? 'none' : 'lax',
     path: '/',
-    // 🔐 Session timeout 8 giờ (CHỈ production)
     maxAge: isProd ? 8 * 60 * 60 * 1000 : undefined,
     domain: isProd ? process.env.COOKIE_DOMAIN : undefined
   };
 };
 
+// ─── generateTokens — thêm role vào payload ───────────────────────────────────
 const generateTokens = (user) => {
   const jwtSecret = process.env.JWT_SECRET;
   const refreshTokenSecret = process.env.REFRESH_TOKEN_SECRET;
@@ -56,38 +50,98 @@ const generateTokens = (user) => {
   return { accessToken, refreshToken };
 };
 
+// ─── Helper: tìm user theo username trong cả 2 collection ────────────────────
+const findUserByUsername = async (username) => {
+  // Thử Admin trước
+  let user = await Admin.findOne({ username });
+  if (user) return { user, isStaff: false };
+
+  // Thử StaffAccount
+  user = await StaffAccount.findOne({ username });
+  if (user) return { user, isStaff: true };
+
+  return { user: null, isStaff: false };
+};
+
+// ─── Helper: tìm user theo email trong cả 2 collection (cho forgot password) ──
+const findUserByEmail = async (safeEmail) => {
+  const regex = new RegExp('^' + escapeStringRegexp(safeEmail) + '$', 'i');
+
+  let user = await Admin.findOne({ email: { $regex: regex } });
+  if (user) return { user, model: Admin };
+
+  user = await StaffAccount.findOne({
+    email: { $regex: regex },
+    isActive: true
+  });
+  if (user) return { user, model: StaffAccount };
+
+  return { user: null, model: null };
+};
+
+// ─── Helper: tìm user theo username + email (staff forgot password) ───────────
+const findStaffByUsernameAndEmail = async (username, safeEmail) => {
+  const regex = new RegExp('^' + escapeStringRegexp(safeEmail) + '$', 'i');
+  const user = await StaffAccount.findOne({
+    username,
+    email: { $regex: regex },
+    isActive: true
+  });
+  return user;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // POST /api/auth/login
+// ─────────────────────────────────────────────────────────────────────────────
 exports.login = async (req, res) => {
   const { username, password, captchaToken } = req.body;
   try {
     const safeUsername = String(username || '').trim();
-    const user = await Admin.findOne({ username: safeUsername });
+
+    const { user, isStaff } = await findUserByUsername(safeUsername);
+
     if (!user) {
       console.warn(`[Login] Failed: User not found (${safeUsername})`);
-      return res.status(401).json({ message: 'Tên đăng nhập hoặc mật khẩu không đúng' });
+      return res
+        .status(401)
+        .json({ message: 'Tên đăng nhập hoặc mật khẩu không đúng' });
     }
 
-    // Check lockUntil
+    // Check lock
     if (user.lockUntil && user.lockUntil > Date.now()) {
       const remainingSeconds = Math.ceil((user.lockUntil - Date.now()) / 1000);
-      return res.status(423).json({ message: `Tài khoản đang bị khóa. Thử lại sau ${remainingSeconds}s` });
+      return res.status(423).json({
+        message: `Tài khoản đang bị khóa. Thử lại sau ${remainingSeconds}s`
+      });
+    }
+
+    // Check active (chỉ staff)
+    if (isStaff && !user.isActive) {
+      return res.status(403).json({ message: 'Tài khoản đã bị vô hiệu hoá' });
     }
 
     // Verify CAPTCHA
-    const recaptchaRes = await axios.post('https://www.google.com/recaptcha/api/siteverify',
-      new URLSearchParams({ secret: process.env.RECAPTCHA_SECRET_KEY, response: captchaToken }),
-      { timeout: 5000 });
+    const recaptchaRes = await axios.post(
+      'https://www.google.com/recaptcha/api/siteverify',
+      new URLSearchParams({
+        secret: process.env.RECAPTCHA_SECRET_KEY,
+        response: captchaToken
+      }),
+      { timeout: 5000 }
+    );
     if (!recaptchaRes.data.success) {
       return res.status(400).json({ message: 'reCAPTCHA failed' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      user.loginAttempts += 1;
+      user.loginAttempts = (user.loginAttempts || 0) + 1;
       if (user.loginAttempts >= 5) user.lockUntil = Date.now() + 120000;
       await user.save();
       await delay(1000);
-      return res.status(401).json({ message: 'Tên đăng nhập hoặc mật khẩu không đúng' });
+      return res
+        .status(401)
+        .json({ message: 'Tên đăng nhập hoặc mật khẩu không đúng' });
     }
 
     // Reset login attempts
@@ -95,46 +149,43 @@ exports.login = async (req, res) => {
     user.lockUntil = undefined;
 
     const { accessToken, refreshToken } = generateTokens(user);
-
-    // 🎯 Generate unique session ID for single-session enforcement
     const sessionId = crypto.randomBytes(32).toString('hex');
     user.activeSessionId = sessionId;
-
-    // Save refreshToken for rotation/revocation
     if (!user.refreshTokens) user.refreshTokens = [];
-    // Clear old refresh tokens (new login = new session, old tokens invalid)
     user.refreshTokens = [refreshToken];
     await user.save();
 
     const options = getCookieOptions();
-
-    // 🎯 Set refreshToken in httpOnly cookie
     res.cookie('refreshToken', refreshToken, options);
+    res.cookie('sessionId', sessionId, { ...options });
 
-    // 🎯 Set sessionId cookie (no maxAge = session cookie, expires when browser closes)
-    res.cookie('sessionId', sessionId, {
-      ...options
-      // No maxAge: cookie will be deleted when browser is closed
-    });
+    console.log(`[Login] Success: ${user.username} (${user.role})`);
 
-    console.log(`[Login] Success: ${user.username} (RefreshToken + SessionId cookies issued)`);
-
-    // 🎯 Return accessToken in JSON
     res.status(200).json({
       success: true,
       accessToken,
-      user: { id: user._id, username: user.username, email: user.email, role: user.role }
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        displayName: user.displayName || user.username
+      }
     });
   } catch (error) {
-    systemLogger.error('[Login] Error', { message: error.message, stack: error.stack });
+    systemLogger.error('[Login] Error', {
+      message: error.message,
+      stack: error.stack
+    });
     res.status(500).json({ message: 'Hệ thống gặp sự cố' });
   }
 };
 
-// POST /api/auth/refresh-token
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/auth/refresh-token  (không đổi nhiều, thêm tìm StaffAccount)
+// ─────────────────────────────────────────────────────────────────────────────
 exports.refreshToken = async (req, res) => {
   const token = req.cookies?.refreshToken;
-
   if (!token) {
     console.warn('[Refresh] No refreshToken cookie found');
     return res.status(401).json({ message: 'No session found' });
@@ -142,12 +193,14 @@ exports.refreshToken = async (req, res) => {
 
   try {
     const refreshTokenSecret = process.env.REFRESH_TOKEN_SECRET;
-    if (!refreshTokenSecret) {
-      throw new Error('REFRESH_TOKEN_SECRET is not defined');
-    }
+    if (!refreshTokenSecret) throw new Error('REFRESH_TOKEN_SECRET is not defined');
 
     const decoded = jwt.verify(token, refreshTokenSecret);
-    const user = await Admin.findById(decoded.id).select('+activeSessionId');
+
+    // Tìm trong cả 2 collection
+    let user =
+      (await Admin.findById(decoded.id).select('+activeSessionId')) ||
+      (await StaffAccount.findById(decoded.id).select('+activeSessionId'));
 
     if (!user || (user.refreshTokens ? !user.refreshTokens.includes(token) : true)) {
       console.error(`[Refresh] Invalid/Reuse attempt: ${decoded.id}`);
@@ -157,10 +210,11 @@ exports.refreshToken = async (req, res) => {
       return res.status(401).json({ message: 'Invalid or expired session' });
     }
 
-    // 🎯 SESSION CONFLICT CHECK: validate sessionId from cookie matches DB
     const cookieSessionId = req.cookies?.sessionId;
     if (!cookieSessionId || cookieSessionId !== user.activeSessionId) {
-      console.warn(`[Refresh] SESSION_CONFLICT for ${user.username}: cookie=${cookieSessionId ? 'present' : 'missing'}, db=${user.activeSessionId ? 'present' : 'missing'}`);
+      console.warn(
+        `[Refresh] SESSION_CONFLICT for ${user.username}: cookie=${cookieSessionId ? 'present' : 'missing'}`
+      );
       const options = getCookieOptions();
       res.clearCookie('refreshToken', options);
       res.clearCookie('sessionId', options);
@@ -171,27 +225,16 @@ exports.refreshToken = async (req, res) => {
     }
 
     const { accessToken, refreshToken: newRefreshToken } = generateTokens(user);
-
-    // Rotate refreshToken
-    user.refreshTokens = user.refreshTokens.filter(t => t !== token);
+    user.refreshTokens = user.refreshTokens.filter((t) => t !== token);
     user.refreshTokens.push(newRefreshToken);
     await user.save();
 
     const options = getCookieOptions();
-
     res.cookie('refreshToken', newRefreshToken, options);
+    res.cookie('sessionId', cookieSessionId, { ...options });
 
-    // 🎯 Keep existing sessionId cookie alive (re-set as session cookie)
-    res.cookie('sessionId', cookieSessionId, {
-      ...options
-      // No maxAge: remains a session cookie
-    });
-
-    console.log(`[Refresh] Success for ${user.username}`);
-    res.json({
-      success: true,
-      accessToken
-    });
+    console.log(`[Refresh] Success for ${user.username} (${user.role})`);
+    res.json({ success: true, accessToken });
   } catch (error) {
     systemLogger.error('[Refresh] Error', { message: error.message });
     const options = getCookieOptions();
@@ -201,62 +244,104 @@ exports.refreshToken = async (req, res) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
 // POST /api/auth/logout
+// ─────────────────────────────────────────────────────────────────────────────
 exports.logout = async (req, res) => {
   const token = req.cookies.refreshToken;
   try {
     if (token) {
       const decoded = jwt.decode(token);
       if (decoded?.id) {
-        // 🎯 Clear activeSessionId + remove refresh token on logout
-        await Admin.findByIdAndUpdate(decoded.id, {
+        // Xoá trong cả 2 collection
+        const updateFields = {
           $pull: { refreshTokens: token },
           $unset: { activeSessionId: 1 }
-        });
+        };
+        const adminRes = await Admin.findByIdAndUpdate(decoded.id, updateFields);
+        if (!adminRes) {
+          await StaffAccount.findByIdAndUpdate(decoded.id, updateFields);
+        }
         console.log(`[Logout] Success for user ID: ${decoded.id}`);
       }
     }
   } catch (err) {
     console.error('[Logout] Trace error:', err.message);
   }
-
   const options = getCookieOptions();
   res.clearCookie('refreshToken', options);
   res.clearCookie('sessionId', options);
   res.json({ message: 'Đã đăng xuất' });
 };
 
-// Password Recovery ...
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/auth/forgot-password
+// Logic mới:
+//   - Nếu body có "username" → đây là staff → tìm theo username + email
+//   - Nếu chỉ có "email" → admin flow cũ
+// ─────────────────────────────────────────────────────────────────────────────
 exports.forgotPassword = async (req, res) => {
   try {
-    const { email, recaptchaToken } = req.body;
+    const { email, username, recaptchaToken } = req.body;
 
-    // Verify reCAPTCHA
     if (!recaptchaToken) {
       return res.status(400).json({ message: 'Captcha is required' });
     }
-
-    const recaptchaRes = await axios.post('https://www.google.com/recaptcha/api/siteverify',
-      new URLSearchParams({ secret: process.env.RECAPTCHA_SECRET_KEY, response: recaptchaToken }),
-      { timeout: 5000 });
-
+    const recaptchaRes = await axios.post(
+      'https://www.google.com/recaptcha/api/siteverify',
+      new URLSearchParams({
+        secret: process.env.RECAPTCHA_SECRET_KEY,
+        response: recaptchaToken
+      }),
+      { timeout: 5000 }
+    );
     if (!recaptchaRes.data.success) {
       console.warn('[ForgotPassword] reCAPTCHA failed:', recaptchaRes.data['error-codes']);
       return res.status(400).json({ message: 'reCAPTCHA failed' });
     }
 
     const safeEmail = String(email || '').trim();
-    const user = await Admin.findOne({ email: { $regex: new RegExp("^" + escapeStringRegexp(safeEmail) + "$", "i") } });
-    if (!user) return res.status(404).json({ message: 'Không tìm thấy tài khoản' });
+    let user = null;
+
+    if (username) {
+      // Staff flow: cần cả username + email
+      const safeUsername = String(username).trim();
+      user = await findStaffByUsernameAndEmail(safeUsername, safeEmail);
+    } else {
+      // Admin flow: chỉ email
+      const { user: foundUser } = await findUserByEmail(safeEmail);
+      user = foundUser;
+    }
+
+    // Luôn trả success để tránh user enumeration
+    if (!user) {
+      console.warn(`[ForgotPassword] User not found for email: ${safeEmail}`);
+      return res.json({
+        success: true,
+        message: 'Nếu thông tin hợp lệ, link reset đã được gửi'
+      });
+    }
+
+    // Kiểm tra email có trống không (staff chưa được điền email)
+    if (!user.email || user.email.trim() === '') {
+      return res.status(400).json({
+        message:
+          'Tài khoản chưa có email. Vui lòng liên hệ admin để được hỗ trợ.'
+      });
+    }
+
     const resetToken = crypto.randomBytes(20).toString('hex');
-    user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+    user.resetPasswordToken = crypto
+      .createHash('sha256')
+      .update(resetToken)
+      .digest('hex');
     user.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
     await user.save();
+
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
     const htmlContent = `
       <p style="margin: 0; font-size: 18px;">Bạn yêu cầu đặt lại mật khẩu? 👋</p>
-      <p style="margin: 15px 0;">Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản LucyClass của bạn. Nhấn vào nút bên dưới để thực hiện:</p>
-      
+      <p style="margin: 15px 0;">Nhấn vào nút bên dưới để đặt lại mật khẩu tài khoản LucyClass của bạn:</p>
       <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin: 30px 0;">
         <tr>
           <td align="center">
@@ -264,33 +349,61 @@ exports.forgotPassword = async (req, res) => {
           </td>
         </tr>
       </table>
-
-      <p style="margin: 0; font-size: 14px; color: #888888;">Nếu bạn không yêu cầu điều này, vui lòng bỏ qua email này. Liên kết sẽ hết hạn sau 15 phút.</p>
+      <p style="margin: 0; font-size: 14px; color: #888888;">Liên kết sẽ hết hạn sau 15 phút. Nếu bạn không yêu cầu, hãy bỏ qua email này.</p>
     `;
 
     await sendEmail({
       to: user.email,
-      subject: "LucyClass - Đặt lại mật khẩu",
+      subject: 'LucyClass - Đặt lại mật khẩu',
       html: getHtmlTemplate(htmlContent),
-      text: `Đặt lại mật khẩu LucyClass của bạn tại: ${resetUrl}`
+      text: `Đặt lại mật khẩu tại: ${resetUrl}`
     });
-    res.json({ success: true, message: 'Link reset đã được gửi' });
-  } catch (error) { 
+
+    res.json({ success: true, message: 'Nếu thông tin hợp lệ, link reset đã được gửi' });
+  } catch (error) {
     systemLogger.error('[ForgotPassword] Error', { message: error.message });
-    res.status(500).json({ message: 'Lỗi gửi email' }); 
+    res.status(500).json({ message: 'Lỗi gửi email' });
   }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/auth/reset-password/:token  (tìm trong cả 2 collection)
+// ─────────────────────────────────────────────────────────────────────────────
 exports.resetPassword = async (req, res) => {
   try {
-    const { password } = req.body; const { token } = req.params;
-    const resetPasswordToken = crypto.createHash('sha256').update(token).digest('hex');
-    const user = await Admin.findOne({ resetPasswordToken, resetPasswordExpire: { $gt: Date.now() } });
-    if (!user) return res.status(400).json({ message: 'Link không hợp lệ hoặc hết hạn' });
-    user.password = password; user.resetPasswordToken = undefined; user.resetPasswordExpire = undefined; user.loginAttempts = 0; user.lockUntil = undefined;
+    const { password } = req.body;
+    const { token } = req.params;
+    const resetPasswordToken = crypto
+      .createHash('sha256')
+      .update(token)
+      .digest('hex');
+
+    const query = {
+      resetPasswordToken,
+      resetPasswordExpire: { $gt: Date.now() }
+    };
+
+    let user = await Admin.findOne(query);
+    if (!user) user = await StaffAccount.findOne(query);
+
+    if (!user) {
+      return res.status(400).json({ message: 'Link không hợp lệ hoặc hết hạn' });
+    }
+
+    user.password = password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    user.loginAttempts = 0;
+    user.lockUntil = undefined;
+    // Xoá tất cả session cũ, bắt đăng nhập lại
+    user.refreshTokens = [];
+    user.activeSessionId = undefined;
     await user.save();
-    res.json({ success: true, message: 'Thành công!' });
-  } catch (error) { res.status(500).json({ message: 'Lỗi hệ thống' }); }
+
+    res.json({ success: true, message: 'Đặt lại mật khẩu thành công! Vui lòng đăng nhập lại.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi hệ thống' });
+  }
 };
 
 // GET /api/auth/check-session

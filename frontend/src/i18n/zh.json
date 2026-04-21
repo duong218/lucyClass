@@ -164,6 +164,7 @@
     "courseMgmt": "课程管理",
     "teacherMgmt": "教师管理",
     "feedbackMgmt": "反馈管理",
+    "accounts_management": "员工账号管理",
     "statistics": "统计",
     "courseStatus": {
       "full": "已满",
