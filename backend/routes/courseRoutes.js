@@ -23,6 +23,14 @@ router.get(
   catchAsync(registrationController.getStudentsByCourse)
 );
 
+// ── Export Excel điểm danh (teacher + admin) ────────────────────────────
+router.get(
+  '/:id/attendance/export-excel',
+  auth,
+  authorizeRoles('admin', 'teacher'),
+  catchAsync(courseController.exportAttendanceExcel)
+);
+
 // ── Điểm danh (teacher + admin) ───────────────────────────────────────────
 // GET  /api/courses/:id/attendance?date=YYYY-MM-DD  — lấy điểm danh của 1 buổi
 router.get(

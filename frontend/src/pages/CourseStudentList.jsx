@@ -185,6 +185,7 @@ const CourseStudentList = () => {
     const [attendanceLoading, setAttendanceLoading]  = useState(false);
     const [savingAttendance, setSavingAttendance]    = useState(false);
     const [attendanceDirty, setAttendanceDirty]      = useState(false);
+    const [exportingExcel, setExportingExcel]         = useState(false);
 
     useEffect(() => {
         const timer = setTimeout(() => setDebouncedSearch(search), 300);
@@ -241,6 +242,30 @@ const CourseStudentList = () => {
         });
         setAttendanceDirty(true);
     }, []);
+
+    const handleExportExcel = async () => {
+        setExportingExcel(true);
+        try {
+            const res = await api.get(`/courses/${courseId}/attendance/export-excel`, {
+                params: { date: selectedDate },
+                responseType: 'blob'
+            });
+            const url  = window.URL.createObjectURL(new Blob([res.data]));
+            const link = document.createElement('a');
+            const safeName = (course?.name || 'lop').replace(/[^a-zA-Z0-9_\-]/g, '_');
+            link.href     = url;
+            link.setAttribute('download', `diemdanh_${safeName}_${selectedDate}.xlsx`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+            showToast.success('Xuất Excel thành công! 📊');
+        } catch (err) {
+            showToast.error('Xuất Excel thất bại');
+        } finally {
+            setExportingExcel(false);
+        }
+    };
 
     const markAllPresent = () => {
         const map = {};
@@ -372,6 +397,13 @@ const CourseStudentList = () => {
                             {attendanceDirty ? 'Lưu điểm danh' : 'Đã lưu'}
                         </button>
                         {attendanceLoading && <span className="text-xs text-gray-400 animate-pulse">Đang tải...</span>}
+                        <button onClick={handleExportExcel} disabled={exportingExcel}
+                            className="text-xs font-black px-4 py-2 rounded-xl transition-all active:scale-95 flex items-center gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-200 disabled:opacity-60 disabled:cursor-not-allowed ml-auto">
+                            {exportingExcel
+                                ? <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                : '📊'}
+                            Xuất Excel
+                        </button>
                     </div>
                 </div>
             )}

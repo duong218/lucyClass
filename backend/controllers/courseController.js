@@ -375,3 +375,189 @@ exports.remove = async (req, res, next) => {
     next(error);
   }
 };
+
+// GET /api/courses/:id/attendance/export-excel?date=YYYY-MM-DD
+// Xuất điểm danh 1 buổi ra file Excel — có màu header, kẻ khung, in đậm
+exports.exportAttendanceExcel = async (req, res, next) => {
+  try {
+    const ExcelJS    = require('exceljs');
+    const Attendance = require('../models/Attendance');
+    const Registration = require('../models/Registration');
+    const Course     = require('../models/Course');
+    const { id }     = req.params;
+    const { date }   = req.query;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid course ID' });
+    }
+
+    // 1. Lấy thông tin khóa học
+    const course = await Course.findOne({ _id: id, isDeleted: { $ne: true } }).lean();
+    if (!course) return res.status(404).json({ success: false, message: 'Course not found' });
+
+    // 2. Lấy danh sách học sinh đang active của lớp
+    const registrations = await Registration.find({
+      courseId: id,
+      status: 'registered',
+      isActive: true
+    }).lean();
+
+    // 3. Lấy bản ghi điểm danh theo ngày
+    const targetDate = date ? new Date(date) : new Date();
+    targetDate.setUTCHours(0, 0, 0, 0);
+
+    const attendance = await Attendance.findOne({ courseId: id, date: targetDate }).lean();
+
+    // Map studentId -> status
+    const statusMap = {};
+    (attendance?.records || []).forEach(r => {
+      statusMap[r.studentId.toString()] = r.status;
+    });
+
+    const dateStr = targetDate.toLocaleDateString('vi-VN', {
+      day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC'
+    });
+
+    // 4. Tạo workbook ExcelJS
+    const workbook  = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Diem danh');
+
+    // ── Màu sắc ─────────────────────────────────────────────────────────────
+    const HEADER_BG   = '1D4ED8'; // xanh đậm
+    const PRESENT_BG  = 'D1FAE5'; // xanh lá nhạt
+    const ABSENT_BG   = 'FEE2E2'; // đỏ nhạt
+    const PENDING_BG  = 'F3F4F6'; // xám nhạt
+
+    // ── Tiêu đề file (merge 6 cột) ──────────────────────────────────────────
+    worksheet.mergeCells('A1:F1');
+    const titleCell = worksheet.getCell('A1');
+    titleCell.value         = `BẢNG ĐIỂM DANH — ${course.name.toUpperCase()}`;
+    titleCell.font          = { bold: true, size: 14, color: { argb: '1D4ED8' } };
+    titleCell.alignment     = { horizontal: 'center', vertical: 'middle' };
+    worksheet.getRow(1).height = 30;
+
+    worksheet.mergeCells('A2:F2');
+    const subCell = worksheet.getCell('A2');
+    subCell.value       = `Ngày: ${dateStr}   |   Sĩ số: ${registrations.length} học sinh`;
+    subCell.font        = { size: 11, italic: true, color: { argb: '6B7280' } };
+    subCell.alignment   = { horizontal: 'center', vertical: 'middle' };
+    worksheet.getRow(2).height = 22;
+
+    // Dòng trống
+    worksheet.addRow([]);
+
+    // ── Header row ───────────────────────────────────────────────────────────
+    const headerRow = worksheet.addRow([
+      'STT',
+      'Họ và tên học sinh',
+      'Tuổi',
+      'Tên phụ huynh',
+      'Số điện thoại',
+      'Trạng thái điểm danh'
+    ]);
+    headerRow.height = 28;
+    headerRow.eachCell(cell => {
+      cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_BG } };
+      cell.font      = { bold: true, color: { argb: 'FFFFFF' }, size: 11 };
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      cell.border    = {
+        top:    { style: 'thin', color: { argb: 'FFFFFF' } },
+        left:   { style: 'thin', color: { argb: 'FFFFFF' } },
+        bottom: { style: 'thin', color: { argb: 'FFFFFF' } },
+        right:  { style: 'thin', color: { argb: 'FFFFFF' } }
+      };
+    });
+
+    // ── Data rows ────────────────────────────────────────────────────────────
+    registrations.forEach((reg, idx) => {
+      const status    = statusMap[reg._id.toString()];
+      const statusLabel =
+        status === 'present' ? 'Có mặt' :
+        status === 'absent'  ? 'Vắng'   : 'Chưa điểm danh';
+      const rowBg =
+        status === 'present' ? PRESENT_BG :
+        status === 'absent'  ? ABSENT_BG  : PENDING_BG;
+
+      const dataRow = worksheet.addRow([
+        idx + 1,
+        reg.childName  || '',
+        reg.childAge   || '',
+        reg.parentName || '',
+        reg.phone      || '',
+        statusLabel
+      ]);
+
+      dataRow.height = 22;
+      dataRow.eachCell((cell, colNumber) => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBg } };
+        cell.alignment = {
+          horizontal: colNumber === 1 || colNumber === 3 ? 'center' : 'left',
+          vertical: 'middle'
+        };
+        cell.border = {
+          top:    { style: 'thin', color: { argb: 'D1D5DB' } },
+          left:   { style: 'thin', color: { argb: 'D1D5DB' } },
+          bottom: { style: 'thin', color: { argb: 'D1D5DB' } },
+          right:  { style: 'thin', color: { argb: 'D1D5DB' } }
+        };
+        // In đậm cột tên học sinh
+        if (colNumber === 2) cell.font = { bold: true };
+        // Màu chữ cột trạng thái
+        if (colNumber === 6) {
+          cell.font = {
+            bold: true,
+            color: {
+              argb: status === 'present' ? '065F46' :
+                    status === 'absent'  ? '991B1B' : '6B7280'
+            }
+          };
+        }
+      });
+    });
+
+    // ── Dòng tổng kết ────────────────────────────────────────────────────────
+    const presentCount = registrations.filter(r => statusMap[r._id.toString()] === 'present').length;
+    const absentCount  = registrations.filter(r => statusMap[r._id.toString()] === 'absent').length;
+    const pendingCount = registrations.length - presentCount - absentCount;
+
+    worksheet.addRow([]);
+    const summaryRow = worksheet.addRow([
+      '', 'TỔNG KẾT',
+      `Có mặt: ${presentCount}`,
+      `Vắng: ${absentCount}`,
+      `Chưa điểm danh: ${pendingCount}`,
+      `Tổng: ${registrations.length}`
+    ]);
+    summaryRow.height = 24;
+    summaryRow.eachCell(cell => {
+      cell.font      = { bold: true, size: 11, color: { argb: '1D4ED8' } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      cell.border    = {
+        top:    { style: 'medium', color: { argb: '1D4ED8' } },
+        left:   { style: 'thin',   color: { argb: 'D1D5DB' } },
+        bottom: { style: 'medium', color: { argb: '1D4ED8' } },
+        right:  { style: 'thin',   color: { argb: 'D1D5DB' } }
+      };
+    });
+
+    // ── Độ rộng cột ──────────────────────────────────────────────────────────
+    worksheet.getColumn(1).width = 6;   // STT
+    worksheet.getColumn(2).width = 25;  // Tên học sinh
+    worksheet.getColumn(3).width = 8;   // Tuổi
+    worksheet.getColumn(4).width = 22;  // Tên phụ huynh
+    worksheet.getColumn(5).width = 16;  // SĐT
+    worksheet.getColumn(6).width = 20;  // Trạng thái
+
+    // ── Gửi file ─────────────────────────────────────────────────────────────
+    const safeName = course.name.replace(/[^a-zA-Z0-9_\-]/g, '_');
+    const fileName = `diemdanh_${safeName}_${date || 'hom_nay'}.xlsx`;
+
+    res.setHeader('Content-Type',        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    next(error);
+  }
+};
