@@ -2,101 +2,168 @@
 
 ## 1. Tổng quan kiến trúc
 
-- Runtime: Node.js (CommonJS), Express 4.
-- Database: MongoDB + Mongoose.
-- Auth: JWT access token (Bearer) + refresh token cookie (`httpOnly`) + sessionId cookie để chống đăng nhập đa thiết bị.
-- Security:
-  - `helmet`, `express-mongo-sanitize`, `xss-clean`.
-  - CSRF kép: `csurf` middleware + `verifyCSRF` (origin + custom header) cho một số flow.
-  - `express-rate-limit` cho global/auth/register/streak...
-  - File upload: `multer` memory storage + kiểm tra MIME + magic number (`file-type`) + upload Cloudinary.
-- Background/scheduler:
-  - `node-cron` backup tự động và cleanup ranking cũ.
-- Backup/restore:
-  - Backup DB bằng `mongodump` -> zip -> encrypt AES-256-GCM -> upload Google Drive.
-  - Restore tải file `.enc` từ Drive, giải mã, tạo safety backup, restore tạm rồi restore chính.
-- Logging: `winston` system log (`logs/error.log`, `logs/combined.log`) + Audit log hành động admin.
+- **Runtime**: Node.js (CommonJS).
+- **Web Framework**: Express 4.
+- **Database**: MongoDB + Mongoose.
+- **Authentication**: JWT (Access Token & Refresh Token) + bcryptjs (Hashing).
+- **Security Layers**:
+  - `helmet`: Thiết lập các HTTP headers bảo mật.
+  - `express-mongo-sanitize`: Chống SQL/NoSQL Injection.
+  - `csurf`: Chống tấn công CSRF.
+  - `express-rate-limit`: Giới hạn tần suất request cho các route nhạy cảm.
+- **Task Scheduling**: `node-cron` cho việc sao lưu dữ liệu và kiểm tra hệ thống.
+- **Storage**: Cloudinary (lưu ảnh), Google Drive (lưu backup).
+- **Logging**: `winston` + `morgan` xử lý system logs và audit logs.
 
-## 2. Cấu trúc thư mục (tree)
+## 2. Cấu trúc thư mục chi tiết
 
 ```text
 backend/
-├─ .env.example              # File mẫu các biến môi trường (Database, Cloudinary, JWT, OAuth...)
-├─ server.js                 # File khởi tạo server và mount route
-├─ package.json
-├─ googleSheets.js           # Đồng bộ dữ liệu đăng ký sang Google Sheets
-├─ migrate-childAge.js       # Script migration dữ liệu
-├─ Dockerfile, .dockerignore # Cấu hình container hóa
-├─ nodemon.json              # Cấu hình watch mode khi development
-├─ config/                   # Cấu hình các kết nối ngoại vi
-│  ├─ cron.js, db.js, google.js, redis.js
-├─ controllers/              # Xử lý nghiệp vụ logic
-│  ├─ authController.js, registrationController.js, staffController.js...
-│  ├─ courseController.js, teacherController.js, feedbackController.js...
-│  ├─ timetableController.js, streakController.js, rankingController.js...
-│  ├─ auditController.js, google.controller.js, restore.controller.js, statsController.js
-├─ middlewares/              # Lớp bảo vệ và tiền xử lý request
-│  ├─ auth.js, isAdmin.js, authorizeRoles.js (RBAC)
-│  ├─ csrf.js, securityMiddleware.js
-│  ├─ rateLimiter.js, phoneLimiter.js
-│  ├─ cacheMiddleware.js     # Cache response public data
-│  ├─ upload.js, errorHandler.js, validate.js...
-├─ models/                   # Schema định nghĩa dữ liệu (Mongoose)
-│  ├─ Admin.js, StaffAccount.js, DeviceUsage.js
-│  ├─ Course.js, Teacher.js, Feedback.js, Registration.js
-│  ├─ Announcement.js, Ranking.js, Streak.js
-│  ├─ TimetableCell.js, TimetableRow.js
-│  ├─ Log.js, AuditLog.js, GoogleToken.js
-├─ routes/                   # Khai báo endpoint API
-│  ├─ authRoutes.js, staffRoutes.js, staffDashboardRoutes.js
-│  ├─ registrationRoutes.js, courseRoutes.js, teacherRoutes.js...
-│  ├─ googleRoutes.js, restoreRoutes.js, auditRoutes.js, statsRoutes.js...
-├─ services/                 # Xử lý các tác vụ phức tạp/ngoại vi
-│  ├─ backup.service.js, drive.service.js, restore.service.js
-├─ scripts/                  # Các script vận hành hệ thống
-│  ├─ backup.js, cleanRestoreTmp.js
-├─ validators/               # Validation schema bằng express-validator
-│  ├─ registrationValidator.js, streakValidator.js
-└─ utils/                    # Các hàm tiện ích dùng chung
-   ├─ encryptionUtils.js, cloudinary.js, emailService.js, normalizePhone.js...
-   ├─ catchAsync.js, logger.js, systemLogger.js, sanitize.js...
+├── config/                  # Cấu hình các kết nối bên ngoài
+│   ├── cron.js              # Định nghĩa các tác vụ tự động
+│   ├── db.js                # Kết nối MongoDB
+│   ├── google.js            # Cấu hình Google API (Sheets, Drive)
+│   └── redis.js             # Cấu hình Redis (nếu có dùng để cache)
+├── controllers/             # Xử lý logic nghiệp vụ
+│   ├── announcementController.js
+│   ├── auditController.js   # Quản lý nhật ký hoạt động
+│   ├── authController.js    # Login, Logout, Refresh Token, Reset Password
+│   ├── courseController.js  # CRUD Khóa học & Điểm danh (Attendance)
+│   ├── feedbackController.js
+│   ├── google.controller.js # OAuth2 & Google Sheets integration
+│   ├── rankingController.js # Xử lý bảng xếp hạng Streak
+│   ├── registrationController.js
+│   ├── restore.controller.js # Phục hồi dữ liệu từ backup
+│   ├── staffController.js   # Profile & Dashboards cho NV
+│   ├── statsController.js   # Thống kê tổng hợp (Admin Dashboard)
+│   ├── streakController.js  # Logic Check-in hàng ngày & Revive
+│   ├── teacherController.js
+│   └── timetableController.js
+├── middlewares/             # Các lớp kiểm soát request
+│   ├── adminValidator.js
+│   ├── auth.js              # Verify JWT
+│   ├── authorizeRoles.js    # Kiểm tra Role (admin/teacher/marketing)
+│   ├── cacheMiddleware.js
+│   ├── csrf.js              # Token & Origin validation
+│   ├── errorHandler.js      # Tập trung xử lý lỗi
+│   ├── isAdmin.js           # Shortcut check admin
+│   ├── phoneLimiter.js
+│   ├── rateLimiter.js
+│   ├── securityMiddleware.js
+│   ├── streakAuth.js
+│   ├── upload.js            # Middleware cấu hình Cloudinary
+│   ├── userIdentifier.js
+│   ├── validate.js          # Chạy express-validator
+│   └── validateRegistration.js
+├── models/                  # Mongoose Schemas (Xem chi tiết mục 4)
+│   ├── Admin.js
+│   ├── Announcement.js
+│   ├── Attendance.js        # [NEW] Lưu điểm danh theo ngày
+│   ├── AuditLog.js
+│   ├── Course.js
+│   ├── DeviceUsage.js
+│   ├── Feedback.js
+│   ├── GoogleToken.js
+│   ├── Log.js
+│   ├── Ranking.js
+│   ├── Registration.js      # Đơn đăng ký & Hồ sơ học viên
+│   ├── StaffAccount.js      # Tài khoản nhân viên (Role-based)
+│   ├── Streak.js            # Dữ liệu điểm danh chuỗi
+│   ├── Teacher.js           # Hồ sơ giáo viên
+│   ├── TimetableCell.js
+│   └── TimetableRow.js
+├── routes/                  # Định nghĩa các endpoint API
+│   ├── announcementRoutes.js
+│   ├── auditRoutes.js
+│   ├── authRoutes.js
+│   ├── courseRoutes.js
+│   ├── feedbackRoutes.js
+│   ├── googleRoutes.js
+│   ├── rankingRoutes.js
+│   ├── registrationRoutes.js
+│   ├── restoreRoutes.js
+│   ├── staffDashboardRoutes.js
+│   ├── staffRoutes.js
+│   ├── statsRoutes.js
+│   ├── streakRoutes.js
+│   ├── teacherRoutes.js
+│   └── timetableRoutes.js
+├── scripts/                 # Công cụ dòng lệnh (CLI)
+│   ├── backup.js            # Chạy backup thủ công
+│   └── cleanRestoreTmp.js   # Dọn dẹp file tạm sau khi restore
+├── services/                # Logic tương tác với dịch vụ bên thứ 3
+│   ├── backup.service.js    # Logic nén và mã hóa database
+│   ├── drive.service.js     # Tương tác với Google Drive API
+│   └── restore.service.js   # Logic giải mã và khôi phục database
+├── utils/                   # Các hàm tiện ích
+│   ├── catchAsync.js        # Wrapper cho async/await error
+│   ├── cloudinary.js
+│   ├── emailService.js      # Gửi email (Nodemailer)
+│   ├── encryptionUtils.js   # AES-256-GCM cho file backup
+│   ├── logAdminAction.js
+│   ├── logger.js
+│   ├── normalizePhone.js
+│   ├── sanitize.js
+│   ├── scheduledTasks.js
+│   ├── systemLogger.js
+│   └── test-encryption.js
+├── validators/              # Schema validation cho request body
+│   ├── registrationValidator.js
+│   └── streakValidator.js
+├── .dockerignore
+├── .env.example             # Biến môi trường mẫu
+├── Dockerfile               # Containerization cấu hình
+├── googleSheets.js          # Logic đồng bộ đơn đăng ký sang Sheets
+├── migrate-childAge.js      # Script chuyển đổi dữ liệu cũ
+├── nodemon.json
+├── package.json
+└── server.js                # Entry point: Khởi tạo Server & Middleware
 ```
 
-## 3. Các thực thể chính (Models)
+## 3. Các Route Group chính
 
-- `Admin`: Tài khoản quản trị cấp cao nhất.
-- `StaffAccount`: Tài khoản nhân viên (Marketing, Teacher).
-- `Course` & `Teacher`: Thông tin khóa học và giáo viên.
-- `Registration`: Dữ liệu đăng ký từ phụ huynh.
-- `Streak` & `DeviceUsage`: Quản lý chuỗi check-in và định danh thiết bị.
-- `TimetableRow` & `TimetableCell`: Cấu trúc lịch học theo tuần.
-- `AuditLog`: Lưu trữ mọi thao tác nhạy cảm của Admin/Staff.
+- **Auth**: `/api/auth` (Login, Logout, Reset Password).
+- **Courses**: `/api/courses` (CRUD khóa học, quản lý học viên, điểm danh).
+- **Teachers**: `/api/teachers` (Hồ sơ giáo viên, tự động liên kết StaffAccount).
+- **Registrations**: `/api/registrations` (Xử lý form từ khách hàng).
+- **Staff/Accounts**: `/api/staff` (Quản lý tài khoản nhân viên - dành cho Admin).
+- **Streak**: `/api/streaks` (Check-in, Bảng xếp hạng, Revive).
+- **Backup/Restore**: `/api/restore` (Quản lý các bản sao lưu trên Cloud).
 
-## 4. API Endpoints (Tổng hợp)
+## 4. Chi tiết các Models quan trọng
 
-| Nhóm | Method | Prefix | Mô tả |
-|---|---|---|---|
-| Auth | POST | `/api/auth` | Login, Logout, Refresh, Forgot/Reset Password |
-| Staff | GET/POST | `/api/staff` | CRUD tài khoản nhân viên (Admin only) |
-| Profile | GET | `/api/me/profile` | Xem profile cá nhân của Staff |
-| Course | GET/POST | `/api/courses` | Quản lý khóa học & danh sách học viên |
-| Teacher | GET/POST | `/api/teachers` | Quản lý đội ngũ giáo viên |
-| Registration | GET/POST | `/api/registrations`| Quản lý đăng ký, export Excel |
-| Streak | GET/POST | `/api/streak` | Check-in, Leaderboard, Revive streak |
-| Timetable | GET/PUT | `/api/timetable` | Quản lý lịch học tuần |
-| Backup | POST | `/api/auth/google`| Backup/Restore dữ liệu lên Google Drive |
-| Stats | GET | `/api/stats` | Thống kê Dashboard & Biểu đồ |
+### StaffAccount
+Lưu trữ thông tin đăng nhập của nhân viên.
+- `username`: LC + 8 chữ số (duy nhất).
+- `role`: 'teacher' hoặc 'marketing'.
+- `courseIds`: Danh sách các lớp giáo viên đang phụ trách.
+- `isActive`: Boolean (cho phép vô hiệu hóa tài khoản).
 
-## 5. Security Features
+### Course
+Thông tin chi tiết về lớp học.
+- `name`, `ageGroup`, `duration`, `classSize`.
+- `teacher`: Ref tới hồ sơ Teacher chính.
+- `additionalTeachers`: Mảng Ref tới các trợ giảng.
 
-- **Xác thực**: JWT Access Token (ngắn hạn) kết hợp Refresh Token (dài hạn, lưu cookie httpOnly).
-- **Phân quyền**: RBAC nghiêm ngặt (Admin > Staff roles).
-- **Chống Spam**: Rate limiting theo IP và theo Số điện thoại (Streak).
-- **Bảo mật dữ liệu**: Mã hóa AES-256-GCM cho file backup trước khi lên Drive.
-- **CSRF**: Token-based kết hợp Origin/Header check.
+### Attendance
+Lưu vết điểm danh từng buổi.
+- `courseId`, `date` (được đánh index unique theo cặp).
+- `records`: Mảng `{ studentId, status: 'present' | 'absent' }`.
+- `takenBy`: Ref tới StaffAccount thực hiện điểm danh.
 
-## Ghi chú scan
+### Registration (Student)
+- `parentName`, `phone`, `childName`, `childAge`.
+- `courseId`: Lớp học đã đăng ký.
+- `status`: 'not_contacted', 'contacted', 'registered'.
 
-- Đã quét và cập nhật đúng cấu trúc thực tế của backend.
-- **TUYỆT ĐỐI TUÂN THỦ QUY TẮC BẢO MẬT**: Đã bỏ qua hoàn toàn nội dung các file `.env` và `.env.production`. Chỉ đề cập đến cấu trúc mẫu qua `.env.example`.
-- Bổ sung hệ thống Staff Management và Device Usage Tracking.
+## 5. Ghi chú bảo mật & Cấu hình
+- **File quan trọng**: `server.js` cấu hình CORS, CSRF, và giới hạn kích thước payload.
+- **Môi trường**: 
+  - `PORT`: Cổng chạy backend.
+  - `MONGODB_URI`: Chuỗi kết nối DB.
+  - `JWT_SECRET`, `JWT_REFRESH_SECRET`: Khóa ký Token.
+  - `ENCRYPTION_KEY`: Khóa mã hóa file backup (32 bytes).
+- **Security Note**: Toàn bộ nội dung file `.env` đã được bỏ qua để đảm bảo an toàn. Tuyệt đối không commit file `.env` lên Git.
+
+---
+*Tài liệu được cập nhật dựa trên cấu trúc thực tế ngày 21/04/2026.*

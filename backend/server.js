@@ -108,9 +108,24 @@ app.use(cors({
   credentials: true
 }));
 
+// ✅ FIX: Helmet lên đây để mọi response (kể cả lỗi CSRF/body) đều có security headers
+// 3.5. Security Headers (Helmet) — TRƯỚC verifyCSRF
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+  crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: {
+    useDefaults: true,
+    directives: {
+      "img-src": ["'self'", "data:", "https://res.cloudinary.com"],
+      "script-src": ["'self'", "'unsafe-inline'", "https://www.google.com/recaptcha/", "https://www.gstatic.com/recaptcha/"],
+      "frame-src": ["'self'", "https://www.google.com/recaptcha/"],
+      "connect-src": ["'self'", "https://api.cloudinary.com", "https://www.google.com/recaptcha/"]
+    }
+  },
+  hsts: process.env.NODE_ENV === 'production' ? { maxAge: 31536000, includeSubDomains: true } : false
+}));
 
 // --- 🛡️ CUSTOM CSRF PROTECTION ---
-//app.use(verifyCSRF); chatgpt sửa lỗi 11:14 07/04
 app.use((req, res, next) => {
   const safeMethods = ['GET', 'HEAD', 'OPTIONS'];
 
@@ -140,21 +155,7 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// 5. Security & Sanitize
-app.use(helmet({
-  crossOriginResourcePolicy: false,
-  crossOriginEmbedderPolicy: false,
-  contentSecurityPolicy: {
-    useDefaults: true,
-    directives: {
-      "img-src": ["'self'", "data:", "https://res.cloudinary.com"],
-      "script-src": ["'self'", "'unsafe-inline'", "https://www.google.com/recaptcha/", "https://www.gstatic.com/recaptcha/"],
-      "frame-src": ["'self'", "https://www.google.com/recaptcha/"],
-      "connect-src": ["'self'", "https://api.cloudinary.com", "https://www.google.com/recaptcha/"]
-    }
-  },
-  hsts: process.env.NODE_ENV === 'production' ? { maxAge: 31536000, includeSubDomains: true } : false
-}));
+// 5. Sanitize (sau body parsing để có req.body mà sanitize)
 app.use(mongoSanitize());
 app.use(xss());
 

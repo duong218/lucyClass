@@ -2,12 +2,23 @@ const jwt = require('jsonwebtoken');
 
 /**
  * userIdentifier Middleware
- * Decodes the JWT token from cookies to identify the user role
+ * Decodes the JWT token from cookies OR Authorization header to identify the user role
  * WITHOUT blocking the request if the token is missing or invalid.
  * This allows rate limiters to skip admins while still limiting guests.
+ *
+ * Priority: cookie (accessToken) → Bearer header (Authorization)
  */
 const userIdentifier = (req, res, next) => {
-  const token = req.cookies.accessToken;
+  // 1. Ưu tiên cookie trước (flow thông thường)
+  let token = req.cookies?.accessToken;
+
+  // 2. Fallback sang Authorization header nếu không có cookie
+  if (!token) {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    }
+  }
 
   if (token) {
     try {
