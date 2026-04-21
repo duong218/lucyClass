@@ -54,7 +54,91 @@ exports.getById = async (req, res, next) => {
   }
 };
 
-// Helper: parse & validate highlights
+// ── Attendance handlers ────────────────────────────────────────────────────
+
+/**
+ * GET /api/courses/:id/attendance?date=YYYY-MM-DD
+ * Lấy bản ghi điểm danh của 1 buổi học (theo ngày).
+ * Nếu chưa có → trả về records rỗng để FE tự render danh sách học sinh.
+ */
+exports.getAttendance = async (req, res, next) => {
+  try {
+    const Attendance = require('../models/Attendance');
+    const { id } = req.params;
+    const { date } = req.query;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid course ID' });
+    }
+
+    // Normalize ngày về 00:00:00 UTC
+    const targetDate = date ? new Date(date) : new Date();
+    targetDate.setUTCHours(0, 0, 0, 0);
+
+    const attendance = await Attendance.findOne({ courseId: id, date: targetDate });
+
+    return res.json({
+      success: true,
+      data: attendance
+        ? { date: attendance.date, records: attendance.records, takenBy: attendance.takenBy }
+        : { date: targetDate, records: [] }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/courses/:id/attendance
+ * Body: { date: 'YYYY-MM-DD', records: [{ studentId, status }] }
+ * Upsert: nếu đã có buổi đó thì ghi đè, chưa có thì tạo mới.
+ */
+exports.saveAttendance = async (req, res, next) => {
+  try {
+    const Attendance = require('../models/Attendance');
+    const { id } = req.params;
+    const { date, records } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid course ID' });
+    }
+    if (!Array.isArray(records) || records.length === 0) {
+      return res.status(400).json({ success: false, message: 'records array is required' });
+    }
+    // Validate từng record
+    for (const r of records) {
+      if (!mongoose.Types.ObjectId.isValid(r.studentId)) {
+        return res.status(400).json({ success: false, message: `Invalid studentId: ${r.studentId}` });
+      }
+      if (!['present', 'absent'].includes(r.status)) {
+        return res.status(400).json({ success: false, message: `status phải là present hoặc absent` });
+      }
+    }
+
+    const targetDate = date ? new Date(date) : new Date();
+    targetDate.setUTCHours(0, 0, 0, 0);
+
+    // Xác định người điểm danh (teacher hoặc admin)
+    const takenBy = req.user?.id || req.admin?.id || null;
+
+    const attendance = await Attendance.findOneAndUpdate(
+      { courseId: id, date: targetDate },
+      { courseId: id, date: targetDate, records, takenBy },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    return res.json({
+      success: true,
+      message: 'Lưu điểm danh thành công',
+      data: { date: attendance.date, records: attendance.records }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
 const parseHighlights = (highlights) => {
   if (!highlights) return undefined;
   let arr = typeof highlights === 'string'
@@ -68,29 +152,22 @@ const parseHighlights = (highlights) => {
   return arr;
 };
 
-// Helper: parse & validate additionalTeachers
 const parseAdditionalTeachers = (additionalTeachers) => {
   if (additionalTeachers === undefined || additionalTeachers === null) return undefined;
-
   let arr = Array.isArray(additionalTeachers)
     ? additionalTeachers
     : typeof additionalTeachers === 'string' && additionalTeachers.trim()
       ? [additionalTeachers]
       : [];
-
-  // Lọc chuỗi rỗng
   arr = arr.filter(id => id && id.toString().trim());
-
   if (arr.length > 4) {
     throw Object.assign(new Error('Maximum 4 additional teachers allowed'), { status: 400 });
   }
-
   for (const id of arr) {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       throw Object.assign(new Error(`Invalid teacher ID: ${id}`), { status: 400 });
     }
   }
-
   return arr;
 };
 
@@ -100,18 +177,17 @@ exports.create = async (req, res) => {
   try {
     const { name, description, highlights, teacher, additionalTeachers, ageGroup, duration, classSize } = req.body;
 
-    // Validation
     if (name?.length > 40) return res.status(400).json({ success: false, message: 'Course name max 40 characters' });
     const size = parseInt(classSize);
     if (isNaN(size) || size < 1 || size > 100) return res.status(400).json({ success: false, message: 'Class size must be between 1 and 100' });
 
-    const data = { 
-      name: cleanInput(name), 
-      description: cleanInput(description), 
-      teacher: teacher || null, 
-      ageGroup: cleanInput(ageGroup), 
-      duration: cleanInput(duration), 
-      classSize: size 
+    const data = {
+      name: cleanInput(name),
+      description: cleanInput(description),
+      teacher: teacher || null,
+      ageGroup: cleanInput(ageGroup),
+      duration: cleanInput(duration),
+      classSize: size
     };
 
     try {
@@ -130,7 +206,7 @@ exports.create = async (req, res) => {
 
     if (req.file && req.file.buffer) {
       try {
-        uploadResult = await uploadImageBuffer(req.file.buffer, "courses");
+        uploadResult = await uploadImageBuffer(req.file.buffer, 'courses');
       } catch (err) {
         return res.status(500).json({ success: false, message: 'Image upload failed' });
       }
@@ -155,9 +231,7 @@ exports.create = async (req, res) => {
       try { await deleteImageFromCloudinary(uploadResult.public_id); } catch (_) {}
     }
     const isValidationError = error?.name === 'ValidationError' || error?.name === 'CastError';
-    if (isValidationError) {
-      return res.status(400).json({ success: false, message: error.message });
-    }
+    if (isValidationError) return res.status(400).json({ success: false, message: error.message });
     return res.status(500).json({ success: false, message: 'Failed to create course' });
   }
 };
@@ -169,30 +243,27 @@ exports.update = async (req, res) => {
   try {
     const { name, description, highlights, teacher, additionalTeachers, ageGroup, duration, classSize } = req.body;
 
-    // Validation
-    if (name !== undefined && typeof name === 'string' && name.trim().length === 0) {
+    if (name !== undefined && typeof name === 'string' && name.trim().length === 0)
       return res.status(400).json({ success: false, message: 'Course name cannot be empty' });
-    }
-    if (description !== undefined && typeof description === 'string' && description.trim().length === 0) {
+    if (description !== undefined && typeof description === 'string' && description.trim().length === 0)
       return res.status(400).json({ success: false, message: 'Description cannot be empty' });
-    }
-    if (ageGroup !== undefined && typeof ageGroup === 'string' && ageGroup.trim().length === 0) {
+    if (ageGroup !== undefined && typeof ageGroup === 'string' && ageGroup.trim().length === 0)
       return res.status(400).json({ success: false, message: 'Age group cannot be empty' });
-    }
-    if (duration !== undefined && typeof duration === 'string' && duration.trim().length === 0) {
+    if (duration !== undefined && typeof duration === 'string' && duration.trim().length === 0)
       return res.status(400).json({ success: false, message: 'Duration cannot be empty' });
-    }
-    if (name !== undefined && name?.length > 40) return res.status(400).json({ success: false, message: 'Course name max 40 characters' });
+    if (name !== undefined && name?.length > 40)
+      return res.status(400).json({ success: false, message: 'Course name max 40 characters' });
+
     let size;
     if (classSize !== undefined) {
       size = parseInt(classSize);
-      if (isNaN(size) || size < 1 || size > 100) return res.status(400).json({ success: false, message: 'Class size must be between 1 and 100' });
+      if (isNaN(size) || size < 1 || size > 100)
+        return res.status(400).json({ success: false, message: 'Class size must be between 1 and 100' });
     }
 
     const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    if (!mongoose.Types.ObjectId.isValid(id))
       return res.status(400).json({ success: false, message: 'Invalid ID format' });
-    }
 
     const existing = await Course.findOne({ _id: id, isDeleted: { $ne: true } });
     if (!existing) return res.status(404).json({ success: false, message: 'Course not found' });
@@ -214,7 +285,6 @@ exports.update = async (req, res) => {
       return res.status(400).json({ success: false, message: err.message });
     }
 
-    // additionalTeachers: kể cả trường hợp gửi mảng rỗng để xóa hết GV phụ
     if (additionalTeachers !== undefined) {
       try {
         const parsedAdditional = parseAdditionalTeachers(additionalTeachers);
@@ -226,7 +296,7 @@ exports.update = async (req, res) => {
 
     if (req.file && req.file.buffer) {
       try {
-        uploadResult = await uploadImageBuffer(req.file.buffer, "courses");
+        uploadResult = await uploadImageBuffer(req.file.buffer, 'courses');
       } catch (err) {
         return res.status(500).json({ success: false, message: 'Image upload failed' });
       }
@@ -246,6 +316,7 @@ exports.update = async (req, res) => {
       }
       throw dbError;
     }
+
     await clearCache('/api/courses');
     if (uploadResult && existing.imagePublicId) {
       try { await deleteImageFromCloudinary(existing.imagePublicId); } catch (_) {}
@@ -267,9 +338,7 @@ exports.update = async (req, res) => {
       try { await deleteImageFromCloudinary(uploadResult.public_id); } catch (_) {}
     }
     const isValidationError = error?.name === 'ValidationError' || error?.name === 'CastError';
-    if (isValidationError) {
-      return res.status(400).json({ success: false, message: error.message });
-    }
+    if (isValidationError) return res.status(400).json({ success: false, message: error.message });
     return res.status(500).json({ success: false, message: 'Failed to update course' });
   }
 };
@@ -278,9 +347,9 @@ exports.update = async (req, res) => {
 exports.remove = async (req, res, next) => {
   try {
     const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    if (!mongoose.Types.ObjectId.isValid(id))
       return res.status(400).json({ success: false, message: 'Invalid ID format' });
-    }
+
     const course = await Course.findOneAndUpdate(
       { _id: id, isDeleted: { $ne: true } },
       { isDeleted: true, deletedAt: new Date() },

@@ -39,17 +39,16 @@ exports.create = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Role không hợp lệ' });
     }
 
-    // Tạo username + password ngẫu nhiên
     const username = await StaffAccount.generateUniqueUsername();
     const plainPassword = StaffAccount.generateRandomPassword();
 
     const staffData = {
       username,
-      password: plainPassword, // sẽ được hash trong pre-save hook
+      password: plainPassword,
       role,
       displayName: displayName ? cleanInput(String(displayName).trim()) : '',
       phone: phone ? String(phone).trim() : '',
-      email: '', // để trống, admin điền sau
+      email: '',
       courseIds: role === 'teacher' && courseIds ? courseIds : []
     };
 
@@ -65,7 +64,6 @@ exports.create = async (req, res) => {
       req
     });
 
-    // Trả về plain password 1 lần duy nhất để admin copy cho nhân viên
     res.status(201).json({
       success: true,
       message: 'Tạo tài khoản thành công',
@@ -77,7 +75,6 @@ exports.create = async (req, res) => {
         email: staff.email,
         createdAt: staff.createdAt
       },
-      // Plain password chỉ trả về lúc tạo — lưu lại để thông báo cho nhân viên
       initialPassword: plainPassword
     });
   } catch (err) {
@@ -86,7 +83,7 @@ exports.create = async (req, res) => {
   }
 };
 
-// PUT /api/staff/:id  —  admin cập nhật thông tin (tên, email, phone, courseIds, isActive)
+// PUT /api/staff/:id  —  admin cập nhật thông tin
 exports.update = async (req, res) => {
   try {
     const { displayName, email, phone, courseIds, isActive } = req.body;
@@ -132,15 +129,14 @@ exports.update = async (req, res) => {
   }
 };
 
-// PUT /api/staff/:id/reset-password  —  admin đặt lại mật khẩu mới cho staff
+// PUT /api/staff/:id/reset-password  —  admin đặt lại mật khẩu
 exports.resetPasswordByAdmin = async (req, res) => {
   try {
     const staff = await StaffAccount.findById(req.params.id);
     if (!staff) return res.status(404).json({ success: false, message: 'Không tìm thấy' });
 
     const newPassword = StaffAccount.generateRandomPassword();
-    staff.password = newPassword; // pre-save hook sẽ hash
-    // Xoá session hiện tại để bắt đăng nhập lại với pass mới
+    staff.password = newPassword;
     staff.refreshTokens = [];
     staff.activeSessionId = undefined;
     await staff.save();
@@ -158,14 +154,14 @@ exports.resetPasswordByAdmin = async (req, res) => {
     res.json({
       success: true,
       message: 'Đặt lại mật khẩu thành công',
-      newPassword // trả về 1 lần để admin thông báo cho nhân viên
+      newPassword
     });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
   }
 };
 
-// DELETE /api/staff/:id  —  xoá tài khoản (soft: isActive = false)
+// DELETE /api/staff/:id  —  vô hiệu hoá tài khoản
 exports.remove = async (req, res) => {
   try {
     const staff = await StaffAccount.findByIdAndUpdate(
@@ -191,16 +187,69 @@ exports.remove = async (req, res) => {
   }
 };
 
-// GET /api/me/profile  —  staff tự xem thông tin cá nhân của mình
+
+// GET /api/me/profile  --  staff tu xem thong tin + danh sach lop phu trach
 exports.getMyProfile = async (req, res) => {
   try {
+    const Registration = require('../models/Registration');
+    const Teacher      = require('../models/Teacher');
+    const Course       = require('../models/Course');
+
     const staff = await StaffAccount.findById(req.user.id)
       .select('-password -refreshTokens -activeSessionId -resetPasswordToken -resetPasswordExpire')
-      .populate('courseIds', 'name ageGroup');
+      .lean();
 
-    if (!staff) return res.status(404).json({ success: false, message: 'Không tìm thấy' });
-    res.json({ success: true, data: staff });
+    if (!staff) return res.status(404).json({ success: false, message: 'Khong tim thay' });
+
+    // Role teacher: tim lop qua Teacher.staffAccountId
+    // Course.teacher / additionalTeachers ref den Teacher model.
+    // Teacher.staffAccountId la cau noi duy nhat den StaffAccount.
+    // StaffAccount.courseIds khong duoc ghi khi admin gan GV vao khoa hoc.
+    if (staff.role === 'teacher') {
+      // 1. Tim Teacher document lien ket voi tai khoan nay
+      const teacherDoc = await Teacher.findOne({
+        staffAccountId: req.user.id,
+        isDeleted: { $ne: true }
+      }).lean();
+
+      let courses = [];
+      if (teacherDoc) {
+        // 2. Tim tat ca Course ma giao vien nay phu trach (chinh hoac phu)
+        courses = await Course.find({
+          isDeleted: { $ne: true },
+          $or: [
+            { teacher: teacherDoc._id },
+            { additionalTeachers: teacherDoc._id }
+          ]
+        })
+          .select('name ageGroup duration classSize isActive')
+          .lean();
+      }
+
+      // 3. Tinh activeStudentCount cho tung lop
+      if (courses.length > 0) {
+        const courseIdList = courses.map(c => c._id);
+        const counts = await Registration.aggregate([
+          { $match: { courseId: { $in: courseIdList }, status: 'registered', isActive: true } },
+          { $group: { _id: '$courseId', count: { $sum: 1 } } }
+        ]);
+        const countMap = counts.reduce((acc, curr) => {
+          acc[curr._id.toString()] = curr.count;
+          return acc;
+        }, {});
+        courses = courses.map(c => ({
+          ...c,
+          activeStudentCount: countMap[c._id.toString()] || 0
+        }));
+      }
+
+      return res.json({ success: true, data: { ...staff, courseIds: courses } });
+    }
+
+    // Marketing hoac role khac
+    res.json({ success: true, data: { ...staff, courseIds: [] } });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
+    console.error('[getMyProfile]', err);
+    res.status(500).json({ success: false, message: 'Loi he thong' });
   }
 };

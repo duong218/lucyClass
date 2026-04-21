@@ -88,7 +88,8 @@ function App() {
         >
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<TeacherDashboard />} />
-          {/* Phase 2: thêm /teacher/classes và /teacher/classes/:courseId */}
+          {/* Xem danh sách học sinh của lớp mình phụ trách */}
+          <Route path="students/course/:courseId" element={<CourseStudentList />} />
         </Route>
 
         {/* ─── Marketing routes (chỉ role: marketing) ──────────────────────────── */}
@@ -102,7 +103,6 @@ function App() {
         >
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<MarketingDashboard />} />
-          {/* Phase 2: thêm /marketing/announcements */}
         </Route>
 
         {/* Catch all */}

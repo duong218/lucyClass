@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
-import { User, Phone, Mail, BookOpen, AlertCircle } from 'lucide-react';
+import { User, Phone, Mail, BookOpen, AlertCircle, Users, ChevronRight } from 'lucide-react';
 
 const TeacherDashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -25,7 +27,7 @@ const TeacherDashboard = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-[60vh]">
         <div className="w-10 h-10 border-4 border-blue-400 border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -42,14 +44,16 @@ const TeacherDashboard = () => {
     );
   }
 
-  return (
-    <div className="p-8 max-w-2xl">
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Thông tin cá nhân</h1>
+  const courses = profile?.courseIds || [];
 
+  return (
+    <div className="p-6 md:p-8 space-y-6 max-w-4xl">
+      <h1 className="text-2xl font-bold text-gray-800">Trang giáo viên</h1>
+
+      {/* ── Thông tin cá nhân ──────────────────────────────────────── */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        {/* Header */}
         <div className="bg-gradient-to-r from-emerald-50 to-teal-50 p-6 flex items-center gap-4">
-          <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+          <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center text-white text-2xl font-bold shrink-0">
             {(profile?.displayName || profile?.username || 'T').charAt(0).toUpperCase()}
           </div>
           <div>
@@ -62,31 +66,10 @@ const TeacherDashboard = () => {
           </div>
         </div>
 
-        {/* Info list */}
         <div className="p-6 space-y-4">
           <InfoRow icon={<User size={16} />} label="Tên đăng nhập" value={profile?.username} mono />
           <InfoRow icon={<Mail size={16} />} label="Email" value={profile?.email || '(chưa cập nhật)'} dim={!profile?.email} />
           <InfoRow icon={<Phone size={16} />} label="Số điện thoại" value={profile?.phone || '(chưa cập nhật)'} dim={!profile?.phone} />
-
-          {/* Lớp phụ trách */}
-          <div className="pt-2">
-            <div className="flex items-center gap-2 text-gray-500 mb-2">
-              <BookOpen size={16} />
-              <span className="text-sm font-medium text-gray-600">Lớp phụ trách</span>
-            </div>
-            {profile?.courseIds && profile.courseIds.length > 0 ? (
-              <div className="flex flex-wrap gap-2 ml-6">
-                {profile.courseIds.map((course) => (
-                  <span key={course._id}
-                    className="bg-blue-50 text-blue-700 text-xs font-medium px-3 py-1 rounded-full border border-blue-100">
-                    {course.name}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-400 ml-6">Chưa được gán lớp nào</p>
-            )}
-          </div>
         </div>
 
         <div className="px-6 pb-5">
@@ -94,6 +77,114 @@ const TeacherDashboard = () => {
             Để cập nhật thông tin cá nhân, vui lòng liên hệ admin.
           </p>
         </div>
+      </div>
+
+      {/* ── Lớp học phụ trách ──────────────────────────────────────── */}
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <BookOpen size={18} className="text-blue-500" />
+          <h2 className="text-lg font-bold text-gray-800">Lớp học của tôi</h2>
+          <span className="ml-1 bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">
+            {courses.length} lớp
+          </span>
+        </div>
+
+        {courses.length === 0 ? (
+          <div className="bg-white rounded-2xl border-2 border-dashed border-gray-200 p-12 text-center">
+            <div className="text-5xl mb-3 opacity-30">📭</div>
+            <p className="text-gray-400 font-semibold">Bạn chưa được gán lớp nào</p>
+            <p className="text-gray-300 text-sm mt-1">Liên hệ admin để được phân công lớp học</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {courses.map((course) => {
+              const percent = course.classSize
+                ? Math.min(100, Math.round(((course.activeStudentCount ?? 0) / course.classSize) * 100))
+                : 0;
+              const isFull = percent >= 100;
+              const isNearFull = percent >= 80 && !isFull;
+
+              return (
+                <div
+                  key={course._id}
+                  className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 overflow-hidden group"
+                >
+                  {/* Card header */}
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-5 py-4 flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-black text-gray-800 text-base truncate group-hover:text-blue-600 transition-colors">
+                        {course.name}
+                      </h3>
+                      {course.ageGroup && (
+                        <span className="text-xs text-blue-500 font-semibold">{course.ageGroup}</span>
+                      )}
+                    </div>
+                    {/* Status badge */}
+                    {isFull ? (
+                      <span className="ml-3 shrink-0 text-[10px] font-black px-2.5 py-1 rounded-full bg-rose-100 text-rose-600 uppercase tracking-wide">
+                        Đầy lớp
+                      </span>
+                    ) : isNearFull ? (
+                      <span className="ml-3 shrink-0 text-[10px] font-black px-2.5 py-1 rounded-full bg-amber-100 text-amber-600 uppercase tracking-wide">
+                        Gần đầy
+                      </span>
+                    ) : (
+                      <span className="ml-3 shrink-0 text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-600 uppercase tracking-wide">
+                        Còn chỗ
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Card body */}
+                  <div className="px-5 py-4 space-y-3">
+                    {/* Sĩ số */}
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-1.5 text-gray-500">
+                        <Users size={14} />
+                        <span className="font-medium">Sĩ số</span>
+                      </div>
+                      <span className="font-black text-gray-700">
+                        {course.activeStudentCount ?? 0}
+                        <span className="text-gray-300 font-bold"> / {course.classSize ?? '?'}</span>
+                      </span>
+                    </div>
+
+                    {/* Progress bar */}
+                    {course.classSize > 0 && (
+                      <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-700 ${
+                            isFull
+                              ? 'bg-gradient-to-r from-rose-400 to-pink-500'
+                              : isNearFull
+                              ? 'bg-gradient-to-r from-amber-400 to-orange-400'
+                              : 'bg-gradient-to-r from-blue-400 to-indigo-500'
+                          }`}
+                          style={{ width: `${percent}%` }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Thời lượng */}
+                    {course.duration && (
+                      <p className="text-xs text-gray-400 font-medium">🕐 {course.duration}</p>
+                    )}
+
+                    {/* Nút xem học sinh */}
+                    <button
+                      onClick={() => navigate(`/teacher/students/course/${course._id}`)}
+                      className="w-full mt-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm shadow-blue-200"
+                    >
+                      <Users size={15} />
+                      Xem danh sách học sinh
+                      <ChevronRight size={15} className="group-hover:translate-x-1 transition-transform" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

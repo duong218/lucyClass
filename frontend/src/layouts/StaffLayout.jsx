@@ -12,8 +12,7 @@ const StaffLayout = () => {
   // Menu items theo role
   const menuItems = isTeacher
     ? [
-        { path: '/teacher/dashboard', label: 'Thông tin cá nhân', icon: '👤' },
-        { path: '/teacher/classes',   label: 'Lớp học của tôi',   icon: '📚' },
+        { path: '/teacher/dashboard', label: 'Trang của tôi', icon: '👤' },
       ]
     : [
         { path: '/marketing/dashboard',     label: 'Thông tin cá nhân', icon: '👤' },
