@@ -93,7 +93,11 @@ exports.update = async (req, res) => {
       updateData.displayName = cleanInput(String(displayName).trim());
     }
     if (email !== undefined) {
-      updateData.email = String(email).trim().toLowerCase();
+      const trimmed = String(email).trim().toLowerCase();
+      if (trimmed && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+        return res.status(400).json({ success: false, message: 'Email không hợp lệ' });
+      }
+      updateData.email = trimmed;
     }
     if (phone !== undefined) {
       updateData.phone = String(phone).trim();

@@ -32,20 +32,23 @@ exports.getAll = async (req, res, next) => {
       query.status = status;
     }
 
+    const safePage  = Math.max(Number(page)  || 1,  1);
+    const safeLimit = Math.min(Math.max(Number(limit) || 10, 1), 100);
+
     const total = await Registration.countDocuments(query);
     const registrations = await Registration.find(query)
       .populate('courseId', 'name')
       .sort({ createdAt: -1 })
-      .skip((Number(page) - 1) * Number(limit))
-      .limit(Number(limit));
+      .skip((safePage - 1) * safeLimit)
+      .limit(safeLimit);
 
     res.json({
       success: true,
       data: {
         registrations,
         total,
-        pages: Math.ceil(total / Number(limit)),
-        currentPage: Number(page)
+        pages: Math.ceil(total / safeLimit),
+        currentPage: safePage
       }
     });
   } catch (error) {
