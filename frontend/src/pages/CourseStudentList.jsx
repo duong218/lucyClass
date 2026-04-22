@@ -122,6 +122,245 @@ const RankingModal = ({ student, course, onClose, onSaved }) => {
 };
 
 // ─────────────────────────────────────────────
+// 🔄 Transfer Modal — chuyển lớp học viên
+// ─────────────────────────────────────────────
+const TransferModal = ({ student, currentCourse, onClose, onTransferred }) => {
+  const [courses, setCourses]       = useState([]);
+  const [selected, setSelected]     = useState('');
+  const [loading, setLoading]       = useState(true);
+  const [saving, setSaving]         = useState(false);
+  const [search, setSearch]         = useState('');
+
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        const res = await api.get('/courses');
+        if (res.data.success) {
+          // Lọc bỏ khóa học hiện tại
+          setCourses(res.data.data.filter(c => c._id !== currentCourse?._id));
+        }
+      } catch (err) {
+        showToast.error('Không thể tải danh sách khóa học');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCourses();
+  }, [currentCourse]);
+
+  const filteredCourses = useMemo(() =>
+    courses.filter(c => c.name.toLowerCase().includes(search.toLowerCase())),
+    [courses, search]
+  );
+
+  const handleTransfer = async () => {
+    if (!selected) { showToast.error('Vui lòng chọn khóa học đích'); return; }
+    setSaving(true);
+    try {
+      const res = await api.put(`/courses/students/${student._id}/transfer`, { toCourseId: selected });
+      if (res.data.success) {
+        showToast.success(res.data.message || 'Chuyển lớp thành công! 🎉');
+        onTransferred(student._id, selected, res.data.data);
+        onClose();
+      }
+    } catch (err) {
+      showToast.error(err?.message || 'Chuyển lớp thất bại');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const selectedCourse = courses.find(c => c._id === selected);
+
+  return (
+    <AnimatePresence>
+      <motion.div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+        <motion.div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} />
+        <motion.div
+          className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden"
+          initial={{ scale: 0.85, y: 40, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }}
+          exit={{ scale: 0.85, y: 40, opacity: 0 }} transition={{ type: 'spring', damping: 20, stiffness: 300 }}>
+
+          {/* Header */}
+          <div className="bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 p-6 relative overflow-hidden shrink-0">
+            <div className="absolute -top-6 -right-6 w-28 h-28 bg-white/10 rounded-full blur-xl" />
+            <div className="absolute bottom-0 left-0 w-20 h-20 bg-white/10 rounded-full blur-xl" />
+            <button onClick={onClose}
+              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30 transition-all text-sm font-bold">
+              ✕
+            </button>
+            <div className="relative z-10 flex items-center gap-3">
+              <span className="text-3xl">🔄</span>
+              <div>
+                <h3 className="text-xl font-black text-white tracking-tight">Chuyển lớp học viên</h3>
+                <p className="text-blue-100 text-xs font-medium mt-0.5">Chọn khóa học đích cho học viên</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Student info */}
+          <div className="px-6 pt-5 shrink-0">
+            <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-black text-base shrink-0">
+                {student.childName?.[0]?.toUpperCase() || '?'}
+              </div>
+              <div className="min-w-0">
+                <p className="font-black text-gray-800 text-sm truncate">{student.childName}</p>
+                <p className="text-xs text-gray-500 font-medium truncate">
+                  Đang học: <span className="text-blue-600 font-bold">{currentCourse?.name || '—'}</span>
+                </p>
+              </div>
+              <span className="ml-auto text-lg shrink-0">→</span>
+              <div className="min-w-0 text-right">
+                {selectedCourse ? (
+                  <p className="font-black text-indigo-600 text-sm truncate">{selectedCourse.name}</p>
+                ) : (
+                  <p className="text-xs text-gray-400 font-medium">Chưa chọn lớp</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Search + list */}
+          <div className="px-6 pt-4 pb-2 shrink-0">
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
+              <input type="text" placeholder="Tìm khóa học..."
+                className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all"
+                value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-6 pb-2 min-h-0">
+            {loading ? (
+              <div className="flex items-center justify-center py-10">
+                <span className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : filteredCourses.length === 0 ? (
+              <div className="text-center py-8 text-gray-400 text-sm font-medium">
+                Không tìm thấy khóa học nào
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filteredCourses.map(course => {
+                  const isFull = course.activeStudentCount >= course.classSize;
+                  const isSelected = selected === course._id;
+                  return (
+                    <button key={course._id} type="button"
+                      onClick={() => !isFull && setSelected(course._id)}
+                      disabled={isFull}
+                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left transition-all border ${
+                        isSelected
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-200 scale-[1.01]'
+                          : isFull
+                            ? 'bg-gray-50 text-gray-400 border-gray-100 cursor-not-allowed opacity-60'
+                            : 'bg-gray-50 text-gray-700 border-gray-100 hover:bg-blue-50 hover:border-blue-200'
+                      }`}>
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm font-black shrink-0 ${
+                        isSelected ? 'bg-white/20 text-white' : isFull ? 'bg-gray-200 text-gray-400' : 'bg-blue-100 text-blue-600'
+                      }`}>
+                        {course.name[0]?.toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`font-bold text-sm truncate ${isSelected ? 'text-white' : ''}`}>{course.name}</p>
+                        <p className={`text-xs font-medium ${isSelected ? 'text-blue-100' : 'text-gray-400'}`}>
+                          {course.ageGroup} · {course.activeStudentCount}/{course.classSize} học viên
+                        </p>
+                      </div>
+                      {isFull && <span className="text-[10px] font-black bg-rose-100 text-rose-600 px-2 py-0.5 rounded-full shrink-0">ĐẦY</span>}
+                      {isSelected && <span className="text-white text-lg shrink-0">✓</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="px-6 pb-6 pt-4 flex gap-3 shrink-0 border-t border-gray-100">
+            <button onClick={onClose}
+              className="flex-1 py-3 rounded-2xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 transition-all">
+              Hủy
+            </button>
+            <button onClick={handleTransfer} disabled={!selected || saving}
+              className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-black shadow-lg shadow-blue-200 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2">
+              {saving
+                ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                : '🔄'}
+              Xác nhận chuyển
+            </button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+};
+
+// ─────────────────────────────────────────────
+// 🏷️ Transfer Badge — tooltip lịch sử chuyển lớp
+// ─────────────────────────────────────────────
+const TransferBadge = ({ transferHistory, allCourses }) => {
+  const [show, setShow] = useState(false);
+  if (!transferHistory || transferHistory.length === 0) return null;
+
+  const getCourseName = (id) => {
+    const found = allCourses.find(c => c._id === (id?._id || id)?.toString?.() || c._id === id?.toString?.() || c._id === id);
+    return found?.name || id?.toString?.()?.slice(-4)?.toUpperCase() || '—';
+  };
+
+  const latest = transferHistory[transferHistory.length - 1];
+
+  return (
+    <div className="relative inline-block">
+      <button
+        onMouseEnter={() => setShow(true)}
+        onMouseLeave={() => setShow(false)}
+        onFocus={() => setShow(true)}
+        onBlur={() => setShow(false)}
+        onClick={() => setShow(v => !v)}
+        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-black border border-violet-200 hover:bg-violet-200 transition-all cursor-pointer select-none"
+        title="Xem lịch sử chuyển lớp">
+        🔄 ĐÃ CHUYỂN
+      </button>
+
+      <AnimatePresence>
+        {show && (
+          <motion.div
+            initial={{ opacity: 0, y: 6, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 6, scale: 0.95 }}
+            transition={{ duration: 0.15 }}
+            className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 pointer-events-none">
+            <div className="absolute bottom-[-6px] left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-r border-b border-gray-100 rotate-45" />
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Lịch sử chuyển lớp</p>
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {transferHistory.map((t, i) => (
+                <div key={i} className="flex items-start gap-2 text-xs">
+                  <span className="text-violet-500 font-black shrink-0 mt-0.5">#{i + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-gray-700 leading-snug">
+                      <span className="text-rose-500">{getCourseName(t.fromCourseId)}</span>
+                      <span className="text-gray-400 mx-1">→</span>
+                      <span className="text-emerald-600">{getCourseName(t.toCourseId)}</span>
+                    </p>
+                    <p className="text-gray-400 font-medium text-[10px] mt-0.5">
+                      {t.transferredAt ? new Date(t.transferredAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
+                      {t.transferredBy ? ` · ${t.transferredBy}` : ''}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
 // ✅ Attendance Badge — toggle có mặt / vắng
 // ─────────────────────────────────────────────
 const AttendanceBadge = ({ status, onClick, disabled }) => {
@@ -171,12 +410,14 @@ const CourseStudentList = () => {
 
     const [students, setStudents]               = useState([]);
     const [course, setCourse]                   = useState(null);
+    const [allCourses, setAllCourses]            = useState([]); // cho TransferBadge resolve tên
     const [loading, setLoading]                 = useState(true);
     const [search, setSearch]                   = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [filter, setFilter]                   = useState('all');
     const [showConfirm, setShowConfirm]         = useState(null);
     const [rankingStudent, setRankingStudent]   = useState(null);
+    const [transferStudent, setTransferStudent] = useState(null); // học viên đang chuyển lớp
 
     // ── Attendance state ─────────────────────────────────────────────────
     const todayStr = new Date().toISOString().split('T')[0];
@@ -197,6 +438,15 @@ const CourseStudentList = () => {
     useEffect(() => {
         if (isTeacher && courseId) fetchAttendance(selectedDate);
     }, [selectedDate, courseId, isTeacher]);
+
+    // Fetch danh sách tất cả courses để TransferBadge resolve tên (chỉ admin cần)
+    useEffect(() => {
+        if (!isTeacher) {
+            api.get('/courses').then(res => {
+                if (res.data.success) setAllCourses(res.data.data);
+            }).catch(() => {});
+        }
+    }, [isTeacher]);
 
     const fetchData = async () => {
         setLoading(true);
@@ -306,6 +556,11 @@ const CourseStudentList = () => {
             showToast.error(error.response?.data?.message || t('admin.updateFailed'));
         }
     };
+
+    // Callback khi chuyển lớp thành công — xóa học viên khỏi danh sách lớp hiện tại
+    const handleTransferred = useCallback((studentId, toCourseId, responseData) => {
+        setStudents(prev => prev.filter(s => s._id !== studentId));
+    }, []);
 
     const filteredStudents = useMemo(() => students.filter(s => {
         const matchesSearch =
@@ -462,7 +717,16 @@ const CourseStudentList = () => {
                                     <tr key={s._id}
                                         className={`hover:bg-gray-50/50 transition-colors ${!s.isActive ? 'bg-gray-50 italic opacity-70' : ''}`}>
                                         <td className="py-5 px-4 text-sm font-bold text-gray-400">{(i + 1).toString().padStart(2, '0')}</td>
-                                        <td className="py-5 px-4 font-bold text-gray-800">{s.childName}</td>
+                                        <td className="py-5 px-4">
+                                            <div className="flex flex-col gap-1">
+                                                <span className="font-bold text-gray-800">{s.childName}</span>
+                                                {/* Badge hiện khi học viên có lịch sử chuyển lớp */}
+                                                <TransferBadge
+                                                    transferHistory={s.transferHistory}
+                                                    allCourses={allCourses}
+                                                />
+                                            </div>
+                                        </td>
                                         <td className="py-5 px-4 text-sm text-gray-600 font-medium">{s.childAge}</td>
                                         <td className="py-5 px-4 text-sm text-gray-600 font-medium">{s.parentName}</td>
                                         <td className="py-5 px-4 text-sm text-gray-600 font-medium font-mono">{s.phone}</td>
@@ -497,9 +761,31 @@ const CourseStudentList = () => {
                                                     </div>
                                                 </td>
                                                 <td className="py-5 px-4">
-                                                    <div className="flex justify-center">
-                                                        <button disabled={!s.isActive} onClick={() => setShowConfirm(s)}
-                                                            className={`p-2 rounded-xl transition-all ${s.isActive ? 'text-red-500 hover:bg-red-50 hover:scale-110 active:scale-95' : 'text-gray-300 cursor-not-allowed opacity-50'}`}
+                                                    <div className="flex justify-center items-center gap-1.5">
+                                                        {/* Nút chuyển lớp 🔄 */}
+                                                        <motion.button
+                                                            disabled={!s.isActive}
+                                                            onClick={() => s.isActive && setTransferStudent(s)}
+                                                            whileHover={s.isActive ? { scale: 1.15, rotate: 180 } : {}}
+                                                            whileTap={s.isActive ? { scale: 0.9 } : {}}
+                                                            transition={{ duration: 0.3 }}
+                                                            className={`p-2 rounded-xl transition-all ${
+                                                                s.isActive
+                                                                    ? 'text-blue-500 hover:bg-blue-50 active:scale-95'
+                                                                    : 'text-gray-300 cursor-not-allowed opacity-50'
+                                                            }`}
+                                                            title="Chuyển lớp">
+                                                            🔄
+                                                        </motion.button>
+                                                        {/* Nút cho nghỉ ❌ */}
+                                                        <button
+                                                            disabled={!s.isActive}
+                                                            onClick={() => setShowConfirm(s)}
+                                                            className={`p-2 rounded-xl transition-all ${
+                                                                s.isActive
+                                                                    ? 'text-red-500 hover:bg-red-50 hover:scale-110 active:scale-95'
+                                                                    : 'text-gray-300 cursor-not-allowed opacity-50'
+                                                            }`}
                                                             title={t('admin.delete')}>❌</button>
                                                     </div>
                                                 </td>
@@ -513,6 +799,7 @@ const CourseStudentList = () => {
                 </div>
             </div>
 
+            {/* ── Modals ── */}
             {!isTeacher && (
                 <ConfirmModal
                     isOpen={!!showConfirm} onClose={() => setShowConfirm(null)}
@@ -525,6 +812,15 @@ const CourseStudentList = () => {
             {rankingStudent && (
                 <RankingModal student={rankingStudent} course={course}
                     onClose={() => setRankingStudent(null)} onSaved={() => {}} />
+            )}
+
+            {transferStudent && (
+                <TransferModal
+                    student={transferStudent}
+                    currentCourse={course}
+                    onClose={() => setTransferStudent(null)}
+                    onTransferred={handleTransferred}
+                />
             )}
         </div>
     );

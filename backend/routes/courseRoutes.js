@@ -32,7 +32,6 @@ router.get(
 );
 
 // ── Điểm danh (teacher + admin) ───────────────────────────────────────────
-// GET  /api/courses/:id/attendance?date=YYYY-MM-DD  — lấy điểm danh của 1 buổi
 router.get(
   '/:id/attendance',
   auth,
@@ -40,13 +39,21 @@ router.get(
   catchAsync(courseController.getAttendance)
 );
 
-// POST /api/courses/:id/attendance  — lưu điểm danh buổi học
 router.post(
   '/:id/attendance',
   auth,
   authorizeRoles('admin', 'teacher'),
   csrfProtection,
   catchAsync(courseController.saveAttendance)
+);
+
+// ── Chuyển lớp học viên (admin only) ──────────────────────────────────────
+// ⚠️  PHẢI đặt TRƯỚC router.put('/:id') — nếu không Express sẽ hiểu
+//     "students" là một courseId và gọi nhầm courseController.update
+router.put(
+  '/students/:id/transfer',
+  auth, isAdmin, csrfProtection,
+  catchAsync(registrationController.transferStudent)
 );
 
 // ── Admin only ─────────────────────────────────────────────────────────────

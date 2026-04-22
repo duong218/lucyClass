@@ -41,6 +41,18 @@ const registrationSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  // ── Lịch sử chuyển lớp ────────────────────────────────────────────────────
+  transferHistory: {
+    type: [
+      {
+        fromCourseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true },
+        toCourseId:   { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true },
+        transferredAt: { type: Date, default: Date.now },
+        transferredBy: { type: String, default: '' } // username của admin thực hiện
+      }
+    ],
+    default: []
   }
 }, {
   timestamps: true

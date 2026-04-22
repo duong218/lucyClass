@@ -553,3 +553,96 @@ exports.exportExcel = async (req, res, next) => {
     next(error);
   }
 };
+
+// PUT /api/courses/students/:id/transfer
+exports.transferStudent = async (req, res, next) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { toCourseId } = req.body;
+    const studentId = req.params.id;
+
+    // 1. Validate input
+    if (!toCourseId || !mongoose.Types.ObjectId.isValid(toCourseId)) {
+      await session.abortTransaction();
+      return res.status(400).json({ success: false, message: 'toCourseId không hợp lệ' });
+    }
+
+    // 2. Load registration
+    const student = await Registration.findById(studentId).session(session);
+    if (!student) {
+      await session.abortTransaction();
+      return res.status(404).json({ success: false, message: 'Không tìm thấy học viên' });
+    }
+    if (!student.isActive) {
+      await session.abortTransaction();
+      return res.status(400).json({ success: false, message: 'Học viên này đã ngưng hoạt động' });
+    }
+
+    const fromCourseId = student.courseId.toString();
+    if (fromCourseId === toCourseId) {
+      await session.abortTransaction();
+      return res.status(400).json({ success: false, message: 'Học viên đã ở trong khóa học này rồi' });
+    }
+
+    // 3. Validate destination course & check capacity
+    const toCourse = await Course.findById(toCourseId).session(session);
+    if (!toCourse || toCourse.isDeleted) {
+      await session.abortTransaction();
+      return res.status(404).json({ success: false, message: 'Khóa học đích không tồn tại' });
+    }
+
+    const activeCount = await Registration.countDocuments({
+      courseId: toCourseId,
+      status: 'registered',
+      isActive: true
+    }).session(session);
+
+    if (activeCount >= toCourse.classSize) {
+      await session.abortTransaction();
+      return res.status(400).json({ success: false, message: `Lớp "${toCourse.name}" đã đủ học viên (${toCourse.classSize})` });
+    }
+
+    // 4. Perform transfer — ghi lịch sử, đổi courseId
+    const transferredBy = req.admin?.username || 'admin';
+
+    student.transferHistory.push({
+      fromCourseId,
+      toCourseId,
+      transferredAt: new Date(),
+      transferredBy
+    });
+    student.courseId = toCourseId;
+
+    await student.save({ session });
+    await session.commitTransaction();
+
+    // 5. Audit log (non-critical)
+    if (req.admin) {
+      logAdminAction({
+        adminId: req.admin.id,
+        adminName: req.admin.username,
+        action: 'TRANSFER_STUDENT',
+        targetType: 'registration',
+        targetId: student._id,
+        description: `Chuyển học viên "${student.childName}" từ lớp ${fromCourseId} sang lớp ${toCourseId}`,
+        req
+      }).catch(err => console.error('[AuditLog] transferStudent failed:', err));
+    }
+
+    await clearCache('/api/courses');
+
+    return res.json({
+      success: true,
+      message: `Đã chuyển "${student.childName}" sang lớp "${toCourse.name}" thành công`,
+      data: student
+    });
+
+  } catch (error) {
+    try { await session.abortTransaction(); } catch (_) {}
+    next(error);
+  } finally {
+    session.endSession();
+  }
+};
