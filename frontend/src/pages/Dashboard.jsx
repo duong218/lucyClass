@@ -70,13 +70,18 @@ const Dashboard = () => {
     setBackupLoading(true);
     setBackupStatus(null);
     try {
-      const res = await api.post('/auth/google/backup');
+      // Backup is a long-running synchronous operation (mongodump + zip +
+      // encrypt + upload). The global 10s axios timeout is too short —
+      // override to 5 minutes for this specific request.
+      const res = await api.post('/auth/google/backup', {}, { timeout: 300000 });
       if (res.data.success) {
         const now = new Date().toISOString();
         setLastBackup(now);
         localStorage.setItem('last_backup_time', now);
         setBackupStatus({ type: 'success', message: '✅ Dữ liệu đã được sao lưu an toàn lên Google Drive.' });
         fetchBackups();
+      } else {
+        setBackupStatus({ type: 'error', message: res.data.message || 'Sao lưu không thành công. Vui lòng thử lại.' });
       }
     } catch (err) {
       console.error('Lỗi sao lưu:', err);
@@ -89,7 +94,11 @@ const Dashboard = () => {
           console.error('Chuyển hướng OAuth thất bại:', e);
         }
       }
-      const errorMessage = err.response?.data?.message || 'Có lỗi xảy ra khi sao lưu. Vui lòng thử lại.';
+      // Distinguish timeout from other errors for better UX
+      const isTimeout = err.code === 'ECONNABORTED' || err.message?.includes('timeout');
+      const errorMessage = isTimeout
+        ? 'Sao lưu mất quá nhiều thời gian. Vui lòng kiểm tra Google Drive và thử lại.'
+        : (err.response?.data?.message || err.message || 'Có lỗi xảy ra khi sao lưu. Vui lòng thử lại.');
       setBackupStatus({ type: 'error', message: errorMessage });
     } finally {
       setBackupLoading(false);

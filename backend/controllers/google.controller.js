@@ -10,7 +10,7 @@ const Registration = require('../models/Registration');
 const Feedback = require('../models/Feedback');
 const AuditLog = require('../models/AuditLog');
 
-/* (1) redirectToGoogle (trước khi chatgpt sửa lúc 4:12 24/03)
+/* (1) redirectToGoogle
 exports.redirectToGoogle = (req, res) => {
   const url = oauth2Client.generateAuthUrl({
     access_type: 'offline',
@@ -21,7 +21,7 @@ exports.redirectToGoogle = (req, res) => {
 };
 */
 
-//(1) redirectToGoogle (sau khi được chatgpt sửa vào 4:13 24/03)
+//(1) redirectToGoogle
 exports.redirectToGoogle = (req, res) => {
   const state = crypto.randomBytes(16).toString('hex');
 
@@ -42,14 +42,14 @@ exports.redirectToGoogle = (req, res) => {
   });
 
   //res.redirect(url);
-  res.json({ url }); //chatgpt sửa 4:41 24/03
+  res.json({ url }); 
 };
 
 // (2) handleGoogleCallback
 exports.handleGoogleCallback = async (req, res) => {
   //const { code } = req.query;
-  const { code, state } = req.query; //chatgpt đã sửa 4:14 24/
-  const storedState = req.signedCookies?.google_oauth_state; //chatgpt đã thêm lúc 4:15 24/03
+  const { code, state } = req.query;
+  const storedState = req.signedCookies?.google_oauth_state; 
   const DASHBOARD_URL = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/admin/dashboard`;
 
   if (!code) {
@@ -60,7 +60,7 @@ exports.handleGoogleCallback = async (req, res) => {
   if (!state || !storedState || state !== storedState) {
     console.error('[OAuth] Invalid state detected!');
     return res.redirect(`${DASHBOARD_URL}?google=error&message=invalid_state`);
-  } //chatgpt đã thêm lúc 4:15 24/
+  } 
 
   try {
     // Exchange authorization code for tokens
@@ -133,6 +133,13 @@ exports.backupToDrive = async (req, res, next) => {
       console.error('Audit log failed:', auditError.message);
     }
 
+    // Detect if client disconnected while we were working (e.g. axios timeout)
+    if (req.socket.destroyed) {
+      console.warn('[BACKUP:WARN] Client disconnected before response could be sent. Backup succeeded but client will show error.');
+      return; // Don't attempt to write to a closed socket
+    }
+
+    console.log(`[BACKUP:RESPONSE] Sending success response: fileId=${result.driveFileId}, fileName=${result.fileName}`);
     res.json({
       success: true,
       fileName: result.fileName,
