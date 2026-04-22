@@ -1,175 +1,162 @@
-# Frontend Structure (lucyClass-main/frontend)
+# 📁 Detailed Frontend Structure
 
-## 1. Tổng quan
-
-- **Framework**: React 18 + Vite.
-- **Routing**: `react-router-dom` (Hỗ trợ public routes và nested routes cho Admin/Staff).
-- **HTTP Client**: 
-  - Axios instance chính tại `src/services/api.js` tích hợp CSRF protection, refresh token flow, và tự động thử lại khi token hết hạn.
-  - Một số dịch vụ nhẹ sử dụng `fetch` API (`streakService`, `keepAlive`).
-- **State Management**:
-  - Quản lý trạng thái cục bộ bằng React Hooks (`useState`, `useEffect`, `useMemo`, `useCallback`).
-  - Quản lý trạng thái đăng nhập toàn cục qua `AuthContext`.
-- **Đa ngôn ngữ**: Sử dụng `i18next` và `react-i18next` (hỗ trợ Tiếng Việt, Tiếng Anh, Tiếng Trung).
-- **UI/UX**: 
-  - **Styling**: Tailwind CSS.
-  - **Animations**: Framer Motion.
-  - **Icons**: Lucide React, React Icons.
-  - **Notifications**: React Toastify.
-  - **Charts**: Chart.js + react-chartjs-2.
-
-## 2. Cấu trúc thư mục chi tiết
-
-```text
-frontend/
-├── public/                  # Static assets (favicon, robots.txt)
-├── src/
-│   ├── assets/              # Ảnh và tài nguyên tĩnh dùng trong code
-│   │   ├── 404.png
-│   │   ├── 404-9x16.png
-│   │   ├── announcement-bg.png
-│   │   ├── flame.png
-│   │   ├── hero-bg.png
-│   │   ├── hero-mobile.png
-│   │   ├── why-us-main.png
-│   │   ├── why-us-step1.png
-│   │   ├── why-us-step2.png
-│   │   └── why-us-step3.png
-│   ├── components/
-│   │   ├── common/          # Components dùng chung toàn dự án
-│   │   │   ├── ConfirmModal.jsx
-│   │   │   └── PrimaryButton.jsx
-│   │   ├── Timetable/       # Chuyên biệt cho quản lý lịch học
-│   │   │   ├── CellPopover.jsx
-│   │   │   ├── RowManager.jsx
-│   │   │   └── WeekSelector.jsx
-│   │   ├── ActivitiesSection.jsx
-│   │   ├── ActivityPopup.jsx
-│   │   ├── AnnouncementModal.jsx
-│   │   ├── AnnouncementSection.jsx
-│   │   ├── CourseDetailModal.jsx
-│   │   ├── CoursesSection.jsx
-│   │   ├── CreatorPopup.jsx
-│   │   ├── Fireworks.jsx
-│   │   ├── FlameButton.jsx  # Floating UI cho tính năng Streak (điểm danh chuỗi)
-│   │   ├── HeartRain.jsx
-│   │   ├── HeroSection.jsx
-│   │   ├── LearningJourney.jsx
-│   │   ├── ProtectedRoute.jsx
-│   │   ├── RecaptchaBox.jsx
-│   │   ├── RecaptchaProvider.jsx
-│   │   ├── RegistrationForm.jsx
-│   │   ├── ScrollHintButton.jsx
-│   │   ├── TeachersSection.jsx
-│   │   ├── TestimonialsSection.jsx
-│   │   └── WhyChooseUs.jsx
-│   ├── config/
-│   │   └── api.js           # Cấu hình BASE_URL API
-│   ├── contexts/
-│   │   └── AuthContext.jsx  # Context quản lý đăng nhập và role-based access
-│   ├── hooks/
-│   │   └── useLockBodyScroll.js
-│   ├── i18n/
-│   │   ├── en.json
-│   │   ├── index.js         # Entry point cho i18n
-│   │   ├── vi.json
-│   │   └── zh.json
-│   ├── layouts/
-│   │   ├── AdminLayout.jsx  # Giao diện dành cho quản trị viên (Sidebar + Header)
-│   │   ├── Footer.jsx
-│   │   ├── Navbar.jsx
-│   │   └── StaffLayout.jsx  # Giao diện rút gọn cho nhân viên (GV/Marketing)
-│   ├── pages/
-│   │   ├── Marketing/
-│   │   │   └── MarketingDashboard.jsx
-│   │   ├── NotFound/
-│   │   │   ├── GameLogic.js
-│   │   │   ├── NotFound.css
-│   │   │   └── NotFound.jsx
-│   │   ├── Teacher/
-│   │   │   └── TeacherDashboard.jsx
-│   │   ├── AccountManagement.jsx
-│   │   ├── AdminHistory.jsx
-│   │   ├── AdminLogin.jsx
-│   │   ├── AnnouncementManagement.jsx
-│   │   ├── CourseManagement.jsx
-│   │   ├── CourseStudentList.jsx # Điểm danh & Quản lý danh sách học viên theo lớp
-│   │   ├── Dashboard.jsx
-│   │   ├── FeedbackManagement.jsx
-│   │   ├── ForgotPassword.jsx
-│   │   ├── HomePage.jsx
-│   │   ├── RegistrationManagement.jsx
-│   │   ├── ResetPassword.jsx
-│   │   ├── Statistics.jsx
-│   │   ├── StudentManagement.jsx
-│   │   ├── TeacherManagement.jsx
-│   │   └── TimetableEditor.jsx
-│   ├── services/
-│   │   ├── api.js           # Axios base & API methods
-│   │   ├── streakService.js
-│   │   └── timetableService.js
-│   ├── utils/
-│   │   ├── dateUtils.js
-│   │   ├── deviceId.js
-│   │   ├── draggableStreak.js # Logic cho nút Streak trôi nổi
-│   │   ├── getImageUrl.js
-│   │   ├── keepAlive.js
-│   │   ├── modalScrollLock.js
-│   │   ├── popupActivityData.js
-│   │   └── toastUtils.jsx
-│   ├── App.jsx              # Định nghĩa Router
-│   ├── i18n.js              # Cấu hình i18next
-│   ├── index.css            # Global CSS (Tailwind)
-│   └── main.jsx             # Entry point ứng dụng
-├── .env.example             # Biến môi trường mẫu
-├── index.html               # HTML Shell
-├── package.json
-├── postcss.config.js
-├── tailwind.config.js
-├── vercel.json              # Cấu hình deploy Vercel
-└── vite.config.js           # Cấu hình Vite (proxy, plugins)
-```
-
-## 3. Router Mapping (Chi tiết tại `App.jsx`)
-
-### Public Routes (Ai cũng có thể truy cập)
-- `/` -> `HomePage`: Trang chủ giới thiệu.
-- `/admin/login` -> `AdminLogin`: Trang đăng nhập chung cho mọi cấp bậc.
-- `/forgot-password` -> `ForgotPassword`: Quên mật khẩu.
-- `/reset-password/:token` -> `ResetPassword`: Đặt lại mật khẩu từ link email.
-
-### Admin Routes (Chỉ dành cho Role: `admin`)
-- `/admin/dashboard` -> `Dashboard`: Thống kê tổng quan.
-- `/admin/accounts` -> `AccountManagement`: Quản lý tài khoản GV và Marketing.
-- `/admin/registrations` -> `RegistrationManagement`: Quản lý đơn đăng ký học.
-- `/admin/courses` -> `CourseManagement`: Quản lý danh mục khóa học.
-- `/admin/teachers` -> `TeacherManagement`: Quản lý hồ sơ giáo viên.
-- `/admin/feedback` -> `FeedbackManagement`: Quản lý ý kiến phản hồi.
-- `/admin/students` -> `StudentManagement`: Danh sách tất cả học viên.
-- `/admin/students/course/:courseId` -> `CourseStudentList`: Danh sách lớp cụ thể & Điểm danh.
-- `/admin/announcements` -> `AnnouncementManagement`: Quản lý thông báo hệ thống.
-- `/admin/timetable` -> `TimetableEditor`: Chỉnh sửa thời khóa biểu.
-- `/admin/history` -> `AdminHistory`: Nhật ký thao tác hệ thống.
-
-### Staff Routes (Dành cho Role: `teacher`, `marketing`)
-- **Teacher**:
-  - `/teacher/dashboard` -> `TeacherDashboard`: Lớp học đang phụ trách.
-  - `/teacher/students/course/:courseId` -> `CourseStudentList`: Điểm danh lớp mình dạy.
-- **Marketing**:
-  - `/marketing/dashboard` -> `MarketingDashboard`: Thống kê đăng ký và tương tác.
-
-### Fallback
-- `*` -> `NotFound`: Trang 404 tích hợp trò chơi nhỏ.
-
-## 4. File cấu hình quan trọng
-- `vite.config.js`: Định nghĩa proxy để tránh CORS khi phát triển, cấu hình alias `@`.
-- `tailwind.config.js`: Định nghĩa bảng màu thương hiệu, fonts (Inter, Montserrat) và các animation custom.
-- `src/services/api.js`: Nơi xử lý tập trung logic Token (gắn JWT vào Header, tự động Refresh khi token hết hạn).
-
-## 5. Ghi chú bảo mật
-- **QUAN TRỌNG**: Các file `.env` chứa secret key thực tế đã được loại trừ hoàn toàn khỏi tài liệu này. 
-- Mọi cấu hình nhạy cảm được quản lý qua biến môi trường trên server deploy.
-- Sử dụng reCAPTCHA v2 cho các form công khai (Đăng ký, Đăng nhập).
+This document provides a full, recursive scan of the frontend `src/` directory.
 
 ---
-*Tài liệu được cập nhật dựa trên cấu trúc thực tế ngày 21/04/2026.*
+
+## 📂 Root Directory: `frontend/src/`
+→ React application entry points and core logic.
+
+### 📄 Root Files
+* `App.jsx` → Main application component; defines routing and providers.
+* `i18n.js` → Initialization of `react-i18next` for multi-language support.
+* `index.css` → Global styles and Tailwind CSS directives.
+* `main.jsx` → React entry point; renders `App` into the DOM.
+
+---
+
+## 📁 `assets/`
+→ Static media assets used throughout the UI.
+
+* `404-9x16.png` → Mobile version of the 404 page background.
+* `404.png` → Desktop version of the 404 page background.
+* `announcement-bg.png` → Background for announcement modals.
+* `flame.png` → Streak flame icon asset.
+* `hero-bg.png` → Desktop hero section background image.
+* `hero-mobile.png` → Mobile hero section background image.
+* `why-us-main.png` → Main image for the "Why Choose Us" section.
+* `why-us-step1.png` → Step 1 illustration.
+* `why-us-step2.png` → Step 2 illustration.
+* `why-us-step3.png` → Step 3 illustration.
+
+---
+
+## 📁 `components/`
+→ Reusable UI components categorized by function.
+
+* `ActivitiesSection.jsx` → Section displaying extracurricular activities.
+* `ActivityPopup.jsx` → Modal for detailed activity information.
+* `AnnouncementModal.jsx` → Popup for viewing system announcements.
+* `AnnouncementSection.jsx` → Landing page section for latest news.
+* `CourseDetailModal.jsx` → Detailed view for course descriptions.
+* `CoursesSection.jsx` → Grid/List of available courses.
+* `CreatorPopup.jsx` → Credits/Developer information popup.
+* `Fireworks.jsx` → Visual effect component for celebrations.
+* `FlameButton.jsx` → Complex draggable floating button for streaks.
+* `HeartRain.jsx` → Animation component for high streak milestones.
+* `HeroSection.jsx` → Main landing page banner.
+* `LearningJourney.jsx` → Visual timeline of student progress.
+* `ProtectedRoute.jsx` → Component to guard private routes.
+* `RecaptchaBox.jsx` → UI wrapper for Google reCAPTCHA.
+* `RecaptchaProvider.jsx` → Context provider for reCAPTCHA state.
+* `RegistrationForm.jsx` → Multi-step student enrollment form.
+* `ScrollHintButton.jsx` → UI hint to encourage scrolling.
+* `TeachersSection.jsx` → Profiles and descriptions of teaching staff.
+* `TestimonialsSection.jsx` → Student and parent feedback display.
+* `WhyChooseUs.jsx` → Marketing section highlighting key benefits.
+
+### 📁 `components/Timetable/`
+* `CellPopover.jsx` → Detailed view when clicking a schedule block.
+* `RowManager.jsx` → Logic for managing rows in the timetable editor.
+* `WeekSelector.jsx` → Component to toggle between different weeks.
+
+### 📁 `components/common/`
+* `ConfirmModal.jsx` → Generic confirmation dialog.
+* `PrimaryButton.jsx` → Standardized styled button component.
+
+---
+
+## 📁 `config/`
+→ Application-level configuration.
+
+* `api.js` → Base URL and environment settings for API requests.
+
+---
+
+## 📁 `contexts/`
+→ Global state management using React Context.
+
+* `AuthContext.jsx` → Manages user login state, tokens, and roles.
+
+---
+
+## 📁 `hooks/`
+→ Custom reusable React logic.
+
+* `useLockBodyScroll.js` → Prevents background scrolling when modals are open.
+
+---
+
+## 📁 `i18n/`
+→ Localization files and translations.
+
+* `en.json` → English translation strings.
+* `index.js` → Aggregator for all language JSON files.
+* `vi.json` → Vietnamese translation strings.
+* `zh.json` → Chinese translation strings.
+
+---
+
+## 📁 `layouts/`
+→ Wrapper components for page-wide structures.
+
+* `AdminLayout.jsx` → Sidebar and header for the admin dashboard.
+* `Footer.jsx` → Common site footer.
+* `Navbar.jsx` → Main navigation bar for students.
+* `StaffLayout.jsx` → Simplified layout for staff-specific views.
+
+---
+
+## 📁 `pages/`
+→ Full-page components mapped to specific routes.
+
+* `AccountManagement.jsx` → Admin page for managing user accounts.
+* `AdminHistory.jsx` → Audit log viewer for administrators.
+* `AdminLogin.jsx` → Secure login page for staff/admins.
+* `AnnouncementManagement.jsx` → CRUD interface for announcements.
+* `CourseManagement.jsx` → Interface for updating course details.
+* `CourseStudentList.jsx` → Viewer for students enrolled in specific courses.
+* `Dashboard.jsx` → Main administrative overview with charts.
+* `FeedbackManagement.jsx` → Interface for reviewing user feedback.
+* `ForgotPassword.jsx` → Password recovery request page.
+* `HomePage.jsx` → Student landing page (aggregates sections).
+* `RegistrationManagement.jsx` → Interface for processing enrollments.
+* `ResetPassword.jsx` → Page for setting a new password via token.
+* `Statistics.jsx` → Detailed reports and data visualization.
+* `StudentManagement.jsx` → Database viewer for all registered students.
+* `TeacherManagement.jsx` → Interface for editing teacher profiles.
+* `TimetableEditor.jsx` → Drag-and-drop or grid editor for schedules.
+
+### 📁 `pages/Marketing/`
+* `MarketingDashboard.jsx` → Specialized dashboard for marketing metrics.
+
+### 📁 `pages/NotFound/`
+* `GameLogic.js` → Logic for the "hidden game" on the 404 page.
+* `NotFound.css` → Custom styles for the 404 view.
+* `NotFound.jsx` → Interactive error page.
+
+### 📁 `pages/Teacher/`
+* `TeacherDashboard.jsx` → Overview and schedule for logged-in teachers.
+
+---
+
+## 📁 `services/`
+→ API communication layer using Axios.
+
+* `api.js` → Centralized axios instance with auth interceptors.
+* `streakService.js` → Methods for interacting with streak endpoints.
+* `timetableService.js` → Methods for fetching and updating schedules.
+
+---
+
+## 📁 `utils/`
+→ Common utility functions for the frontend.
+
+* `dateUtils.js` → Formatting and calculation of dates/times.
+* `deviceId.js` → Logic for generating/retrieving unique device IDs.
+* `draggableStreak.js` → Physics and clamping logic for the Flame Button.
+* `getImageUrl.js` → Helper to resolve local vs. remote image paths.
+* `keepAlive.js` → Logic to prevent session timeouts.
+* `modalScrollLock.js` → Utility to toggle body scroll during modals.
+* `popupActivityData.js` → Static/Helper data for activity popups.
+* `toastUtils.jsx` → Wrapper for standardized UI notifications (Toasts).
