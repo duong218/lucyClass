@@ -191,6 +191,51 @@ exports.remove = async (req, res) => {
   }
 };
 
+// DELETE /api/staff/:id/permanent  —  xóa vĩnh viễn tài khoản (chỉ khi đã vô hiệu hoá)
+exports.permanentDelete = async (req, res) => {
+  try {
+    const staff = await StaffAccount.findById(req.params.id);
+    if (!staff) return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản' });
+
+    // Chỉ cho phép xóa tài khoản đã vô hiệu hoá — tránh xóa nhầm tài khoản đang hoạt động
+    if (staff.isActive) {
+      return res.status(400).json({
+        success: false,
+        message: 'Chỉ có thể xóa vĩnh viễn tài khoản đã vô hiệu hoá. Vui lòng vô hiệu hoá trước.'
+      });
+    }
+
+    const staffUsername = staff.username;
+    const staffRole = staff.role;
+
+    // Nếu là teacher: null staffAccountId trong Teacher document liên kết
+    // Không xóa Teacher vì vẫn còn trong lịch sử timetable/course
+    if (staffRole === 'teacher') {
+      const Teacher = require('../models/Teacher');
+      await Teacher.updateOne(
+        { staffAccountId: staff._id },
+        { $set: { staffAccountId: null } }
+      );
+    }
+
+    await StaffAccount.findByIdAndDelete(req.params.id);
+
+    await logAdminAction({
+      adminId: req.admin?.id || null,
+      adminName: req.admin?.username || 'system',
+      action: 'PERMANENT_DELETE_STAFF',
+      targetType: 'staff',
+      targetId: req.params.id,
+      description: `Permanently deleted ${staffRole} account: ${staffUsername}`,
+      req
+    });
+
+    res.json({ success: true, message: 'Đã xóa vĩnh viễn tài khoản' });
+  } catch (err) {
+    console.error('[PermanentDelete]', err.message);
+    res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
+  }
+};
 
 // GET /api/me/profile  --  staff tu xem thong tin + danh sach lop phu trach
 exports.getMyProfile = async (req, res) => {

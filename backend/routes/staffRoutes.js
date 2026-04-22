@@ -16,6 +16,7 @@ router.post('/', auth, isAdmin, csrfProtection, catchAsync(staffController.creat
 router.put('/:id', auth, isAdmin, csrfProtection, catchAsync(staffController.update));
 router.put('/:id/reset-password', auth, isAdmin, csrfProtection, catchAsync(staffController.resetPasswordByAdmin));
 router.delete('/:id', auth, isAdmin, csrfProtection, catchAsync(staffController.remove));
+router.delete('/:id/permanent', auth, isAdmin, csrfProtection, catchAsync(staffController.permanentDelete));
 
 // ── Staff-only route ──────────────────────────────────────────────────────────
 // Xem thông tin cá nhân (teacher và marketing tự xem)

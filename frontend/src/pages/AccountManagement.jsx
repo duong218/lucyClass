@@ -268,21 +268,48 @@ const AccountManagement = () => {
     }
   };
 
+  // ── Permanent Delete ───────────────────────────────────────────────────────
+  const handlePermanentDelete = (acc) => {
+    setConfirmModal({
+      isOpen:  true,
+      id:      acc._id,
+      action:  'permanentDelete',
+      accName: acc.displayName || acc.username,
+    });
+  };
+
+  const confirmPermanentDelete = async () => {
+    try {
+      await api.delete(`/staff/${confirmModal.id}/permanent`);
+      showToast.success('Đã xóa vĩnh viễn tài khoản 🗑️');
+      fetchAccounts();
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Xóa thất bại. Vui lòng thử lại.';
+      showToast.error(`${msg} 😢`);
+    } finally {
+      setConfirmModal({ isOpen: false, id: null, action: '' });
+    }
+  };
+
+  // ── Confirm dispatcher ─────────────────────────────────────────────────────
   const handleConfirm = () => {
-    if (confirmModal.action === 'reset')      return confirmResetPassword();
-    if (confirmModal.action === 'deactivate') return confirmToggleStatus();
-    if (confirmModal.action === 'activate')   return confirmToggleStatus();
+    if (confirmModal.action === 'reset')           return confirmResetPassword();
+    if (confirmModal.action === 'deactivate')      return confirmToggleStatus();
+    if (confirmModal.action === 'activate')        return confirmToggleStatus();
+    if (confirmModal.action === 'permanentDelete') return confirmPermanentDelete();
   };
 
   const confirmMessages = {
-    reset:      `Đặt lại mật khẩu cho "${confirmModal.accName}"? Mật khẩu mới sẽ được tạo ngẫu nhiên và tài khoản sẽ bị đăng xuất.`,
-    deactivate: `Vô hiệu hoá tài khoản "${confirmModal.accName}"? Tài khoản này sẽ không thể đăng nhập cho đến khi được kích hoạt lại.`,
-    activate:   `Kích hoạt lại tài khoản "${confirmModal.accName}"?`,
+    reset:           `Đặt lại mật khẩu cho "${confirmModal.accName}"? Mật khẩu mới sẽ được tạo ngẫu nhiên và tài khoản sẽ bị đăng xuất.`,
+    deactivate:      `Vô hiệu hoá tài khoản "${confirmModal.accName}"? Tài khoản này sẽ không thể đăng nhập cho đến khi được kích hoạt lại.`,
+    activate:        `Kích hoạt lại tài khoản "${confirmModal.accName}"?`,
+    permanentDelete: `Xóa vĩnh viễn tài khoản "${confirmModal.accName}"? Hành động này KHÔNG THỂ hoàn tác. Thông tin giáo viên liên kết vẫn được giữ lại.`,
   };
   const confirmTitles = {
-    reset:      '🔑 Đặt lại mật khẩu',
-    deactivate: '🚫 Vô hiệu hoá tài khoản',
-    activate:   '✅ Kích hoạt tài khoản',
+    reset:           '🔑 Đặt lại mật khẩu',
+    deactivate:      '🚫 Vô hiệu hoá tài khoản',
+    activate:        '✅ Kích hoạt tài khoản',
+    permanentDelete: '🗑️ Xóa vĩnh viễn tài khoản',
   };
 
   // ── Stats ──────────────────────────────────────────────────────────────────
@@ -445,6 +472,15 @@ const AccountManagement = () => {
                       >
                         {acc.isActive ? '🚫 Khoá' : '✅ Mở'}
                       </button>
+                      {/* Nút xóa vĩnh viễn — chỉ hiện khi tài khoản đã vô hiệu hoá */}
+                      {!acc.isActive && (
+                        <button
+                          onClick={() => handlePermanentDelete(acc)}
+                          className="bg-gray-100 text-gray-500 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-50 hover:text-red-600 hover:border-red-100 border border-gray-200 transition-all hover:-translate-y-0.5"
+                        >
+                          🗑️ Xóa
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
