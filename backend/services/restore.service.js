@@ -7,6 +7,7 @@ const { spawn, execSync } = require('child_process');
 const backupService = require('./backup.service');
 const driveService = require('./drive.service');
 const { decryptFile } = require('../utils/encryptionUtils');
+const { clearAllCache } = require('../middlewares/cacheMiddleware');
 
 // 🔒 Global State (In-Memory Lock & Progress)
 let isRestoring = false;
@@ -271,6 +272,14 @@ exports.performRestore = async (zipFilePath) => {
 
     // 6. Phase: Uploads Restore
     // Images are now stored in Cloudinary and are NOT part of backup
+
+    // 7. Phase: Cache Invalidation — CRITICAL
+    // MongoDB collections have been replaced. Redis still holds stale data
+    // from the previous DB state. Without this flush, cached routes
+    // (teachers, feedback, courses, rankings, announcements) will return
+    // pre-restore data for up to 5 minutes (CACHE_TTL).
+    console.log('[RESTORE:CACHE] Flushing all Redis cache keys...');
+    await clearAllCache();
 
     restoreProgress = 100;
     console.log("[RESTORE:SUCCESS] Restore completed successfully.");

@@ -104,16 +104,34 @@ const Dashboard = () => {
     setRestoreLoading(true);
     setRestoreProgress(0);
     setBackupStatus(null);
-    const progressInterval = setInterval(async () => {
-      try {
-        const res = await api.get('/restore/progress');
-        setRestoreProgress(res.data.progress || 0);
-      } catch (err) { /* bỏ qua */ }
-    }, 1000);
 
     try {
       const res = await api.post('/auth/google/restore', { fileId, confirm: 'CONFIRM', password: restorePassword });
       if (res.data.success) {
+        // Restore runs in the background — poll progress until it hits 100
+        // (which means mongorestore + Redis cache flush are both done)
+        await new Promise((resolve, reject) => {
+          const pollInterval = setInterval(async () => {
+            try {
+              const progressRes = await api.get('/restore/progress');
+              const progress = progressRes.data.progress || 0;
+              setRestoreProgress(progress);
+              if (progress >= 100) {
+                clearInterval(pollInterval);
+                resolve();
+              }
+            } catch (err) {
+              // Keep polling even if one request fails
+            }
+          }, 1500);
+
+          // Safety timeout: stop polling after 10 minutes
+          setTimeout(() => {
+            clearInterval(pollInterval);
+            reject(new Error('Restore timeout'));
+          }, 600000);
+        });
+
         setRestoreProgress(100);
         setBackupStatus({ type: 'success', message: '✅ Khôi phục dữ liệu thành công! Trang sẽ tải lại sau 3 giây.' });
         setTimeout(() => window.location.reload(), 3000);
@@ -123,7 +141,6 @@ const Dashboard = () => {
       const msg = err.response?.data?.message || 'Khôi phục thất bại. Vui lòng kiểm tra mật khẩu và thử lại.';
       setBackupStatus({ type: 'error', message: msg });
     } finally {
-      clearInterval(progressInterval);
       setRestoreLoading(false);
       setSelectedBackup(null);
       setRestorePassword('');

@@ -47,4 +47,28 @@ const clearCache = async (urlPrefix) => {
   }
 };
 
-module.exports = { cacheMiddleware, clearCache };
+/**
+ * Nuclear option: clear ALL cache:* keys.
+ * Used after database restore to guarantee zero stale data.
+ */
+const clearAllCache = async () => {
+  try {
+    let cursor = '0';
+    let totalDeleted = 0;
+    do {
+      const [nextCursor, keys] = await redisClient.scan(
+        cursor, 'MATCH', 'cache:*', 'COUNT', 200
+      );
+      cursor = nextCursor;
+      if (keys.length > 0) {
+        await redisClient.del(keys);
+        totalDeleted += keys.length;
+      }
+    } while (cursor !== '0');
+    console.log(`[CACHE] Cleared all ${totalDeleted} cache keys after restore`);
+  } catch (err) {
+    console.error('Cache clearAll error:', err.message);
+  }
+};
+
+module.exports = { cacheMiddleware, clearCache, clearAllCache };
