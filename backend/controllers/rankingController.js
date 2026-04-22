@@ -152,7 +152,7 @@ const createOrUpdateRanking = async (req, res) => {
 
     // 👈 Xóa cache sau khi tạo/update thành công
     await clearCache('/api/rankings');
-
+    await clearCache('/api/rankings/top');
     return res.status(201).json({
       success: true,
       data: ranking
@@ -183,9 +183,17 @@ const getTopRankings = async (req, res) => {
       .sort({ stars: -1, createdAt: 1 })
       .limit(10);
 
+    const safeData = rankings.map(r => ({
+      childName: r.childName,
+      stars: r.stars,
+      courseName: r.courseName || '',
+      title: r.title,
+      skill: r.skill
+    }));
+
     return res.status(200).json({
       success: true,
-      data: rankings
+      data: safeData
     });
   } catch (error) {
     debugLog('getTopRankings error:', error.message);

@@ -9,6 +9,7 @@ const emailService = require('../utils/emailService');
 const { appendToSheet } = require("../googleSheets");
 const { cleanInput } = require("../utils/sanitize");
 const { clearCache } = require('../middlewares/cacheMiddleware');
+const { checkCourseAccess } = require('./courseController');
 
 // Lightweight regex escape utility
 const escapeStringRegexp = (string) => {
@@ -428,8 +429,19 @@ exports.remove = async (req, res, next) => {
 // GET /api/courses/:id/students
 exports.getStudentsByCourse = async (req, res, next) => {
   try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid course ID' });
+    }
+
+    // Dùng chung checkCourseAccess — tránh duplicate logic với attendance handlers
+    const access = await checkCourseAccess(id, req);
+    if (access === null) return res.status(404).json({ success: false, message: 'Course not found' });
+    if (access === false) return res.status(403).json({ success: false, message: 'Bạn không có quyền truy cập lớp học này' });
+
     const students = await Registration.find({
-      courseId: req.params.id,
+      courseId: id,
       status: 'registered'
     })
       .populate('courseId', 'name')

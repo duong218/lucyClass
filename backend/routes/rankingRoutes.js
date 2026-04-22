@@ -10,9 +10,9 @@ const csrfForRankingPost = process.env.NODE_ENV === 'production'
   ? verifyCSRF
   : (req, res, next) => next();
 
-router.post('/', 
+router.post('/',
   auth,
-  authorizeRoles('teacher', 'admin'),
+  authorizeRoles('admin'),
   csrfForRankingPost,
   rankingController.createOrUpdateRanking);
 router.get('/top', cacheMiddleware(300), rankingController.getTopRankings);

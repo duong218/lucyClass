@@ -57,6 +57,36 @@ exports.getById = async (req, res, next) => {
 // ── Attendance handlers ────────────────────────────────────────────────────
 
 /**
+ * Helper: kiểm tra teacher có thuộc khóa học này không.
+ * Admin luôn được phép. Teacher phải là giáo viên chính hoặc giáo viên phụ.
+ * Trả về course nếu được phép, null nếu không tìm thấy, false nếu không có quyền.
+ *
+ * Lưu ý: req.user.teacherId được gắn bởi auth middleware (Teacher._id lookup từ staffAccountId).
+ * req.admin chỉ được set khi role thực sự là 'admin' (xem auth.js).
+ */
+const checkCourseAccess = async (courseId, req) => {
+  const course = await Course.findOne({ _id: courseId, isDeleted: { $ne: true } }).lean();
+  if (!course) return null;
+
+  // Admin luôn có quyền
+  if (req.admin) return course;
+
+  // Teacher: req.user.teacherId được auth middleware populate từ Teacher.staffAccountId
+  const teacherId = req.user?.teacherId;
+  if (!teacherId) return false;
+
+  const teacherIdStr = teacherId.toString();
+  const isMainTeacher = course.teacher?.toString() === teacherIdStr;
+  const isAdditional  = (course.additionalTeachers || [])
+    .some(t => t.toString() === teacherIdStr);
+
+  return (isMainTeacher || isAdditional) ? course : false;
+};
+
+// Export để registrationController dùng chung, tránh duplicate logic
+exports.checkCourseAccess = checkCourseAccess;
+
+/**
  * GET /api/courses/:id/attendance?date=YYYY-MM-DD
  * Lấy bản ghi điểm danh của 1 buổi học (theo ngày).
  * Nếu chưa có → trả về records rỗng để FE tự render danh sách học sinh.
@@ -70,6 +100,10 @@ exports.getAttendance = async (req, res, next) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ success: false, message: 'Invalid course ID' });
     }
+
+    const access = await checkCourseAccess(id, req);
+    if (access === null) return res.status(404).json({ success: false, message: 'Course not found' });
+    if (access === false) return res.status(403).json({ success: false, message: 'Bạn không có quyền truy cập lớp học này' });
 
     // Normalize ngày về 00:00:00 UTC
     const targetDate = date ? new Date(date) : new Date();
@@ -102,6 +136,11 @@ exports.saveAttendance = async (req, res, next) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ success: false, message: 'Invalid course ID' });
     }
+
+    const access = await checkCourseAccess(id, req);
+    if (access === null) return res.status(404).json({ success: false, message: 'Course not found' });
+    if (access === false) return res.status(403).json({ success: false, message: 'Bạn không có quyền điểm danh lớp học này' });
+
     if (!Array.isArray(records) || records.length === 0) {
       return res.status(400).json({ success: false, message: 'records array is required' });
     }
@@ -390,6 +429,11 @@ exports.exportAttendanceExcel = async (req, res, next) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ success: false, message: 'Invalid course ID' });
     }
+
+    // Ownership check
+    const access = await checkCourseAccess(id, req);
+    if (access === null) return res.status(404).json({ success: false, message: 'Course not found' });
+    if (access === false) return res.status(403).json({ success: false, message: 'Bạn không có quyền xuất dữ liệu lớp học này' });
 
     // 1. Lấy thông tin khóa học
     const course = await Course.findOne({ _id: id, isDeleted: { $ne: true } }).lean();

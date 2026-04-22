@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const Admin = require('../models/Admin');
 const StaffAccount = require('../models/StaffAccount');
+const Teacher = require('../models/Teacher');
 
 /**
  * auth middleware — hỗ trợ cả Admin (role: 'admin') và StaffAccount (role: 'teacher' | 'marketing')
@@ -8,6 +9,8 @@ const StaffAccount = require('../models/StaffAccount');
  * Thay đổi so với bản cũ:
  * - Tìm user trong Admin trước, nếu không có thì tìm trong StaffAccount
  * - req.user.role sẽ là 'admin' | 'teacher' | 'marketing'
+ * - Với role 'teacher': gắn thêm req.user.teacherId (Teacher._id) để
+ *   courseController.checkCourseAccess() so sánh với course.teacher / additionalTeachers
  */
 const auth = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -86,7 +89,17 @@ const auth = async (req, res, next) => {
       username: user.username,
       role: user.role
     };
-    req.admin = req.user; // backward compatibility
+
+    // Với role teacher: lookup Teacher._id từ staffAccountId để dùng trong access check
+    // Chỉ query khi cần (role === 'teacher'), không ảnh hưởng perf các role khác
+    if (user.role === 'teacher') {
+      const teacherDoc = await Teacher.findOne({ staffAccountId: user._id, isDeleted: { $ne: true } })
+        .select('_id')
+        .lean();
+      req.user.teacherId = teacherDoc ? String(teacherDoc._id) : null;
+    }
+
+    req.admin = isAdmin ? req.user : undefined; // chỉ gắn req.admin khi thực sự là admin
     next();
   } catch (error) {
     console.error(`[Auth Middleware] JWT Verify Error: ${error.message}`);

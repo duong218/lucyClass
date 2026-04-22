@@ -1,154 +1,59 @@
-# Security Audit Report
+# Security Audit Report (Targeted by Architecture Context)
 
-Scope: `lucyClass-main` (backend + frontend).  
-Constraints honored: did **not** read `.env` / production env files; only reviewed `.env.example`.
+Scope reviewed: `backend` (route -> middleware -> controller -> model flow).  
+Constraint honored: only `.env.example` was read for environment structure.
 
-## 1. Overall Score
+## 1. Overall Risk Assessment
 
-**C** — Core auth + rate limiting + basic CSRF checks exist, but there are **high-impact secret/credential leaks to logs** in admin backup/restore + OAuth flows, and one misconfiguration-prone CSRF allowlist mismatch that can cause unexpected CSRF bypass/blocks depending on env setup.
+- **Grade: C**
+- **Reason (short):** Core system has strong baseline controls (JWT auth, role middleware, CSRF checks, rate limiting), but there are confirmed broken access control paths where any teacher can access or modify data outside their assigned classes.
 
-## 2. Critical Issues (High)
+## 2. Confirmed Vulnerabilities (Only Real Ones)
 
-### High-1: OAuth callback URL (auth code/state) is logged verbatim
+### VULN-1: Teacher can read student PII from any course (horizontal privilege escalation)
 
-- **File path**: `backend/routes/googleRoutes.js`
-- **Code snippet**:
+- **Affected component:** Core
+- **Severity:** High
+- **Exact code reference:** `backend/routes/courseRoutes.js` (`GET /:id/students`, `GET /:id/attendance`, `GET /:id/attendance/export-excel`, `POST /:id/attendance`) + `backend/controllers/registrationController.js` (`getStudentsByCourse`) + `backend/controllers/courseController.js` (`getAttendance`, `saveAttendance`, `exportAttendanceExcel`)
+- **Attack scenario:** A teacher logs in normally, then calls `/api/courses/{other_teacher_course_id}/students` (or attendance endpoints) for a class they do not teach. The API returns student lists including parent name, phone, and email.
+- **Why it works (code logic):**
+  - Route-level check is only `auth + authorizeRoles('admin', 'teacher')` in `courseRoutes`.
+  - No controller check ties `req.user.id` to course ownership (`Course.teacher`/`Course.additionalTeachers` via `Teacher.staffAccountId`).
+  - `getStudentsByCourse` explicitly returns PII fields (`parentName`, `phone`, `email`) for whichever `courseId` is passed.
 
-```js
-router.use((req, res, next) => {
-  console.log("Incoming request:", req.originalUrl);
-  next();
-});
-```
+### VULN-2: Teacher can write attendance for courses they do not teach
 
-- **Why dangerous (real scenario)**:
-  - Google OAuth callback hits `GET /api/auth/google/callback?code=...&state=...`.
-  - This middleware logs `req.originalUrl`, which includes **the authorization `code` and `state`**.
-  - In many deployments, application logs are shipped to third-party log aggregators, shared with support staff, or exposed via misconfigured log viewers. Anyone with access to logs can replay the OAuth code **within its short validity window** to obtain tokens, gaining **Google Drive access** for backups (data exfiltration / destructive restore).
+- **Affected component:** Core
+- **Severity:** High
+- **Exact code reference:** `backend/routes/courseRoutes.js` (`POST /:id/attendance`) + `backend/controllers/courseController.js` (`saveAttendance`)
+- **Attack scenario:** A teacher submits attendance for another teacher's class by passing that class `id` in the URL and arbitrary `records` payload, altering operational data for unauthorized classes.
+- **Why it works (code logic):**
+  - Route allows any authenticated teacher (`authorizeRoles('admin', 'teacher')`).
+  - `saveAttendance` validates `courseId`, `studentId`, status format, but does not verify that the caller is assigned to that course.
+  - `findOneAndUpdate({ courseId: id, date })` upserts attendance regardless of teacher-course relationship.
 
-- **Fix (clear, code-level)**:
-  - Remove this global route logger, or sanitize query strings before logging.
-  - Example safe fix (minimal behavioral change):
+### VULN-3: Teacher can create/update rankings for students outside their classes
 
-```js
-router.use((req, res, next) => {
-  const urlPath = (req.originalUrl || '').split('?')[0];
-  console.log('Incoming request:', urlPath);
-  next();
-});
-```
+- **Affected component:** Core
+- **Severity:** Medium
+- **Exact code reference:** `backend/routes/rankingRoutes.js` (`POST /`) + `backend/controllers/rankingController.js` (`createOrUpdateRanking`)
+- **Attack scenario:** A teacher submits ranking data for a `studentId` and `courseId` unrelated to their own classes, changing leaderboard/business results.
+- **Why it works (code logic):**
+  - Route allows role `teacher` or `admin`.
+  - Controller validates data shape and ObjectId formats, then performs upsert by `studentId/month/year`.
+  - There is no authorization check that `studentId` belongs to a class owned by the requesting teacher.
 
-  - Better: log via `systemLogger` and include only route + request id (no query).
+## 3. Needs Verification (Do Not Assume)
 
----
+- **Google OAuth callback exposure impact (`backend/routes/googleRoutes.js` + `backend/controllers/google.controller.js`):** callback route is unauthenticated but protected by signed `google_oauth_state` cookie set from an admin-only route. Need deployment verification of log access and cookie secret management to determine practical exploitability.
+- **CSRF origin source consistency (`backend/server.js` vs `backend/middlewares/securityMiddleware.js`):** logic differs (`server.js` includes fallback origins; `verifyCSRF` reads `CORS_ORIGINS`). This can cause operational mismatch, but exploitable bypass depends on exact production env configuration.
+- **Streak anti-abuse storage (`backend/middlewares/phoneLimiter.js`):** in-memory limiter state resets on restart. This is acceptable for low-security streak context unless deployment scale/restart patterns allow abuse at volume.
 
-### High-2: Restore process logs `mongorestore` args including `--uri=...` (credential leak)
+## 4. Safe / Correct Implementations
 
-- **File path**: `backend/services/restore.service.js`
-- **Code snippet**:
-
-```js
-const runMongorestore = async (args, label) => {
-  console.log(`[RESTORE] ${label}: mongorestore ${args.join(' ')}`);
-  // ...
-};
-```
-
-- **Why dangerous (real scenario)**:
-  - `args` contains ``--uri=${MONGO_URI}``.
-  - Mongo URIs commonly embed credentials, e.g. `mongodb+srv://user:pass@host/db?...`.
-  - This line prints the full URI into logs. A developer/contractor with log access (or leaked logs) can immediately use the URI to **connect to production DB**, dump data (PII), or modify records. This is a full compromise, not just an “info leak”.
-
-- **Fix (clear, code-level)**:
-  - Never log raw command args that include secrets. Redact `--uri` before logging.
-  - Example fix:
-
-```js
-const redactMongoUriArg = (arg) => {
-  if (!arg.startsWith('--uri=')) return arg;
-  return '--uri=[REDACTED]';
-};
-
-const runMongorestore = async (args, label) => {
-  const safeArgs = args.map(redactMongoUriArg);
-  console.log(`[RESTORE] ${label}: mongorestore ${safeArgs.join(' ')}`);
-  // ...
-};
-```
-
-  - Also consider removing the entire command echo in production and logging only the milestone/phase.
-
-## 3. Medium Issues
-
-### Med-1: CSRF origin allowlist source differs between CORS and CSRF middleware (misconfig → broken protection / availability risk)
-
-- **File path**: `backend/middlewares/securityMiddleware.js`
-- **Code snippet**:
-
-```js
-const allowedOrigins = (process.env.CORS_ORIGINS || '')
-  .split(',')
-  .map(o => o.trim().replace(/\/$/, ''));
-```
-
-- **Why dangerous (real scenario)**:
-  - `backend/server.js` builds CORS allowlist from `CORS_ORIGINS || CLIENT_URL || FRONTEND_URL || fallback`.
-  - `verifyCSRF` uses **only** `CORS_ORIGINS`.
-  - If deployment sets `FRONTEND_URL` (or `CLIENT_URL`) but forgets `CORS_ORIGINS`, CORS may allow the frontend while CSRF blocks it (or vice versa if someone “fixes” it incorrectly).
-  - Operationally, teams often “fix” broken CSRF by weakening checks (e.g., allowing all origins), which becomes a real security regression.
-
-- **Fix (clear, code-level)**:
-  - Use the same origin parsing + fallback logic in both places.
-  - Example: extract `parseOrigins()` from `server.js` into a shared helper and use it in `verifyCSRF`:
-
-```js
-// e.g. backend/utils/origins.js
-exports.parseOrigins = (envVar) =>
-  (envVar || '')
-    .split(',')
-    .map(o => o.trim().replace(/\/$/, ''))
-    .filter(Boolean);
-
-// securityMiddleware.js
-const { parseOrigins } = require('../utils/origins');
-const allowedOrigins = parseOrigins(
-  process.env.CORS_ORIGINS || process.env.CLIENT_URL || process.env.FRONTEND_URL
-);
-```
-
----
-
-### Med-2: Backup script shells out with an env-derived URI (command injection risk if env can be influenced)
-
-- **File path**: `backend/scripts/backup.js`
-- **Code snippet**:
-
-```js
-const command = `mongodump --uri="${uri}" --out="${path.join(BACKUP_DIR, fileName)}" --gzip`;
-exec(command, (error, stdout, stderr) => {
-  // ...
-});
-```
-
-- **Why dangerous (real scenario)**:
-  - This script is not a public API endpoint, but it is commonly run in CI/CD or ops contexts.
-  - If an attacker can influence environment variables (compromised CI secrets, poisoned `.env` in a container image, or a low-privilege user on a shared host), they can inject shell metacharacters into `MONGO_URI` and execute arbitrary commands as the service user.
-
-- **Fix (clear, code-level)**:
-  - Use `spawn` with an args array (as you already do in `backend/services/backup.service.js`), never `exec` with string interpolation:
-
-```js
-const { spawn } = require('child_process');
-const args = [`--uri=${uri}`, `--out=${path.join(BACKUP_DIR, fileName)}`, '--gzip'];
-const proc = spawn('mongodump', args, { stdio: 'inherit' });
-proc.on('close', (code) => process.exit(code));
-```
-
-## 4. Top 5 Fixes (priority order)
-
-1. **Stop logging OAuth callback URLs** in `backend/routes/googleRoutes.js` (remove middleware or strip query).
-2. **Redact `--uri` when logging restore commands** in `backend/services/restore.service.js` (or remove command echo entirely).
-3. **Unify CSRF origin allowlist derivation** with the CORS configuration to avoid “fix-by-disabling” incidents (`backend/middlewares/securityMiddleware.js`).
-4. **Replace `exec()` with `spawn()`** in `backend/scripts/backup.js` to eliminate shell injection risk in ops workflows.
-5. **Audit remaining logs for secrets/PII** (search for printing request URLs, headers, tokens, and connection strings) and enforce a shared redaction helper (e.g. `redactSecrets()` used by `systemLogger`).
+- **Core auth + role baseline is present:** `auth` middleware verifies JWT signature and enforces active staff status; role checks are centralized with `authorizeRoles` / `isAdmin`.
+- **High-risk admin operations are gated:** backup/restore routes require `auth + isAdmin`, have heavy-operation rate limiting, and restore requires explicit `"CONFIRM"` plus admin password re-auth.
+- **Public form abuse controls exist:** registration endpoints apply rate limiting, captcha validation, duplicate checks, and input length validation.
+- **CSRF protection exists across mutating requests:** global CSRF/origin checks are applied before routes (except explicit whitelist behavior), plus route-level CSRF middleware on sensitive endpoints.
+- **Streak system already has abuse controls consistent with design:** streak endpoints use multiple limiters (`streakLimiter`, phone/IP guards) and input validators, which matches the lower-security architecture for that separate mini-game.
 
