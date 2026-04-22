@@ -15,12 +15,13 @@ const verifyCSRF = (req, res, next) => {
     return next();
   }
 
-  // 3. Whitelist các route cụ thể (POST login/register)
+  // 3. Whitelist các route cụ thể (chỉ public form, KHÔNG bao gồm login)
   const url = req.originalUrl ? req.originalUrl.split('?')[0] : '';
   const WHITELIST_PATHS = [
-    '/api/auth/login',
+    // '/api/auth/login' đã bị xóa — login phải chịu CSRF check
+    // để phòng Login CSRF (attacker ép victim đăng nhập vào account của attacker)
     '/api/registrations',
-    '/api/register' // Giữ cả 2 đề phòng alias
+    '/api/register'
   ];
   
   const isWhitelisted = WHITELIST_PATHS.some(path => url === path || url.endsWith(path));
@@ -34,8 +35,11 @@ const verifyCSRF = (req, res, next) => {
     .map(o => o.trim().replace(/\/$/, ''));
   
   // 4. Kiểm tra Origin Header (Bắt buộc cho request thay đổi dữ liệu)
-  if (!origin || !allowedOrigins.some(o => origin.startsWith(o))) {
-    systemLogger.warn('CSRF: Blocked by Origin check', { origin, url: req.originalUrl });
+  // Dùng strict equality thay vì startsWith để tránh bypass kiểu
+  // https://trusted.com.attacker.tld pass được startsWith('https://trusted.com')
+  const normalizedOrigin = String(origin || '').trim().replace(/\/$/, '');
+  if (!normalizedOrigin || !allowedOrigins.includes(normalizedOrigin)) {
+    systemLogger.warn('CSRF: Blocked by Origin check', { origin: normalizedOrigin, url: req.originalUrl });
     return res.status(403).json({ 
       success: false, 
       message: 'Security Policy: Origin not allowed',

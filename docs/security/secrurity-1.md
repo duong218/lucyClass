@@ -1,171 +1,149 @@
-# Security Audit Report - Lucy's Class Project
+# 🛡️ MERN Security Audit Report
 
-**Date**: 2026-04-21  
-**Scope**: Frontend and Backend of `lucyClass-main`  
-**Security Rules**: No real secrets were read. Only code structure and `.env.example` were analyzed.
+## 1. Security Score
+**Overall Rating: C (Moderate risk)**
 
----
-
-## 1. FILE CẤU HÌNH NHẠY CẢM (Sensitive Configuration Files)
-
-| File | Vị trí | Mức độ rủi ro | Lý do | Hành động khuyến nghị |
-|------|--------|---------------|-------|----------------------|
-| `.env` | `frontend/`, `backend/` | 🔴 CAO | Chứa secret thật (DB URI, JWT keys) | Đã được `.gitignore` chính xác. |
-| `.env.example` | `frontend/`, `backend/` | 🟡 TRUNG BÌNH | Mẫu biến môi trường, không chứa giá trị thật | An toàn. |
-| `vercel.json` | `frontend/` | 🟢 THẤP | Chỉ chứa rule rewrite SPA | An toàn. |
-| `vite.config.js` | `frontend/` | 🟢 THẤP | Cấu hình build & proxy dev | An toàn. |
-| `package.json` | `frontend/`, `backend/` | 🟢 THẤP | Lộ version của thư viện | Cần cập nhật dependency thường xuyên. |
+**Summary**: The application implements several strong security practices, including HTTP-only cookies for refresh tokens, memory storage for access tokens, strict `multer` file validation, and custom CSRF origin checks. However, critical flaws in rate limiting logic and missing protections on the backup/restore endpoints introduce significant Denial of Service (DoS) and brute-force risks.
 
 ---
 
-## 2. FILE CHỨA SECRET CỨNG (Hardcoded Secrets)
-
-Quét toàn bộ codebase (`.js`, `.jsx`):
-
-| Pattern cần tìm | Mức độ | File nghi ngờ | Ghi chú |
-|----------------|--------|--------------------------|---------|
-| `password = '...'` | 🔴 CAO | Không phát hiện | |
-| `secret = '...'` | 🔴 CAO | Không phát hiện | |
-| `token = '...'` | 🔴 CAO | Không phát hiện | |
-| `apiKey = '...'` | 🔴 CAO | Không phát hiện | |
-| `privateKey` | 🔴 CAO | Không phát hiện | |
-| `Bearer '...'` | 🔴 CAO | Không phát hiện | |
-| `console.log` | 🟠 TRUNG BÌNH | Không phát hiện rò rỉ | |
+## 2. Priority Fix List
+1. **Fix Admin Password Brute Force** on `/api/restore` by moving the anti-automation delay.
+2. **Apply specific rate limits** to the `/backup` endpoint to prevent DoS via CPU/memory exhaustion.
+3. **Patch Login CSRF** by removing the login whitelist from `securityMiddleware.js`.
+4. **Enforce JWT Algorithms** in `auth.js` to prevent signature bypass attacks.
+5. **Phase out deprecated packages** (`xss-clean` and `csurf`).
 
 ---
 
-## 3. CẤU HÌNH CORS (Cross-Origin Resource Sharing)
+## 3. Findings & Fixes
 
-Phân tích tại `backend/server.js`:
+### 🔴 Finding 1: Admin Password Brute Force via Restore Endpoint
+* **Severity**: **High**
+* **File**: `backend/controllers/restore.controller.js`
+* **Why it is a problem**: The `/restore` endpoint requires the admin to re-authenticate with their password. It features a 4-second anti-automation delay (`setTimeout(..., 4000)`). However, this delay is placed **after** the password check. If the password fails, it returns `401` immediately. Furthermore, the global rate limiter explicitly skips admins (`skip: (req) => req.user?.role === 'admin'`).
+* **Real-world risk**: An attacker who steals an admin's JWT (which has `role: admin`) can bypass the global rate limiter and brute-force the plaintext admin password at maximum speed against the `/restore` endpoint without triggering any cooldowns.
 
-| Tiêu chí | Trạng thái | Mức độ rủi ro | Ghi chú |
-|----------|-----------|---------------|---------|
-| CORS có được cấu hình không? | ✅ Có | - | Sử dụng middleware `cors`. |
-| `origin` có bị để `'*'` không? | ❌ Không | 🟢 AN TOÀN | Sử dụng whitelist từ `CORS_ORIGINS`. |
-| `credentials` có được bật không? | ✅ Có | 🟡 TRUNG BÌNH | Cần thiết cho Cookie Auth. |
-| Danh sách origin được phép | Whitelist động | 🟢 TỐT | Lấy từ biến môi trường. |
+**Fix Suggestion**:
+Move the 4-second delay to the top of the function so it penalizes *all* attempts (or apply a strict rate limiter to the route).
 
----
+```javascript
+// backend/controllers/restore.controller.js (Lines ~117-120)
 
-## 4. BẢO VỆ HTTP HEADERS (Helmet)
+// ❌ BEFORE:
+    const passwordMatch = await bcrypt.compare(password, adminUser.password);
+    if (!passwordMatch) {
+      return res.status(401).json({ success: false, message: 'Password incorrect' });
+    }
+    // ... logging ...
+    await new Promise(resolve => setTimeout(resolve, 4000));
 
-Phân tích tại `backend/server.js`:
+// ✅ AFTER:
+    // ── GUARD 4: Anti-automation safety delay MUST BE BEFORE CHECK ──
+    await new Promise(resolve => setTimeout(resolve, 4000));
 
-| Tiêu chí | Trạng thái | Ghi chú |
-|----------|-----------|---------|
-| Helmet có được sử dụng không? | ✅ Có | Đã tích hợp. |
-| CSP (Content-Security-Policy) | ✅ Có | Cho phép Cloudinary, Google reCAPTCHA. |
-| HSTS | ✅ Có | Bật khi `NODE_ENV === 'production'`. |
-
----
-
-## 5. XÁC THỰC & PHÂN QUYỀN (Authentication & Authorization)
-
-| Kiểm tra | File | Mức độ | Kết quả |
-|----------|------|--------|---------|
-| JWT secret từ env | `authController.js` | 🔴 CAO nếu sai | ✅ Từ env (`JWT_SECRET`). |
-| Refresh token cookie | `authController.js` | 🟢 TỐT | ✅ `httpOnly: true`, `secure: true`. |
-| Session conflict check | `middlewares/auth.js` | 🟢 TỐT | ✅ Kiểm tra `activeSessionId`. |
-| Rate limiting cho Auth | `rateLimiter.js` | 🟢 TỐT | ✅ 5 lần/10 phút (login). |
-| Brute force protection | `authController.js` | 🟢 TỐT | ✅ Lock 2 phút sau 5 lần sai. |
+    const passwordMatch = await bcrypt.compare(password, adminUser.password);
+    if (!passwordMatch) {
+      console.warn(`[RESTORE:AUTH_FAIL] Admin failed password re-auth`);
+      return res.status(401).json({ success: false, message: 'Password incorrect' });
+    }
+```
 
 ---
 
-## 6. CSRF PROTECTION
+### 🔴 Finding 2: Denial of Service (DoS) via Unlimited Backup Triggers
+* **Severity**: **High**
+* **File**: `backend/routes/googleRoutes.js` & `backend/middlewares/rateLimiter.js`
+* **Why it is a problem**: The `POST /api/auth/google/backup` route is protected by `auth` and `isAdmin`. However, the global `apiLimiter` skips admins. A backup process (`mongodump` + `zip` + AES encryption + Drive upload) is extremely CPU and memory intensive, taking up to a minute to complete.
+* **Real-world risk**: A compromised admin account or malicious insider can fire hundreds of concurrent requests to `/backup`. This will immediately exhaust server resources (CPU, RAM, Disk I/O) and crash the backend (DoS).
 
-| Kiểm tra | File | Mức độ | Kết quả |
-|----------|------|--------|---------|
-| CSRF middleware | `server.js`, `csrf.js` | 🟢 TỐT | ✅ Có sử dụng `csurf` và custom check. |
-| Endpoint exempt | `securityMiddleware.js` | 🟡 TRUNG BÌNH | Whitelist `/api/auth/login`, `/api/registrations`. |
-| Origin/Referer check | `securityMiddleware.js` | 🟢 TỐT | ✅ Kiểm tra nghiêm ngặt `Origin` và `X-Requested-With`. |
+**Fix Suggestion**:
+Create a strict rate limiter for heavy admin operations and apply it to the backup and restore routes.
 
----
+```javascript
+// backend/middlewares/rateLimiter.js
+// ✅ AFTER (Add this new limiter):
+const heavyOpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 3, // Max 3 backups/restores per 15 mins
+  handler: rateLimitHandler,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
-## 7. INPUT VALIDATION & SANITIZATION
+module.exports = {
+  // ... existing limiters
+  heavyOpLimiter
+};
+```
 
-| Kiểm tra | File | Mức độ | Kết quả |
-|----------|------|--------|---------|
-| `express-validator` | `validators/` | 🟢 TỐT | ✅ Có sử dụng. |
-| `mongo-sanitize` | `server.js` | 🟢 TỐT | ✅ Đã tích hợp. |
-| `xss-clean` | `server.js` | 🟢 TỐT | ✅ Đã tích hợp. |
-| File upload validation | `middlewares/upload.js`| 🟢 TỐT | ✅ Kiểm tra extension & mimetype. |
-
----
-
-## 8. FILE UPLOAD SECURITY
-
-| Kiểm tra | File | Mức độ | Kết quả |
-|----------|------|--------|---------|
-| Giới hạn kích thước | `upload.js` | 🟢 TỐT | ✅ Max 5MB. |
-| Magic number check | `upload.js` | 🟢 TỐT | ✅ Sử dụng `file-type` để check content buffer. |
-| Nơi lưu trữ | `cloudinary.js` | 🟢 TỐT | ✅ Cloudinary (MemoryStorage), không lưu local. |
-| Sanitize tên file | `upload.js` | 🟢 TỐT | ✅ Metadata Cloudinary xử lý. |
-
----
-
-## 9. DEPENDENCY SECURITY
-
-Phân tích `package.json`:
-
-| Kiểm tra | Kết quả | Ghi chú |
-|----------|---------|---------|
-| Dependencies (Frontend) | 14 | Mức độ trung bình. |
-| Dependencies (Backend) | 33 | Khá nhiều, cần audit định kỳ. |
-| Dependency cũ/nguy hiểm | `csurf` | Thư viện này đã bị deprecated bởi Express, nên thay thế. |
-| `axios` version | `^1.7.7` | An toàn. |
-| `jsonwebtoken` version | `^9.0.2` | An toàn. |
+```javascript
+// backend/routes/googleRoutes.js
+// ✅ AFTER:
+const { heavyOpLimiter } = require('../middlewares/rateLimiter');
+router.post('/backup', auth, isAdmin, csrfProtection, heavyOpLimiter, catchAsync(googleController.backupToDrive));
+```
 
 ---
 
-## 10. LOGGING & GIÁM SÁT
+### 🟡 Finding 3: Login CSRF Vulnerability
+* **Severity**: **Moderate**
+* **File**: `backend/middlewares/securityMiddleware.js`
+* **Why it is a problem**: The custom `verifyCSRF` middleware explicitly whitelists `/api/auth/login`. This bypasses both the Origin check and the custom `X-Requested-With` header check. Additionally, `csrf.js` exempts it from token validation.
+* **Real-world risk**: An attacker can execute a "Login CSRF" attack, forcing a victim's browser to authenticate into the attacker's account. If the victim unknowingly uses the account, the attacker can monitor their activity or steal data they input.
 
-| Kiểm tra | File | Kết quả |
-|----------|------|---------|
-| Winston logger | `utils/logger.js` | ✅ Có sử dụng. |
-| Audit log admin | `models/AuditLog.js` | ✅ Có ghi lại mọi hành động CRUD. |
-| Ghi IP & User-Agent | `logAdminAction.js` | ✅ Đầy đủ. |
-| Password logging | Toàn dự án | ✅ An toàn (Không tìm thấy pattern log password). |
+**Fix Suggestion**:
+Remove `/api/auth/login` from the whitelist in `securityMiddleware.js` so it enforces the `X-Requested-With` header and Origin policy.
 
----
+```javascript
+// backend/middlewares/securityMiddleware.js (Line 20)
 
-## 11. ERROR HANDLING & LEAK INFORMATION
+// ❌ BEFORE:
+  const WHITELIST_PATHS = [
+    '/api/auth/login',
+    '/api/registrations',
+    '/api/register'
+  ];
 
-| Kiểm tra | File | Mức độ | Kết quả |
-|----------|------|--------|---------|
-| Error handler middleware| `errorHandler.js` | 🟢 TỐT | ✅ Xử lý tập trung. |
-| Stack trace leak | `errorHandler.js` | 🟢 TỐT | ✅ Ẩn hoàn toàn trong Production. |
-| Custom error messages | `errorHandler.js` | 🟢 TỐT | ✅ Không tiết lộ cấu trúc DB hay lỗi hệ thống. |
-
----
-
-## 12. ENVIRONMENT VARIABLES (Từ .env.example)
-
-| Biến môi trường | Dùng cho | Mức độ nhạy cảm | Ghi chú |
-|----------------|----------|-----------------|---------|
-| `MONGO_URI` | Database | 🔴 CAO | Cần bảo mật tuyệt đối. |
-| `JWT_SECRET` | Auth | 🔴 CAO | Cần xoay vòng định kỳ. |
-| `COOKIE_SECRET` | Session | 🔴 CAO | - |
-| `RECAPTCHA_SECRET` | Bot protection | 🟡 TRUNG BÌNH | - |
-| `BACKUP_ENCRYPTION_KEY` | Backup | 🔴 CAO | Nếu mất sẽ không thể restore. |
+// ✅ AFTER:
+  const WHITELIST_PATHS = [
+    // Removed /api/auth/login so it requires X-Requested-With header
+    '/api/registrations',
+    '/api/register' 
+  ];
+```
 
 ---
 
-## 13. TỔNG HỢP RỦI RO & KHUYẾN NGHỊ
+### 🟡 Finding 4: Insecure JWT Verification (Missing Algorithm)
+* **Severity**: **Low**
+* **File**: `backend/middlewares/auth.js`
+* **Why it is a problem**: The `jwt.verify` call does not explicitly specify the allowed hashing algorithms. 
+* **Real-world risk**: Older or misconfigured versions of `jsonwebtoken` are vulnerable to "algorithm confusion" (e.g., swapping RS256 for HS256) or the "none" algorithm attack. Explicitly defining algorithms prevents this entirely.
 
-### 🔴 RỦI RO CAO (Cần xử lý ngay)
-- Không phát hiện rủi ro nghiêm trọng đe dọa trực tiếp hệ thống.
+**Fix Suggestion**:
 
-### 🟠 RỦI RO TRUNG BÌNH (Nên xử lý)
-- **Dependency `csurf`**: Thư viện này đã bị chính tác giả Express khuyến cáo không nên dùng tiếp. Nên chuyển sang các giải pháp thay thế hoặc đảm bảo cấu hình custom CSRF hiện tại đủ mạnh.
-- **Whitelist CSRF**: Việc whitelist `/api/registrations` cho phép các request không có token. Cần đảm bảo `rateLimiter` và `captcha` ở endpoint này hoạt động cực tốt để tránh spam.
+```javascript
+// backend/middlewares/auth.js (Line 28)
 
-### 🟡 RỦI RO THẤP (Có thể cải thiện)
-- **Log suspicious behavior**: Hiện tại chỉ detect `DELETE` nhiều lần. Nên thêm detect login thất bại nhiều lần từ một IP vào Audit Log.
+// ❌ BEFORE:
+const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-### ✅ ĐIỂM MẠNH (Đã làm tốt)
-- **Upload Security**: Làm cực tốt với việc kiểm tra Magic Number (nội dung thực) của file thay vì chỉ tin vào extension.
-- **Session Control**: Có cơ chế phát hiện và ngăn chặn đăng nhập đa thiết bị (`activeSessionId`).
-- **Data Sanitization**: Tích hợp đầy đủ `mongo-sanitize` và `xss-clean`.
+// ✅ AFTER:
+const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+```
+*(Note: Do the same for `process.env.REFRESH_TOKEN_SECRET` in `authController.js` and `auth.js`)*
 
 ---
-*Báo cáo được thực hiện bởi Antigravity AI Security Auditor.*
+
+### 🟡 Finding 5: Deprecated Security Dependencies
+* **Severity**: **Low / Info**
+* **File**: `backend/package.json`
+* **Why it is a problem**: 
+  - `xss-clean` (`^0.1.4`) is deprecated, unmaintained, and has known bypasses.
+  - `csurf` (`^1.11.0`) is deprecated by the Express team due to fundamental architectural flaws in token-based CSRF.
+* **Real-world risk**: Future zero-day vulnerabilities in these packages will not be patched.
+
+**Fix Suggestion**:
+- Remove `xss-clean` and replace it with `dompurify` (running via JSDOM) or rely solely on React's built-in XSS protection (which is already excellent since `dangerouslySetInnerHTML` is not used).
+- Transition entirely to the `verifyCSRF` middleware (Custom Header + Origin Check) and eventually uninstall `csurf`.

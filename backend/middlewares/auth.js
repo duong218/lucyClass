@@ -25,7 +25,7 @@ const auth = async (req, res, next) => {
       console.error('[Auth Error] JWT_SECRET is not defined!');
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
 
     let user = null;
     let isAdmin = false;

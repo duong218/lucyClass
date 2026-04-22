@@ -1,7 +1,16 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../services/api';
 import { setAccessToken } from '../services/api';
+
+// Kiểm tra từng tiêu chí — đồng bộ với regex backend
+const getPasswordChecks = (pw) => [
+  { label: 'Ít nhất 8 ký tự',      pass: pw.length >= 8 },
+  { label: 'Có chữ thường (a-z)',   pass: /[a-z]/.test(pw) },
+  { label: 'Có chữ hoa (A-Z)',      pass: /[A-Z]/.test(pw) },
+  { label: 'Có chữ số (0-9)',       pass: /\d/.test(pw) },
+  { label: 'Có ký tự đặc biệt (!@#...)', pass: /[^A-Za-z\d]/.test(pw) },
+];
 
 const ResetPassword = () => {
   const navigate = useNavigate();
@@ -12,15 +21,18 @@ const ResetPassword = () => {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
+  const checks = useMemo(() => getPasswordChecks(password), [password]);
+  const allPassed = checks.every(c => c.pass);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (password !== confirmPassword) {
-      setError('Mật khẩu xác nhận không khớp!');
+    if (!allPassed) {
+      setError('Mật khẩu chưa đáp ứng đủ yêu cầu bên dưới');
       return;
     }
-    if (password.length < 6) {
-      setError('Mật khẩu phải có ít nhất 6 ký tự');
+    if (password !== confirmPassword) {
+      setError('Mật khẩu xác nhận không khớp!');
       return;
     }
 
@@ -68,11 +80,23 @@ const ResetPassword = () => {
                 <span className="absolute left-3 top-3 text-gray-400">🔒</span>
                 <input
                   type="password" value={password} onChange={e => setPassword(e.target.value)} required
-                  minLength={6}
+                  minLength={8}
                   className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
-                  placeholder="Ít nhất 6 ký tự"
+                  placeholder="Ít nhất 8 ký tự, chữ hoa, số, ký tự đặc biệt"
                 />
               </div>
+
+              {/* Password strength checklist — chỉ hiện khi đang nhập */}
+              {password.length > 0 && (
+                <ul className="mt-2 space-y-1">
+                  {checks.map((c) => (
+                    <li key={c.label} className={`flex items-center gap-2 text-xs ${c.pass ? 'text-green-600' : 'text-red-400'}`}>
+                      <span>{c.pass ? '✅' : '❌'}</span>
+                      {c.label}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             <div>

@@ -381,6 +381,17 @@ exports.resetPassword = async (req, res) => {
   try {
     const { password } = req.body;
     const { token } = req.params;
+
+    // ── Validate độ mạnh password trước khi làm bất cứ điều gì ──
+    // Yêu cầu: 8+ ký tự, có chữ hoa, chữ thường, số, ký tự đặc biệt
+    const strongPassword = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,64}$/;
+    if (!password || !strongPassword.test(password)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mật khẩu phải có ít nhất 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt'
+      });
+    }
+
     const resetPasswordToken = crypto
       .createHash('sha256')
       .update(token)

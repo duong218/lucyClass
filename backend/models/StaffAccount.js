@@ -101,17 +101,38 @@ staffAccountSchema.statics.generateUniqueUsername = async function () {
 };
 
 /**
- * Tạo password ngẫu nhiên 8 ký tự (chữ thường + hoa + số)
+ * Tạo password ngẫu nhiên 12 ký tự đảm bảo đủ: chữ thường, chữ hoa, số, ký tự đặc biệt
  * Trả về plain text (chưa hash) để admin có thể copy cho nhân viên
  */
 staffAccountSchema.statics.generateRandomPassword = function () {
-  const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
-  let pass = '';
-  const bytes = crypto.randomBytes(8);
-  for (let i = 0; i < 8; i++) {
-    pass += chars[bytes[i] % chars.length];
+  const lower   = 'abcdefghjkmnpqrstuvwxyz';
+  const upper   = 'ABCDEFGHJKMNPQRSTUVWXYZ';
+  const digits  = '23456789';
+  const special = '!@#$%^&*';
+  const all     = lower + upper + digits + special;
+
+  const bytes = crypto.randomBytes(12);
+
+  // Đảm bảo có ít nhất 1 ký tự mỗi loại ở 4 vị trí đầu
+  let pass = [
+    lower  [bytes[0] % lower.length],
+    upper  [bytes[1] % upper.length],
+    digits [bytes[2] % digits.length],
+    special[bytes[3] % special.length],
+  ];
+
+  // 8 ký tự còn lại lấy ngẫu nhiên từ all
+  for (let i = 4; i < 12; i++) {
+    pass.push(all[bytes[i] % all.length]);
   }
-  return pass;
+
+  // Shuffle để tránh pattern cố định ở đầu
+  for (let i = pass.length - 1; i > 0; i--) {
+    const j = bytes[i % bytes.length] % (i + 1);
+    [pass[i], pass[j]] = [pass[j], pass[i]];
+  }
+
+  return pass.join('');
 };
 
 module.exports = mongoose.model('StaffAccount', staffAccountSchema);

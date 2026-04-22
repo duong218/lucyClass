@@ -86,6 +86,12 @@ exports.restoreBackup = async (req, res, next) => {
     return res.status(400).json({ success: false, message: 'Password is required' });
   }
 
+  // ── GUARD 3: Anti-automation safety delay ─────────────────────────────────
+  // Delay TRƯỚC khi kiểm tra password để penalize mọi attempt (kể cả sai password).
+  // Nếu delay nằm sau password check thì attacker nhận 401 ngay lập tức và brute-force
+  // tự do mà không bị throttle.
+  await new Promise(resolve => setTimeout(resolve, 4000));
+
   try {
     const Admin = require('../models/Admin');
     const adminUser = await Admin.findById(req.user.id || req.user._id).select('+password');
@@ -106,18 +112,11 @@ exports.restoreBackup = async (req, res, next) => {
     return res.status(500).json({ success: false, message: 'Authentication check failed' });
   }
 
-  // ── GUARD 3: Attempt logging ───────────────────────────────────────────────
-  // Log BEFORE the restore starts so there is always a record even if the
-  // process crashes mid-way.
+  // ── GUARD 4: Attempt logging ───────────────────────────────────────────────
   console.log(
     `[RESTORE:ATTEMPT] Admin "${req.user.username}" (id: ${req.user.id || req.user._id}) ` +
     `triggered restore for fileId: "${fileId}" at ${new Date().toISOString()}`
   );
-
-  // ── GUARD 4: Anti-automation safety delay ─────────────────────────────────
-  // A 4-second pause makes scripted/brute-force abuse impractical and gives a
-  // narrow window to detect anomalous activity in logs before data is touched.
-  await new Promise(resolve => setTimeout(resolve, 4000));
 
   // 3. Environment Preparation
   const B_PATH = process.env.BACKUP_PATH;

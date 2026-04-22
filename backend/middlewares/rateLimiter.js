@@ -141,6 +141,20 @@ const streakLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+/**
+ * 9. Heavy Admin Operations Limiter
+ * Backup & Restore — rất tốn CPU/RAM/Disk
+ * PROD: 3 lần / 5 phút
+ * DEV: không giới hạn thực tế
+ */
+const heavyOpLimiter = rateLimit({
+  windowMs: isProduction ? 15 * 60 * 1000 : 5 * 60 * 1000,
+  max: isProduction ? 5 : 1000,
+  handler: rateLimitHandler,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 module.exports = {
   apiLimiter,
   loginLimiter,
@@ -149,5 +163,6 @@ module.exports = {
   publicLimiter,
   forgotPasswordLimiter,
   resetPasswordLimiter,
-  streakLimiter
+  streakLimiter,
+  heavyOpLimiter
 };
