@@ -98,6 +98,19 @@ exports.login = async (req, res) => {
   try {
     const safeUsername = String(username || '').trim();
 
+    // FIX #3: Verify CAPTCHA trước — trước cả DB query để tránh username enumeration
+    const recaptchaRes = await axios.post(
+      'https://www.google.com/recaptcha/api/siteverify',
+      new URLSearchParams({
+        secret: process.env.RECAPTCHA_SECRET_KEY,
+        response: captchaToken
+      }),
+      { timeout: 5000 }
+    );
+    if (!recaptchaRes.data.success) {
+      return res.status(400).json({ message: 'reCAPTCHA failed' });
+    }
+
     const { user, isStaff } = await findUserByUsername(safeUsername);
 
     if (!user) {
@@ -118,19 +131,6 @@ exports.login = async (req, res) => {
     // Check active (chỉ staff)
     if (isStaff && !user.isActive) {
       return res.status(403).json({ message: 'Tài khoản đã bị vô hiệu hoá' });
-    }
-
-    // Verify CAPTCHA
-    const recaptchaRes = await axios.post(
-      'https://www.google.com/recaptcha/api/siteverify',
-      new URLSearchParams({
-        secret: process.env.RECAPTCHA_SECRET_KEY,
-        response: captchaToken
-      }),
-      { timeout: 5000 }
-    );
-    if (!recaptchaRes.data.success) {
-      return res.status(400).json({ message: 'reCAPTCHA failed' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -251,7 +251,15 @@ exports.logout = async (req, res) => {
   const token = req.cookies.refreshToken;
   try {
     if (token) {
-      const decoded = jwt.decode(token);
+      // FIX #9: Dùng jwt.verify thay vì jwt.decode để đảm bảo token không bị tamper
+      let decoded = null;
+      try {
+        decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
+      } catch (verifyErr) {
+        // Token không hợp lệ hoặc hết hạn — vẫn xóa cookie, không làm gì với DB
+        console.warn('[Logout] Invalid token, skipping DB cleanup:', verifyErr.message);
+      }
+
       if (decoded?.id) {
         // Xoá trong cả 2 collection
         const updateFields = {
@@ -390,6 +398,8 @@ exports.resetPassword = async (req, res) => {
       return res.status(400).json({ message: 'Link không hợp lệ hoặc hết hạn' });
     }
 
+    // Pre-save hook của cả Admin và StaffAccount schema tự hash password khi isModified('password')
+    // nên chỉ cần gán plaintext — hook sẽ hash đúng 1 lần khi user.save() được gọi
     user.password = password;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;

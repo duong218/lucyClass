@@ -6,7 +6,7 @@ const isProd = process.env.NODE_ENV === 'production';
 const cookieOptions = {
   httpOnly: true,
   secure: isProd,
-  sameSite: isProd ? 'none' : 'lax', //chatgpt sửa 8:48 22/
+  sameSite: isProd ? 'none' : 'lax',
   path: '/'
 };
 
@@ -17,13 +17,9 @@ const csrfMiddleware = csrf({ cookie: cookieOptions });
  * Requirement 2: Skip CSRF for login, logout, and refresh
  */
 const csrfProtection = (req, res, next) => {
-  // BƯỚC 1: Thêm dòng log debug tạm thời để xác nhận req.path thực tế
-  console.log('[CSRF Debug] req.path:', req.path);
-  console.log('[CSRF Debug] req.url:', req.url);
-  console.log('[CSRF Debug] req.originalUrl:', req.originalUrl);
+  // FIX #8: Đã xóa toàn bộ console.log debug — không leak request info ra stdout production
 
-  // BƯỚC 2: Viết lại logic exempt dùng req.originalUrl
-  const url = req.originalUrl ? req.originalUrl.split('?')[0] : ''; // bỏ query string
+  const url = req.originalUrl ? req.originalUrl.split('?')[0] : '';
   
   const EXEMPT_PATHS = [
     '/api/auth/login',
@@ -43,7 +39,6 @@ const csrfProtection = (req, res, next) => {
 
   // 2. Explicitly skip validation for sensitive Auth routes
   if (isExempt) {
-    console.log(`[CSRF] Skipped for sensitive Auth route: ${url}`);
     return next();
   }
 

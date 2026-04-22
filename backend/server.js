@@ -176,7 +176,7 @@ const rankingRoutes = require('./routes/rankingRoutes');
 const initCronJobs = require('./config/cron');
 const backupService = require('./services/backup.service');
 const userIdentifier = require('./middlewares/userIdentifier');
-const { apiLimiter } = require('./middlewares/rateLimiter');
+const { apiLimiter, registerLimiter } = require('./middlewares/rateLimiter'); // FIX #6: import registerLimiter
 const errorHandler = require('./middlewares/errorHandler');
 const streakRoutes = require('./routes/streakRoutes');
 const staffRoutes = require('./routes/staffRoutes');
@@ -298,7 +298,10 @@ const saveRegistration = async (sanitized) => {
 };
 
 // --- 📊 GOOGLE SHEETS SUBMISSION ENDPOINT ---
-app.post('/api/submit', async (req, res) => {
+// FIX #6: Thêm registerLimiter để bảo vệ bằng rate limiting cấp network
+// (in-memory cooldown trong saveRegistration không đủ vì reset khi server restart
+// và không hoạt động đúng sau reverse proxy)
+app.post('/api/submit', registerLimiter, async (req, res) => {
   try {
     try {
       await verifyCaptcha(req.body.captchaToken);
