@@ -4,6 +4,11 @@ const controller = require('../controllers/streakController');
 const validate = require('../middlewares/validate');
 const { streakLimiter } = require('../middlewares/rateLimiter');
 const {
+  phoneDiversityLimiter,
+  phoneSpamLimiter,
+  ipActionLimiter
+} = require('../middlewares/phoneLimiter');
+const {
   streakValidation,
   checkinValidation,
   reviveValidation
@@ -14,6 +19,9 @@ const router = express.Router();
 router.post(
   '/start',
   streakLimiter,
+  ipActionLimiter,
+  phoneDiversityLimiter,
+  phoneSpamLimiter,
   streakValidation,
   validate,
   controller.startStreak
@@ -34,6 +42,7 @@ router.get(
 router.post(
   '/checkin',
   streakLimiter,
+  phoneSpamLimiter,
   checkinValidation,
   validate,
   controller.checkIn
@@ -42,6 +51,7 @@ router.post(
 router.post(
   '/revive',
   streakLimiter,
+  phoneSpamLimiter,
   reviveValidation,
   validate,
   controller.reviveStreak

@@ -633,7 +633,7 @@ const FlameButton = () => {
                         {hasCheckedInToday ? (
                           <span className="flex items-center justify-center gap-2">
                             <span className="font-bold text-white bg-gradient-to-r from-green-400 to-emerald-500 px-3 py-1 rounded-full shadow-md">
-                              {t('streak.already_checked_in')}
+                              {t('streak.already_checked_in', { name: userData?.name || savedPhone })}
                             </span>
                             <span className="text-xl">🍬</span>
                           </span>
