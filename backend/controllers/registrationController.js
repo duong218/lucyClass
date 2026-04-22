@@ -321,8 +321,8 @@ exports.update = async (req, res) => {
   const updateData = {};
   for (const field of ALLOWED) {
     if (req.body[field] !== undefined) {
-      updateData[field] = (typeof req.body[field] === 'string' && field !== 'status') 
-        ? cleanInput(req.body[field]) 
+      updateData[field] = (typeof req.body[field] === 'string' && field !== 'status')
+        ? cleanInput(req.body[field])
         : req.body[field];
     }
   }
@@ -427,13 +427,12 @@ exports.getStudentsByCourse = async (req, res, next) => {
   try {
     const students = await Registration.find({
       courseId: req.params.id,
-      status: 'registered',
-      isActive: true
+      status: 'registered'
     })
-    .populate('courseId', 'name')
-    .select('childName childAge parentName phone email isActive courseId')
-    .sort({ createdAt: -1 })
-    .lean();
+      .populate('courseId', 'name')
+      .select('childName childAge parentName phone email isActive courseId')
+      .sort({ isActive: -1, createdAt: -1 })
+      .lean();
 
     res.json({ success: true, data: students });
   } catch (error) {
@@ -640,7 +639,7 @@ exports.transferStudent = async (req, res, next) => {
     });
 
   } catch (error) {
-    try { await session.abortTransaction(); } catch (_) {}
+    try { await session.abortTransaction(); } catch (_) { }
     next(error);
   } finally {
     session.endSession();
