@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import api, { fetchCsrfToken, setInitializing, setAccessToken } from '../services/api';
+import api, { setInitializing, setAccessToken } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -42,7 +42,6 @@ export const AuthProvider = ({ children }) => {
       );
 
       const authFlow = async () => {
-        await fetchCsrfToken();
         try {
           const meRes = await api.get('/auth/me');
           setUser(meRes.data?.user || meRes.data);
@@ -143,7 +142,6 @@ export const AuthProvider = ({ children }) => {
       setSessionConflict(false);
       conflictHandledRef.current = false;
       const res = await api.post('/auth/login', credentials);
-      await fetchCsrfToken();
       if (res.data.accessToken) setAccessToken(res.data.accessToken);
       localStorage.setItem('hasSession', 'true');
       setUser(res.data.user);

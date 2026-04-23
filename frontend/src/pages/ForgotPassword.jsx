@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api, { fetchCsrfToken } from '../services/api';
+import api from '../services/api';
 import RecaptchaBox from '../components/RecaptchaBox';
 
 const ForgotPassword = () => {
@@ -52,8 +52,6 @@ const ForgotPassword = () => {
     setError('');
 
     try {
-      await fetchCsrfToken();
-
       const payload = { email, recaptchaToken: captchaToken };
       if (accountType === 'staff') payload.username = username.trim();
 

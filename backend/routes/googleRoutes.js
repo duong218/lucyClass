@@ -13,15 +13,14 @@ router.use((req, res, next) => {
 
 const catchAsync = require('../utils/catchAsync');
 
-const csrfProtection = require('../middlewares/csrf');
 
 //router.get('/auth', auth, isAdmin, googleController.redirectToGoogle);
 router.get('/auth', auth, isAdmin, googleController.redirectToGoogle);
 router.get('/callback', googleController.handleGoogleCallback);
-router.post('/backup', auth, isAdmin, heavyOpLimiter, csrfProtection, catchAsync(googleController.backupToDrive));
+router.post('/backup', auth, isAdmin, heavyOpLimiter, catchAsync(googleController.backupToDrive));
 
 // Restore routes
 router.get('/backups', auth, isAdmin, catchAsync(restoreController.listBackups));
-router.post('/restore', auth, isAdmin, heavyOpLimiter, csrfProtection, catchAsync(restoreController.restoreBackup));
+router.post('/restore', auth, isAdmin, heavyOpLimiter, catchAsync(restoreController.restoreBackup));
 
 module.exports = router;

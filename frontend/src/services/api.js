@@ -28,27 +28,6 @@ export const setAccessToken = (token) => {
 };
 
 // ==============================
-// 🔐 CSRF TOKEN HANDLING
-// ==============================
-let _csrfToken = null;
-
-export const setCsrfToken = (token) => {
-  _csrfToken = token;
-};
-
-export const fetchCsrfToken = async () => {
-  try {
-    // ✅ Use api instance (goes through Vite proxy in dev, uses BASE_URL in prod)
-    const response = await api.get('/csrf-token');
-    setCsrfToken(response.data.csrfToken);
-    return response.data.csrfToken;
-  } catch (error) {
-    console.warn('[CSRF] Fetch failed:', error.message);
-    return null;
-  }
-};
-
-// ==============================
 // 🚀 REQUEST INTERCEPTOR
 // ==============================
 api.interceptors.request.use(
@@ -57,13 +36,6 @@ api.interceptors.request.use(
     if (_accessToken) {
       config.headers = config.headers || {};
       config.headers['Authorization'] = `Bearer ${_accessToken}`;
-    }
-
-    // ✅ Attach CSRF token for write methods
-    const method = config.method?.toLowerCase();
-    if (['post', 'put', 'delete', 'patch'].includes(method) && _csrfToken) {
-      config.headers = config.headers || {};
-      config.headers['X-CSRF-Token'] = _csrfToken;
     }
 
     return config;

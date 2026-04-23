@@ -161,7 +161,6 @@ app.use(xss());
 
 // 6. Routes & Dependencies
 const authRoutes = require('./routes/authRoutes');
-const csrfProtection = require('./middlewares/csrf');
 const courseRoutes = require('./routes/courseRoutes');
 const teacherRoutes = require('./routes/teacherRoutes');
 const registrationRoutes = require('./routes/registrationRoutes');
@@ -188,10 +187,6 @@ app.use(userIdentifier);
 app.use('/api', apiLimiter);
 
 // 8. Endpoints
-app.get('/api/csrf-token', csrfProtection, (req, res) => {
-  res.json({ csrfToken: req.csrfToken() });
-});
-
 const backupDir = path.resolve(process.env.BACKUP_PATH || './backups');
 if (!fs.existsSync(backupDir)) {
   fs.mkdirSync(backupDir, { recursive: true });

@@ -3,7 +3,6 @@ const router = express.Router();
 const restoreController = require('../controllers/restore.controller');
 const auth = require('../middlewares/auth');
 const isAdmin = require('../middlewares/isAdmin');
-const csrfProtection = require('../middlewares/csrf');
 
 // All restore routes require admin auth
 router.use(auth, isAdmin);
@@ -19,6 +18,6 @@ router.get('/progress', restoreController.getRestoreProgress);
  * @desc Manually trigger a restore (if needed, though Dashboard uses googleRoutes)
  * Note: Dashboard currently uses /api/auth/google/restore, but we could migrate it here.
  */
-// router.post('/execute', csrfProtection, restoreController.restoreBackup);
+// router.post('/execute', restoreController.restoreBackup);
 
 module.exports = router;

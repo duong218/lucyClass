@@ -7,7 +7,6 @@ const isAdmin = require('../middlewares/isAdmin');
 const authorizeRoles = require('../middlewares/authorizeRoles');
 const { upload, validateMagicNumber } = require('../middlewares/upload');
 const { courseValidationRules, validate } = require('../middlewares/adminValidator');
-const csrfProtection = require('../middlewares/csrf');
 const { cacheMiddleware } = require('../middlewares/cacheMiddleware');
 const catchAsync = require('../utils/catchAsync');
 
@@ -43,7 +42,7 @@ router.post(
   '/:id/attendance',
   auth,
   authorizeRoles('admin', 'teacher'),
-  csrfProtection,
+
   catchAsync(courseController.saveAttendance)
 );
 
@@ -52,28 +51,28 @@ router.post(
 //     "students" là một courseId và gọi nhầm courseController.update
 router.put(
   '/students/:id/transfer',
-  auth, isAdmin, csrfProtection,
+  auth, isAdmin,
   catchAsync(registrationController.transferStudent)
 );
 
 // ── Admin only ─────────────────────────────────────────────────────────────
 router.post(
   '/',
-  auth, isAdmin, csrfProtection,
+  auth, isAdmin,
   upload.single('image'), validateMagicNumber,
   courseValidationRules, validate,
   catchAsync(courseController.create)
 );
 router.put(
   '/:id',
-  auth, isAdmin, csrfProtection,
+  auth, isAdmin,
   upload.single('image'), validateMagicNumber,
   courseValidationRules, validate,
   catchAsync(courseController.update)
 );
 router.delete(
   '/:id',
-  auth, isAdmin, csrfProtection,
+  auth, isAdmin,
   catchAsync(courseController.remove)
 );
 

@@ -2,7 +2,6 @@ const auth = require('../middlewares/auth');
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
-const csrfProtection = require('../middlewares/csrf');
 const { loginLimiter, forgotPasswordLimiter, resetPasswordLimiter } = require('../middlewares/rateLimiter');
 
 const catchAsync = require('../utils/catchAsync');
@@ -17,9 +16,9 @@ router.post('/login', loginLimiter, catchAsync(authController.login));
 router.post('/logout', auth, catchAsync(authController.logout));
 router.post('/refresh-token', catchAsync(authController.refreshToken));
 
-// Sensitive data-changing routes - CSRF REQUIRED
-router.post('/forgot-password', forgotPasswordLimiter, csrfProtection, catchAsync(authController.forgotPassword));
-router.post('/reset-password/:token', resetPasswordLimiter, csrfProtection, catchAsync(authController.resetPassword));
+// Sensitive data-changing routes — protected by verifyCSRF in server.js (Origin + X-Requested-With)
+router.post('/forgot-password', forgotPasswordLimiter, catchAsync(authController.forgotPassword));
+router.post('/reset-password/:token', resetPasswordLimiter, catchAsync(authController.resetPassword));
 
 // Check session conflict (proactive polling)
 router.get('/check-session', auth, authController.checkSession);
