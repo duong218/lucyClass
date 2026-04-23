@@ -3,6 +3,7 @@ const backupService = require('../services/backup.service');
 const AuditLog = require('../models/AuditLog');
 const Admin = require('../models/Admin');
 const { cleanOldRankings } = require('../controllers/rankingController');
+const { cleanOrphanRankings, runDeepClean } = require('../services/deepCleanService');
 const mongoose = require('mongoose');
 
 /**
@@ -17,14 +18,15 @@ const initCronJobs = () => {
 
   const isDevelopment = process.env.NODE_ENV !== 'production';
   const cronOptions = process.env.CRON_TIMEZONE ? { timezone: process.env.CRON_TIMEZONE } : undefined;
-  let isRankingCleanupRunning = false;
-  let isRestoreCleanupRunning = false;
 
-  // Schedule: '0 2 * * *' (Every day at 02:00 AM)
+  let isRankingCleanupRunning  = false;
+  let isRestoreCleanupRunning  = false;
+  let isOrphanCleanupRunning   = false;
+  let isDeepCleanRunning       = false;
+
+  // ─── 02:00 AM — Backup hàng ngày ──────────────────────────────────────────
   cron.schedule('0 2 * * *', async () => {
-    if (isDevelopment) {
-      console.log('[Cron] Starting scheduled daily backup at 2:00 AM...');
-    }
+    if (isDevelopment) console.log('[Cron] Starting scheduled daily backup at 2:00 AM...');
 
     try {
       const result = await backupService.runBackup({
@@ -32,9 +34,7 @@ const initCronJobs = () => {
         fileNamePrefix: 'auto-backup'
       });
 
-      if (isDevelopment) {
-        console.log(`[Cron] Scheduled backup successful: ${result.fileName}`);
-      }
+      if (isDevelopment) console.log(`[Cron] Scheduled backup successful: ${result.fileName}`);
 
       try {
         const systemAdmin = await Admin.findOne({ role: 'admin' });
@@ -67,21 +67,17 @@ const initCronJobs = () => {
     }
   }, cronOptions);
 
-  // Schedule: '15 2 * * *' (Every day at 02:15 AM)
+  // ─── 02:15 AM — Dọn Ranking cũ hơn tháng trước ───────────────────────────
   cron.schedule('15 2 * * *', async () => {
     if (isRankingCleanupRunning) {
-      if (isDevelopment) {
-        console.log('[Cron] Ranking cleanup skipped (previous run still active)');
-      }
+      if (isDevelopment) console.log('[Cron] Ranking cleanup skipped (previous run still active)');
       return;
     }
 
     isRankingCleanupRunning = true;
     try {
       const result = await cleanOldRankings();
-      if (isDevelopment) {
-        console.log(`[Cron] Ranking cleanup completed. Deleted: ${result.deletedCount || 0}`);
-      }
+      if (isDevelopment) console.log(`[Cron] Ranking cleanup completed. Deleted: ${result?.deletedCount ?? 0}`);
     } catch (error) {
       console.error('[Cron] Ranking cleanup failed:', error.message);
     } finally {
@@ -89,13 +85,28 @@ const initCronJobs = () => {
     }
   }, cronOptions);
 
-  // Schedule: '0 3 * * *' (Every day at 03:00 AM)
-  // Xóa các database restore_tmp cũ hơn hôm nay, giữ tối đa 5 cái mới nhất trong ngày
+  // ─── 02:30 AM — Dọn Ranking orphan (studentId / courseId không còn) ───────
+  cron.schedule('30 2 * * *', async () => {
+    if (isOrphanCleanupRunning) {
+      if (isDevelopment) console.log('[Cron] Orphan ranking cleanup skipped (previous run still active)');
+      return;
+    }
+
+    isOrphanCleanupRunning = true;
+    try {
+      const report = await cleanOrphanRankings();
+      if (isDevelopment) console.log('[Cron] Orphan ranking cleanup completed:', report);
+    } catch (error) {
+      console.error('[Cron] Orphan ranking cleanup failed:', error.message);
+    } finally {
+      isOrphanCleanupRunning = false;
+    }
+  }, cronOptions);
+
+  // ─── 03:00 AM — Dọn restore-tmp databases cũ ─────────────────────────────
   cron.schedule('0 3 * * *', async () => {
     if (isRestoreCleanupRunning) {
-      if (isDevelopment) {
-        console.log('[Cron] Restore tmp cleanup skipped (previous run still active)');
-      }
+      if (isDevelopment) console.log('[Cron] Restore tmp cleanup skipped (previous run still active)');
       return;
     }
 
@@ -140,22 +151,18 @@ const initCronJobs = () => {
 
         let deletedCount = 0;
 
-        // Xóa toàn bộ DB cũ hơn hôm nay
         for (const db of oldDbs) {
           await conn.useDb(db.name).dropDatabase();
           deletedCount++;
         }
 
-        // Với DB trong ngày: chỉ giữ 5 cái mới nhất, xóa phần còn lại
         todayDbs.sort((a, b) => b.timestampSeconds - a.timestampSeconds);
         for (let i = 5; i < todayDbs.length; i++) {
           await conn.useDb(todayDbs[i].name).dropDatabase();
           deletedCount++;
         }
 
-        if (isDevelopment) {
-          console.log(`[Cron] Restore cleanup completed. Deleted: ${deletedCount} database(s)`);
-        }
+        if (isDevelopment) console.log(`[Cron] Restore cleanup completed. Deleted: ${deletedCount} database(s)`);
 
         if (deletedCount > 0) {
           try {
@@ -183,7 +190,47 @@ const initCronJobs = () => {
     }
   }, cronOptions);
 
-  console.log('⏰ Scheduled jobs initialized (backup + ranking cleanup + restore tmp cleanup)');
+  // ─── 04:00 AM ngày 1/1 và 1/7 — Deep clean 6 tháng/lần ──────────────────
+  cron.schedule('0 4 1 1,7 *', async () => {
+    if (isDeepCleanRunning) {
+      console.log('[Cron] Deep clean skipped (previous run still active)');
+      return;
+    }
+
+    isDeepCleanRunning = true;
+    console.log('[Cron] Bắt đầu Deep Clean 6 tháng...');
+
+    try {
+      const result = await runDeepClean();
+
+      console.log('[Cron] Deep Clean hoàn thành:', result.report);
+
+      try {
+        const systemAdmin = await Admin.findOne({ role: 'admin' });
+        await AuditLog.create({
+          adminId: systemAdmin?._id,
+          adminName: 'System (Cron)',
+          action: result.success ? 'AUTO_DEEP_CLEAN_SUCCESS' : 'AUTO_DEEP_CLEAN_FAILED',
+          description: `Deep clean 6 tháng: ${JSON.stringify(result.report)}`,
+          ipAddress: 'system-cron'
+        });
+      } catch (logErr) {
+        console.error('[Cron] Failed to create deep clean audit log:', logErr.message);
+      }
+
+    } catch (error) {
+      console.error('[Cron] Deep clean failed:', error.message);
+    } finally {
+      isDeepCleanRunning = false;
+    }
+  }, cronOptions);
+
+  console.log('⏰ Scheduled jobs initialized:');
+  console.log('   02:00 AM daily  → backup');
+  console.log('   02:15 AM daily  → ranking cũ');
+  console.log('   02:30 AM daily  → ranking orphan');
+  console.log('   03:00 AM daily  → restore-tmp cleanup');
+  console.log('   04:00 AM 1/1&7  → deep clean 6 tháng');
 };
 
 module.exports = initCronJobs;
