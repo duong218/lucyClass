@@ -1,132 +1,119 @@
 # 📁 Backend Structure (BE)
 
-Full recursive scan of the backend project structure.
+---
+
+## 🌳 System Architecture Tree
+
+```text
+backend/
+├── 📁 config/ (Core configuration for external services and databases)
+│   ├── ⚙️ cron.js → schedules automated tasks and data cleanup
+│   ├── ⚙️ db.js → MongoDB connection setup using Mongoose
+│   ├── ⚙️ google.js → Google API client and auth configuration
+│   └── ⚙️ redis.js → Redis client connection for server-side caching
+├── 📁 controllers/ (Handles business logic for each API module)
+│   ├── 🎮 announcementController.js → CRUD and logic for school news/updates
+│   ├── 🎮 auditController.js → logic for tracking and exporting admin actions
+│   ├── 🎮 authController.js → handles login, logout, refresh tokens, and password reset
+│   ├── 🎮 courseController.js → manages courses, class details, and attendance
+│   ├── 🎮 feedbackController.js → processes parent/student feedback submissions
+│   ├── 🎮 google.controller.js → manages Google Drive backups and Sheet syncing
+│   ├── 🎮 rankingController.js → calculates and serves student star leaderboards
+│   ├── 🎮 registrationController.js → handles new student enrollments and capacity
+│   ├── 🎮 restore.controller.js → triggers database restoration from encrypted backups
+│   ├── 🎮 staffController.js → manages staff accounts, roles, and permissions
+│   ├── 🎮 statsController.js → aggregates data for dashboard charts and reports
+│   ├── 🎮 streakController.js → logic for daily check-ins, revives, and streak counts
+│   ├── 🎮 syncController.js → manual triggers for maintenance and data syncing
+│   ├── 🎮 teacherController.js → manages teacher profiles, avatars, and bios
+│   └── 🎮 timetableController.js → handles class schedule rows, cells, and reordering
+├── 📁 middlewares/ (Request interceptors for security, authentication, and validation)
+│   ├── 🛡️ adminValidator.js → schema validation for administrative requests
+│   ├── 🛡️ auth.js → primary JWT authentication and session conflict check
+│   ├── 🛡️ authorizeRoles.js → RBAC (Role-Based Access Control) permission checker
+│   ├── 🛡️ cacheMiddleware.js → logic for reading and writing to Redis cache
+│   ├── 🛡️ errorHandler.js → global error handling and standardized JSON responses
+│   ├── 🛡️ isAdmin.js → strict middleware to enforce admin-only access
+│   ├── 🛡️ phoneLimiter.js → rate limits requests based on student phone numbers
+│   ├── 🛡️ rateLimiter.js → generic rate limiting to prevent API abuse/DDoS
+│   ├── 🛡️ securityMiddleware.js → Origin and Custom Header-based CSRF protection
+│   ├── 🛡️ streakAuth.js → specialized authentication for the streak system
+│   ├── 🛡️ upload.js → Multer configuration for processing image uploads
+│   ├── 🛡️ userIdentifier.js → generates unique IDs for anonymous rate limiting
+│   ├── 🛡️ validate.js → helper to check express-validator result objects
+│   └── 🛡️ validateRegistration.js → complex validation logic for new enrollments
+├── 📁 models/ (Mongoose schemas defining the database architecture)
+│   ├── 📊 Admin.js → schema for root administrative users
+│   ├── 📊 Announcement.js → schema for school news and banners
+│   ├── 📊 Attendance.js → records of student presence in classes
+│   ├── 📊 AuditLog.js → persistent log of all administrative changes
+│   ├── 📊 Course.js → schema for class information and teacher links
+│   ├── 📊 DeviceUsage.js → tracks daily activity per device to prevent spam
+│   ├── 📊 Feedback.js → storage for user-submitted feedback and photos
+│   ├── 📊 GoogleToken.js → persists OAuth2 tokens for Google services
+│   ├── 📊 Log.js → generic schema for application event logging
+│   ├── 📊 Ranking.js → stores monthly star rankings for students
+│   ├── 📊 Registration.js → primary schema for student enrollment data
+│   ├── 📊 StaffAccount.js → credentials and profile links for teachers/staff
+│   ├── 📊 Streak.js → tracks daily check-in activity and user data
+│   ├── 📊 Teacher.js → detailed profile data for teaching staff
+│   ├── 📊 TimetableCell.js → individual entry in the class schedule
+│   └── 📊 TimetableRow.js → definition of a time slot in the schedule
+├── 📁 routes/ (Defines the API endpoints and connects them to controllers)
+│   ├── 🛣️ announcementRoutes.js → endpoints for school updates and news
+│   ├── 🛣️ auditRoutes.js → routes for viewing and exporting action logs
+│   ├── 🛣️ authRoutes.js → authentication endpoints (login, logout, password)
+│   ├── 🛣️ courseRoutes.js → management routes for courses and attendance
+│   ├── 🛣️ feedbackRoutes.js → endpoints for submitting and viewing feedback
+│   ├── 🛣️ googleRoutes.js → integration routes for Drive and Sheets
+│   ├── 🛣️ rankingRoutes.js → routes for fetching student leaderboards
+│   ├── 🛣️ registrationRoutes.js → primary endpoints for student enrollments
+│   ├── 🛣️ restoreRoutes.js → specialized routes for DB restore operations
+│   ├── 🛣️ staffDashboardRoutes.js → aggregate data routes for the staff UI
+│   ├── 🛣️ staffRoutes.js → management routes for staff and teachers
+│   ├── 🛣️ statsRoutes.js → endpoints for dashboard statistics
+│   ├── 🛣️ streakRoutes.js → routes for daily check-ins and streak revival
+│   ├── 🛣️ syncRoutes.js → maintenance triggers for data synchronization
+│   ├── 🛣️ teacherRoutes.js → public and admin routes for teacher profiles
+│   └── 🛣️ timetableRoutes.js → routes for class schedule management
+├── 📁 scripts/ (Utility scripts for maintenance and automation)
+│   ├── 📜 backup.js → standalone script to trigger a local DB backup
+│   └── 📜 cleanRestoreTmp.js → cleans up temporary files after a restoration
+├── 📁 services/ (Decoupled business logic for complex operations)
+│   ├── ⚡ backup.service.js → core logic for creating and encrypting database dumps
+│   ├── ⚡ deepCleanService.js → logic for deleting orphan records and old rankings
+│   ├── ⚡ drive.service.js → wrapper for Google Drive file operations
+│   └── ⚡ restore.service.js → handles decryption and importing of backup files
+├── 📁 utils/ (Reusable helper functions and system utilities)
+│   ├── 🧰 catchAsync.js → wrapper to eliminate try-catch blocks in routes
+│   ├── 🧰 cloudinary.js → service for managing image uploads to Cloudinary
+│   ├── 🧰 emailService.js → handles sending all transactional emails
+│   ├── 🧰 encryptionUtils.js → cryptographic logic for securing backup files
+│   ├── 🧰 logAdminAction.js → helper function to log admin events to DB
+│   ├── 🧰 logger.js → simple console/file logger for events
+│   ├── 🧰 normalizePhone.js → standardizes phone formats (+84 to 0, etc.)
+│   ├── 🧰 sanitize.js → cleans user input strings to prevent XSS/Injection
+│   ├── 🧰 scheduledTasks.js → definition of recurring system jobs
+│   ├── 🧰 systemLogger.js → enhanced logging with contextual metadata
+│   └── 🧰 test-encryption.js → validation script for the encryption system
+├── 📁 validators/ (Input validation schemas using express-validator)
+│   ├── 📝 registrationValidator.js → strict rules for enrollment form data
+│   └── 📝 streakValidator.js → rules for phone and name in streak check-ins
+├── 📄 .dockerignore → specifies files to exclude from Docker builds
+├── 📄 .env.example → template for environment variables (safe to commit)
+├── 🐳 Dockerfile → containerization instructions for the backend
+├── 📄 googleSheets.js → standalone utility for Google Sheets syncing
+├── 📄 migrate-childAge.js → one-time database migration script
+├── 📄 nodemon.json → configuration for the nodemon development runner
+├── 📦 package.json → project metadata, scripts, and dependencies
+└── 🚀 server.js → entry point; initializes express, DB, and routes
+```
 
 ---
 
-## 📂 backend/
-→ Root directory of the backend application
+## 📂 Summary
 
-### 📂 config/
-→ Configuration files for various services and integrations
-* `cron.js` → Scheduled tasks and cron job definitions
-* `db.js` → MongoDB connection configuration using Mongoose
-* `google.js` → Google OAuth and API client configuration
-* `redis.js` → Redis client configuration for caching
-
-### 📂 controllers/
-→ Handles business logic for each API route
-* `announcementController.js` → Logic for creating, updating, and retrieving announcements
-* `auditController.js` → Logic for retrieving and managing admin audit logs
-* `authController.js` → Authentication logic (login, register, forgot password, reset password)
-* `courseController.js` → CRUD operations for courses and course details
-* `feedbackController.js` → Logic for handling user feedback submissions
-* `google.controller.js` → Logic for Google-specific integrations (e.g., Google Sheets)
-* `rankingController.js` → Logic for calculating and retrieving student rankings
-* `registrationController.js` → Logic for handling student registrations and enrollments
-* `restore.controller.js` → Logic for system data restoration and backups
-* `staffController.js` → Logic for managing staff accounts and dashboards
-* `statsController.js` → Logic for generating system-wide statistics and reports
-* `streakController.js` → Logic for managing user streaks and check-ins
-* `syncController.js` → Logic for synchronizing data across systems
-* `teacherController.js` → Logic for managing teacher profiles and dashboards
-* `timetableController.js` → Logic for managing class schedules and timetables
-
-### 📂 middlewares/
-→ Functions that run during the request-response cycle (auth, validation, security)
-* `adminValidator.js` → Middleware to validate admin-level access
-* `auth.js` → Core authentication middleware for JWT verification
-* `authorizeRoles.js` → Middleware for role-based access control (RBAC)
-* `cacheMiddleware.js` → Middleware for handling Redis caching of responses
-* `csrf.js` → CSRF protection middleware
-* `errorHandler.js` → Global error handling middleware
-* `isAdmin.js` → Specific check for admin role
-* `phoneLimiter.js` → Rate limiting specific to phone number verification
-* `rateLimiter.js` → General API rate limiting middleware
-* `securityMiddleware.js` → General security headers and protections
-* `streakAuth.js` → Specialized authentication for streak-related endpoints
-* `upload.js` → Middleware for handling file uploads (e.g., images)
-* `userIdentifier.js` → Middleware to identify users/devices uniquely
-* `validate.js` → Generic validation runner middleware
-* `validateRegistration.js` → Specialized validation for registration data
-
-### 📂 models/
-→ Mongoose schemas defining the data structure in MongoDB
-* `Admin.js` → Schema for administrator accounts
-* `Announcement.js` → Schema for system-wide announcements
-* `Attendance.js` → Schema for tracking student attendance
-* `AuditLog.js` → Schema for recording administrative actions
-* `Course.js` → Schema for course information
-* `DeviceUsage.js` → Schema for tracking device-specific sessions
-* `Feedback.js` → Schema for user-submitted feedback
-* `GoogleToken.js` → Schema for storing Google OAuth tokens
-* `Log.js` → General system logging schema
-* `Ranking.js` → Schema for stored student rankings
-* `Registration.js` → Schema for student registration records
-* `StaffAccount.js` → Schema for staff and teacher accounts
-* `Streak.js` → Schema for tracking user streaks
-* `Teacher.js` → Schema for teacher-specific profile data
-* `TimetableCell.js` → Schema for individual entries in the timetable
-* `TimetableRow.js` → Schema for rows/groupings in the timetable
-
-### 📂 routes/
-→ Defines the API endpoints and maps them to controllers
-* `announcementRoutes.js` → Routes for announcement operations
-* `auditRoutes.js` → Routes for viewing audit logs
-* `authRoutes.js` → Routes for authentication and account management
-* `courseRoutes.js` → Routes for course management
-* `feedbackRoutes.js` → Routes for feedback operations
-* `googleRoutes.js` → Routes for Google integration features
-* `rankingRoutes.js` → Routes for student ranking data
-* `registrationRoutes.js` → Routes for handling enrollments
-* `restoreRoutes.js` → Routes for system restoration features
-* `staffDashboardRoutes.js` → Specialized dashboard routes for staff
-* `staffRoutes.js` → General staff management routes
-* `statsRoutes.js` → Routes for system statistics
-* `streakRoutes.js` → Routes for streak and check-in operations
-* `syncRoutes.js` → Routes for data synchronization
-* `teacherRoutes.js` → Routes for teacher management
-* `timetableRoutes.js` → Routes for timetable and schedule management
-
-### 📂 scripts/
-→ Utility scripts for maintenance and automation
-* `backup.js` → Script for manual or automated database backups
-* `cleanRestoreTmp.js` → Script to clean up temporary files after restoration
-
-### 📂 services/
-→ Specialized logic layer for external integrations and complex tasks
-* `backup.service.js` → Core logic for creating and managing backups
-* `deepCleanService.js` → Service for performing deep system cleanup
-* `drive.service.js` → Service for interacting with Google Drive API
-* `restore.service.js` → Core logic for restoring data from backups
-
-### 📂 utils/
-→ Shared utility functions used throughout the backend
-* `catchAsync.js` → Wrapper to handle asynchronous errors in Express routes
-* `cloudinary.js` → Integration for Cloudinary image hosting
-* `emailService.js` → Utility for sending transactional emails
-* `encryptionUtils.js` → Helpers for data encryption and hashing
-* `logAdminAction.js` → Helper to record actions in the audit log
-* `logger.js` → Standardized logging configuration
-* `normalizePhone.js` → Utility to format and normalize phone numbers
-* `sanitize.js` → Helpers to sanitize input and prevent injection
-* `scheduledTasks.js` → Logic for background tasks and cron jobs
-* `systemLogger.js` → Specialized logger for system-level events
-* `test-encryption.js` → Utility for testing encryption/decryption logic
-
-### 📂 validators/
-→ Request body validation logic (using Joi or similar)
-* `registrationValidator.js` → Validation schema for registration data
-* `streakValidator.js` → Validation schema for streak updates
-
----
-
-### 📄 Root Files
-* `.dockerignore` → Files and folders to exclude from Docker images
-* `.env.example` → Template for environment variables (safe to read)
-* `Dockerfile` → Configuration for building the backend Docker image
-* `googleSheets.js` → Specialized script for Google Sheets integration
-* `migrate-childAge.js` → Migration script for updating data schemas
-* `nodemon.json` → Configuration for the nodemon development server
-* `package.json` → Project metadata, dependencies, and script definitions
-* `server.js` → Entry point of the Express server application
+*   **Logic Core**: All business rules reside in `controllers/` (🎮) and `services/` (⚡).
+*   **Security**: Handled by `middlewares/` (🛡️) (Auth, CSRF, Rate Limiting).
+*   **Data Structure**: Defined in `models/` (📊) using Mongoose.
+*   **API Mapping**: All endpoints are strictly defined in `routes/` (🛣️).
