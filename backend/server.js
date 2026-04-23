@@ -7,9 +7,9 @@ const systemLogger = require('./utils/systemLogger');
 let server;
 const gracefulShutdown = () => {
   console.log('🛑 Shutting down...');
-  
+
   const mongoose = require('mongoose');
-  
+
   if (server) {
     server.close(async () => {
       console.log('✅ HTTP server closed');
@@ -22,16 +22,16 @@ const gracefulShutdown = () => {
       } catch (err) {
         console.warn('⚠️ Redis close error:', err.message);
       }
-    
+
       process.exit(0);
     });
-    
+
     // Force exit nếu quá 10s
     setTimeout(() => {
       console.error('⚠️ Forced shutdown after timeout');
       process.exit(1);
     }, 10000);
-    
+
   } else {
     process.exit(0);
   }
@@ -152,8 +152,8 @@ app.use((req, res, next) => {
 });
 
 // 4. Body Parsing
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '6mb' }));
+app.use(express.urlencoded({ extended: true, limit: '6mb' }));
 
 // 5. Sanitize (sau body parsing để có req.body mà sanitize)
 app.use(mongoSanitize());
