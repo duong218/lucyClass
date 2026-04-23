@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import NotificationBell from '../components/NotificationBell';
 
 const StaffLayout = () => {
   const { user, logout } = useAuth();
@@ -9,7 +10,6 @@ const StaffLayout = () => {
   const isTeacher   = user?.role === 'teacher';
   const isMarketing = user?.role === 'marketing';
 
-  // Menu items theo role
   const menuItems = isTeacher
     ? [
         { path: '/teacher/dashboard', label: 'Trang của tôi', icon: '👤' },
@@ -20,10 +20,13 @@ const StaffLayout = () => {
       ];
 
   const roleLabel = isTeacher ? 'Giáo viên' : 'Marketing';
-  // Màu gradient sidebar theo role (giống tone AdminLayout nhưng phân biệt)
+
   const sidebarGradient = isTeacher
     ? 'from-emerald-600 to-emerald-700'
     : 'from-violet-600 to-violet-700';
+
+  // Màu accent bell khớp với màu sidebar từng role
+  const bellAccentColor = isTeacher ? '#059669' : '#7c3aed';
 
   return (
     <div className="min-h-screen bg-gray-50 flex relative overflow-x-hidden">
@@ -36,7 +39,7 @@ const StaffLayout = () => {
         />
       )}
 
-      {/* Sidebar — cấu trúc giống AdminLayout */}
+      {/* Sidebar */}
       <aside className={`w-64 bg-gradient-to-b ${sidebarGradient} text-white flex flex-col fixed h-full z-50 transition-transform duration-300 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
 
         {/* Header */}
@@ -56,7 +59,6 @@ const StaffLayout = () => {
                 {roleLabel}
               </span>
             </div>
-            {/* Close button mobile */}
             <button
               className="md:hidden ml-auto text-white/70 hover:text-white p-1"
               onClick={() => setIsSidebarOpen(false)}
@@ -109,10 +111,9 @@ const StaffLayout = () => {
       {/* Main content */}
       <div className="flex-1 md:ml-64 min-w-0 transition-all duration-300">
 
-        {/* Top bar — giống AdminLayout */}
+        {/* Top bar */}
         <header className="bg-white shadow-sm h-16 flex items-center justify-between px-6 sticky top-0 z-30 border-b border-gray-100">
           <div className="flex items-center gap-4">
-            {/* Hamburger mobile */}
             <button
               className="md:hidden text-2xl text-gray-600"
               onClick={() => setIsSidebarOpen(true)}
@@ -125,7 +126,14 @@ const StaffLayout = () => {
               )?.label || roleLabel}
             </h2>
           </div>
+
           <div className="flex items-center gap-3">
+            {/* ✅ Notification Bell — màu + path tự động theo role */}
+            <NotificationBell
+              enabled={!!user}
+              accentColor={bellAccentColor}
+            />
+
             <span className="text-xs font-bold text-gray-600 hidden sm:block">
               👤 {user?.displayName || user?.username}
             </span>

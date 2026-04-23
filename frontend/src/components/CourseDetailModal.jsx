@@ -38,7 +38,7 @@ const CourseDetailModal = ({ course, onClose }) => {
             bg-white w-full relative flex flex-col overflow-hidden
             rounded-t-[28px]
             max-h-[88dvh]
-            md:rounded-[2.5rem] md:max-w-4xl md:max-h-[85vh] md:shadow-2xl md:animate-fadeInUp
+            md:rounded-[2.5rem] md:max-w-4xl md:max-h-[80vh] md:shadow-2xl md:animate-fadeInUp md:mt-16
             animate-slideUpMobile
           `}
           onClick={e => e.stopPropagation()}
@@ -62,16 +62,18 @@ const CourseDetailModal = ({ course, onClose }) => {
             </div>
           </div>
 
-          {/* ── SCROLLABLE BODY ── */}
-          <div className="overflow-y-auto flex-1" style={{ WebkitOverflowScrolling: 'touch' }}>
-            {/* Desktop close button */}
+          {/* ── DESKTOP CLOSE BUTTON — nằm ngoài scroll, luôn hiển thị ── */}
+          <div className="hidden md:flex shrink-0 justify-end px-5 pt-4 pb-0">
             <button
               onClick={onClose}
-              className="hidden md:flex absolute top-6 right-6 w-10 h-10 bg-white shadow-md hover:bg-gray-200 rounded-full items-center justify-center font-bold text-gray-500 transition-colors z-20"
+              className="w-10 h-10 bg-white shadow-md hover:bg-gray-200 rounded-full flex items-center justify-center font-bold text-gray-500 transition-colors"
               aria-label={t('courseDetail.closeBtnLabel')}
             >✕</button>
+          </div>
 
-            <div className="p-5 pt-4 md:p-8 md:pt-8">
+          {/* ── SCROLLABLE BODY ── */}
+          <div className="overflow-y-auto flex-1" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div className="p-5 pt-4 md:p-8 md:pt-3">
               <div className="flex flex-col md:flex-row gap-5 md:gap-8">
 
                 {/* ── LEFT: Course Info ── */}

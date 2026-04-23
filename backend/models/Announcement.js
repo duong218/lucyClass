@@ -17,6 +17,12 @@ const announcementSchema = new mongoose.Schema({
   description: {
     type: String,
     required: true
+  },
+  // ✅ NEW: đánh dấu thông báo mới để hiện badge trên bell icon
+  // Tự động reset về false sau 24h qua scheduled task hoặc khi admin xem
+  isUnread: {
+    type: Boolean,
+    default: true
   }
 }, {
   timestamps: true

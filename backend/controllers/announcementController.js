@@ -35,13 +35,44 @@ exports.getAll = async (req, res) => {
   }
 };
 
+// ✅ NEW: GET /api/announcements/latest
+// Trả về thông báo mới nhất + số lượng chưa xem — dùng cho bell icon polling
+// Không cache để luôn fresh
+exports.getLatest = async (req, res) => {
+  try {
+    const latest = await Announcement.findOne()
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const newCount = await Announcement.countDocuments({ isUnread: true });
+
+    return sendSuccess(res, {
+      latest,      // thông báo mới nhất để preview trong bell dropdown
+      newCount     // số badge hiển thị trên icon
+    });
+  } catch (error) {
+    return sendError(res, 'Failed to fetch latest announcement', error);
+  }
+};
+
+// ✅ NEW: PATCH /api/announcements/mark-seen
+// Gọi khi admin mở bell dropdown → reset isUnread về false
+// Chỉ admin/staff mới được gọi (auth middleware ở route)
+exports.markSeen = async (req, res) => {
+  try {
+    await Announcement.updateMany({ isUnread: true }, { $set: { isUnread: false } });
+    return sendSuccess(res, null, 'Marked all as seen');
+  } catch (error) {
+    return sendError(res, 'Failed to mark as seen', error);
+  }
+};
+
 // POST /api/announcements
 exports.create = async (req, res) => {
   let uploadResult = null;
   try {
     const { title, description } = req.body;
 
-    // Modern Moderate Validation
     if (!title || title.trim().length > 100) {
       return sendError(res, 'Tiêu đề không được để trống và tối đa 100 ký tự', null, 400);
     }
@@ -60,7 +91,8 @@ exports.create = async (req, res) => {
 
     const announcementData = {
       title: cleanInput(title),
-      description: cleanInput(description)
+      description: cleanInput(description),
+      isUnread: true  // ✅ mỗi announcement mới luôn bật isUnread
     };
 
     if (uploadResult) {
@@ -99,8 +131,7 @@ exports.update = async (req, res) => {
 
     const { title, description } = req.body;
     const updateData = {};
-    
-    // Modern Moderate Validation
+
     if (title !== undefined && title.trim().length === 0) {
       return sendError(res, 'Title cannot be empty', null, 400);
     }
@@ -110,12 +141,10 @@ exports.update = async (req, res) => {
     if (title !== undefined && title.trim().length > 100) {
       return sendError(res, 'Tiêu đề tối đa 100 ký tự', null, 400);
     }
-
     if (description !== undefined && description.trim().length > 700) {
       return sendError(res, 'Description must be under 700 characters', null, 400);
     }
 
-    // Only update provided fields
     if (title !== undefined) updateData.title = cleanInput(title);
     if (description !== undefined) updateData.description = cleanInput(description);
 
@@ -126,7 +155,6 @@ exports.update = async (req, res) => {
       } catch (err) {
         return sendError(res, 'Image upload failed', err, 500);
       }
-      
       updateData.image = uploadResult.secure_url;
       updateData.imagePublicId = uploadResult.public_id;
     }
@@ -138,14 +166,12 @@ exports.update = async (req, res) => {
         { new: true, runValidators: true }
       );
 
-      // Clean up old image securely ONLY after DB update succeeds
       if (uploadResult && announcement.imagePublicId) {
         try { await deleteImageFromCloudinary(announcement.imagePublicId); } catch (_) {}
       }
       await clearCache('/api/announcements');
       return sendSuccess(res, updatedAnnouncement, 'Announcement updated successfully');
     } catch (dbError) {
-      // Rollback newly uploaded image if DB update fails
       if (uploadResult && uploadResult.public_id) {
         try { await deleteImageFromCloudinary(uploadResult.public_id); } catch (_) {}
       }
