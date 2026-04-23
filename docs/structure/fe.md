@@ -31,7 +31,8 @@ frontend/
 │   │   │   └── 🧩 PrimaryButton.jsx → standardized styled button with loading state
 │   │   ├── 🧩 ActivitiesSection.jsx → displays the "Activities" grid on the homepage
 │   │   ├── 🧩 ActivityPopup.jsx → detailed modal for specific extracurricular activities
-│   │   ├── 🧩 AnnouncementModal.jsx → popup display for important school news
+│   │   ├── 🧩 AnnouncementListModal.jsx → [NEW] modal showing a list of all announcements for a user
+│   │   ├── 🧩 AnnouncementModal.jsx → popup display for a single important school news
 │   │   ├── 🧩 AnnouncementSection.jsx → scrolling marquee or grid of current announcements
 │   │   ├── 🧩 CourseDetailModal.jsx → informational modal showing course curriculum and price
 │   │   ├── 🧩 CoursesSection.jsx → the main landing page course catalog
@@ -41,6 +42,7 @@ frontend/
 │   │   ├── 🧩 HeartRain.jsx → subtle background animation for specific celebrations
 │   │   ├── 🧩 HeroSection.jsx → the main "above-the-fold" landing page area
 │   │   ├── 🧩 LearningJourney.jsx → visual timeline of student progress at the center
+│   │   ├── 🧩 NotificationBell.jsx → [NEW] interactive bell icon with unread count and dropdown
 │   │   ├── 🧩 ProtectedRoute.jsx → wrapper component for routes requiring authentication
 │   │   ├── 🧩 RecaptchaBox.jsx → container for the Google reCAPTCHA v2 challenge
 │   │   ├── 🧩 RecaptchaProvider.jsx → context provider for reCAPTCHA enterprise/v3
@@ -54,17 +56,18 @@ frontend/
 │   ├── 📁 contexts/ (React Context Providers for global state)
 │   │   └── 🔐 AuthContext.jsx → Manages user authentication, login/logout, and session persistence
 │   ├── 📁 hooks/ (Custom React hooks for shared logic)
-│   │   └── ⚓ useLockBodyScroll.js → prevents scrolling when modals or popups are active
+│   │   ├── ⚓ useLockBodyScroll.js → prevents scrolling when modals or popups are active
+│   │   └── ⚓ useNotifications.js → [NEW] hook to manage unread notifications and bell state
 │   ├── 📁 i18n/ (Internationalization and multi-language support)
 │   │   ├── 🌐 en.json → English language translations
 │   │   ├── 🌐 index.js → initialization logic for i18next
 │   │   ├── 🌐 vi.json → Vietnamese language translations
 │   │   └── 🌐 zh.json → Chinese language translations
 │   ├── 📁 layouts/ (Structural shell components that wrap page content)
-│   │   ├── 🖼️ AdminLayout.jsx → layout with sidebar for the Admin control panel
+│   │   ├── 🖼️ AdminLayout.jsx → layout with sidebar and notification bell for Admin
 │   │   ├── 🖼️ Footer.jsx → common footer with contact info and social links
 │   │   ├── 🖼️ Navbar.jsx → main navigation bar with mobile/desktop variants
-│   │   └── 🖼️ StaffLayout.jsx → simplified layout for Teacher and Staff dashboards
+│   │   └── 🖼️ StaffLayout.jsx → layout with notification bell for Teacher and Staff
 │   ├── 📁 pages/ (Primary page components mapping to application routes)
 │   │   ├── 📁 Marketing/
 │   │   │   └── 📄 MarketingDashboard.jsx → dashboard specialized for lead tracking and ads
@@ -119,6 +122,7 @@ frontend/
 ## 📂 Summary
 
 *   **UI/UX**: Components (🧩) and layouts (🖼️) are built with React and Tailwind CSS.
+*   **Notifications**: Handled by the `NotificationBell` (🧩) and `useNotifications` (⚓) hook.
 *   **State**: Authentication is centralized in `AuthContext` (🔐).
 *   **Language**: Support for VI, EN, and ZH is handled via `i18n/` (🌐).
 *   **API**: All backend communication is abstracted into `services/` (🌐).

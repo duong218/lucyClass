@@ -52,7 +52,8 @@ const ForgotPassword = () => {
     setError('');
 
     try {
-      const payload = { email, recaptchaToken: captchaToken };
+      // accountType phải luôn được gửi lên để backend phân biệt flow an toàn
+      const payload = { email, accountType, recaptchaToken: captchaToken };
       if (accountType === 'staff') payload.username = username.trim();
 
       const res = await api.post('/auth/forgot-password', payload);
@@ -61,11 +62,7 @@ const ForgotPassword = () => {
       }
     } catch (err) {
       const serverMsg = err.response?.data?.message || err.message;
-      if (serverMsg?.includes('chưa có email')) {
-        setError('❌ ' + serverMsg);
-      } else {
-        setError(serverMsg || 'Có lỗi xảy ra, vui lòng thử lại sau');
-      }
+      setError(serverMsg || 'Có lỗi xảy ra, vui lòng thử lại sau');
       emailRef.current?.focus();
     } finally {
       setLoading(false);

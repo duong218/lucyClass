@@ -12,7 +12,7 @@ backend/
 │   ├── ⚙️ google.js → Google API client and auth configuration
 │   └── ⚙️ redis.js → Redis client connection for server-side caching
 ├── 📁 controllers/ (Handles business logic for each API module)
-│   ├── 🎮 announcementController.js → CRUD and logic for school news/updates
+│   ├── 🎮 announcementController.js → CRUD and logic for school news, updates, and target roles
 │   ├── 🎮 auditController.js → logic for tracking and exporting admin actions
 │   ├── 🎮 authController.js → handles login, logout, refresh tokens, and password reset
 │   ├── 🎮 courseController.js → manages courses, class details, and attendance
@@ -44,7 +44,7 @@ backend/
 │   └── 🛡️ validateRegistration.js → complex validation logic for new enrollments
 ├── 📁 models/ (Mongoose schemas defining the database architecture)
 │   ├── 📊 Admin.js → schema for root administrative users
-│   ├── 📊 Announcement.js → schema for school news and banners
+│   ├── 📊 Announcement.js → schema for school news, banners, and role-based targeting
 │   ├── 📊 Attendance.js → records of student presence in classes
 │   ├── 📊 AuditLog.js → persistent log of all administrative changes
 │   ├── 📊 Course.js → schema for class information and teacher links
@@ -60,22 +60,22 @@ backend/
 │   ├── 📊 TimetableCell.js → individual entry in the class schedule
 │   └── 📊 TimetableRow.js → definition of a time slot in the schedule
 ├── 📁 routes/ (Defines the API endpoints and connects them to controllers)
-│   ├── 🛣️ announcementRoutes.js → endpoints for school updates and news
-│   ├── 🛣️ auditRoutes.js → routes for viewing and exporting action logs
-│   ├── 🛣️ authRoutes.js → authentication endpoints (login, logout, password)
-│   ├── 🛣️ courseRoutes.js → management routes for courses and attendance
-│   ├── 🛣️ feedbackRoutes.js → endpoints for submitting and viewing feedback
-│   ├── 🛣️ googleRoutes.js → integration routes for Drive and Sheets
-│   ├── 🛣️ rankingRoutes.js → routes for fetching student leaderboards
-│   ├── 🛣️ registrationRoutes.js → primary endpoints for student enrollments
-│   ├── 🛣️ restoreRoutes.js → specialized routes for DB restore operations
-│   ├── 🛣️ staffDashboardRoutes.js → aggregate data routes for the staff UI
-│   ├── 🛣️ staffRoutes.js → management routes for staff and teachers
-│   ├── 🛣️ statsRoutes.js → endpoints for dashboard statistics
-│   ├── 🛣️ streakRoutes.js → routes for daily check-ins and streak revival
-│   ├── 🛣️ syncRoutes.js → maintenance triggers for data synchronization
-│   ├── 🛣️ teacherRoutes.js → public and admin routes for teacher profiles
-│   └── 🛣️ timetableRoutes.js → routes for class schedule management
+│   ├── 跑 announcementRoutes.js → endpoints for school updates and news
+│   ├── 跑 auditRoutes.js → routes for viewing and exporting action logs
+│   ├── 跑 authRoutes.js → authentication endpoints (login, logout, password)
+│   ├── 跑 courseRoutes.js → management routes for courses and attendance
+│   ├── 跑 feedbackRoutes.js → endpoints for submitting and viewing feedback
+│   ├── 跑 googleRoutes.js → integration routes for Drive and Sheets
+│   ├── 跑 rankingRoutes.js → routes for fetching student leaderboards
+│   ├── 跑 registrationRoutes.js → primary endpoints for student enrollments
+│   ├── 跑 restoreRoutes.js → specialized routes for DB restore operations
+│   ├── 跑 staffDashboardRoutes.js → aggregate data routes for the staff UI
+│   ├── 跑 staffRoutes.js → management routes for staff and teachers
+│   ├── 跑 statsRoutes.js → endpoints for dashboard statistics
+│   ├── 跑 streakRoutes.js → routes for daily check-ins and streak revival
+│   ├── 跑 syncRoutes.js → maintenance triggers for data synchronization
+│   ├── 跑 teacherRoutes.js → public and admin routes for teacher profiles
+│   └── 跑 timetableRoutes.js → routes for class schedule management
 ├── 📁 scripts/ (Utility scripts for maintenance and automation)
 │   ├── 📜 backup.js → standalone script to trigger a local DB backup
 │   └── 📜 cleanRestoreTmp.js → cleans up temporary files after a restoration
@@ -87,7 +87,7 @@ backend/
 ├── 📁 utils/ (Reusable helper functions and system utilities)
 │   ├── 🧰 catchAsync.js → wrapper to eliminate try-catch blocks in routes
 │   ├── 🧰 cloudinary.js → service for managing image uploads to Cloudinary
-│   ├── 🧰 emailService.js → handles sending all transactional emails
+│   ├── 🧰 emailService.js → handles sending all automated emails
 │   ├── 🧰 encryptionUtils.js → cryptographic logic for securing backup files
 │   ├── 🧰 logAdminAction.js → helper function to log admin events to DB
 │   ├── 🧰 logger.js → simple console/file logger for events
@@ -116,4 +116,4 @@ backend/
 *   **Logic Core**: All business rules reside in `controllers/` (🎮) and `services/` (⚡).
 *   **Security**: Handled by `middlewares/` (🛡️) (Auth, CSRF, Rate Limiting).
 *   **Data Structure**: Defined in `models/` (📊) using Mongoose.
-*   **API Mapping**: All endpoints are strictly defined in `routes/` (🛣️).
+*   **API Mapping**: All endpoints are strictly defined in `routes/` (跑).

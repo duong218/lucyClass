@@ -63,20 +63,11 @@ const findUserByUsername = async (username) => {
   return { user: null, isStaff: false };
 };
 
-// ─── Helper: tìm user theo email trong cả 2 collection (cho forgot password) ──
-const findUserByEmail = async (safeEmail) => {
+// ─── Helper: tìm Admin theo email (chỉ Admin, không tìm StaffAccount) ──────────
+const findAdminByEmail = async (safeEmail) => {
   const regex = new RegExp('^' + escapeStringRegexp(safeEmail) + '$', 'i');
-
-  let user = await Admin.findOne({ email: { $regex: regex } });
-  if (user) return { user, model: Admin };
-
-  user = await StaffAccount.findOne({
-    email: { $regex: regex },
-    isActive: true
-  });
-  if (user) return { user, model: StaffAccount };
-
-  return { user: null, model: null };
+  const user = await Admin.findOne({ email: { $regex: regex } });
+  return user || null;
 };
 
 // ─── Helper: tìm user theo username + email (staff forgot password) ───────────
@@ -309,33 +300,58 @@ exports.forgotPassword = async (req, res) => {
     }
 
     const safeEmail = String(email || '').trim();
+    const safeUsername = String(username || '').trim();
+
+    // ── SECURITY: accountType phải được khai báo tường minh ──────────────────────
+    // Không cho phép thiếu accountType để tránh bypass flow
+    const accountType = String(req.body.accountType || '').trim();
+    if (accountType !== 'admin' && accountType !== 'staff') {
+      return res.status(400).json({ message: 'Yêu cầu không hợp lệ' });
+    }
+
     let user = null;
 
-    if (username) {
-      // Staff flow: cần cả username + email
-      const safeUsername = String(username).trim();
+    if (accountType === 'staff') {
+      // ── Staff flow: BẮT BUỘC có username, tìm đúng trong StaffAccount ──────────
+      if (!safeUsername) {
+        return res.status(400).json({ message: 'Vui lòng nhập tên đăng nhập' });
+      }
+      if (!safeEmail) {
+        return res.status(400).json({ message: 'Vui lòng nhập email' });
+      }
+
       user = await findStaffByUsernameAndEmail(safeUsername, safeEmail);
+
+      if (!user) {
+        // Trả lỗi rõ ràng: username không tồn tại hoặc email không khớp
+        console.warn(`[ForgotPassword] Staff not found: username=${safeUsername}, email=${safeEmail}`);
+        return res.status(400).json({
+          message: 'Tên đăng nhập hoặc email không đúng. Vui lòng kiểm tra lại hoặc liên hệ admin.'
+        });
+      }
+
+      // Tài khoản staff chưa được admin gán email
+      if (!user.email || user.email.trim() === '') {
+        return res.status(400).json({
+          message: 'Tài khoản chưa có email. Vui lòng liên hệ admin để được hỗ trợ.'
+        });
+      }
     } else {
-      // Admin flow: chỉ email
-      const { user: foundUser } = await findUserByEmail(safeEmail);
-      user = foundUser;
-    }
+      // ── Admin flow: CHỈ tìm trong Admin model, KHÔNG đụng StaffAccount ─────────
+      if (!safeEmail) {
+        return res.status(400).json({ message: 'Vui lòng nhập email' });
+      }
 
-    // Luôn trả success để tránh user enumeration
-    if (!user) {
-      console.warn(`[ForgotPassword] User not found for email: ${safeEmail}`);
-      return res.json({
-        success: true,
-        message: 'Nếu thông tin hợp lệ, link reset đã được gửi'
-      });
-    }
+      user = await findAdminByEmail(safeEmail);
 
-    // Kiểm tra email có trống không (staff chưa được điền email)
-    if (!user.email || user.email.trim() === '') {
-      return res.status(400).json({
-        message:
-          'Tài khoản chưa có email. Vui lòng liên hệ admin để được hỗ trợ.'
-      });
+      if (!user) {
+        // Trả success để không tiết lộ email admin có tồn tại không
+        console.warn(`[ForgotPassword] Admin not found for email: ${safeEmail}`);
+        return res.json({
+          success: true,
+          message: 'Nếu thông tin hợp lệ, link reset đã được gửi'
+        });
+      }
     }
 
     const resetToken = crypto.randomBytes(20).toString('hex');
