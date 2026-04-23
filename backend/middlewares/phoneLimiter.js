@@ -1,16 +1,15 @@
 // ─────────────────────────────────────────────────────────────
-// PHONE / IP LIMITER (anti spam - lightweight version)
+// PHONE / IP LIMITER (anti spam - Redis version)
+// Redis client dùng chung với server.js (config/redis.js)
+// Tự expire key — không cần cleanup thủ công
 // ─────────────────────────────────────────────────────────────
 
-// In-memory store (production lớn nên dùng Redis)
-const phoneDiversityMap = new Map(); // IP → Set(phone)
-const phoneSpamMap = new Map();      // phone → last request time
-const ipActionMap = new Map();       // IP → count/day
+const redisClient = require('../config/redis');
 
 // ── Cấu hình từ env (có fallback mặc định) ──────────────────
-const DIVERSITY_LIMIT  = parseInt(process.env.PHONE_DIVERSITY_LIMIT)  || 3;    // tối đa N số khác nhau / IP / ngày
+const DIVERSITY_LIMIT = parseInt(process.env.PHONE_DIVERSITY_LIMIT) || 3;    // tối đa N số khác nhau / IP / ngày
 const SPAM_COOLDOWN_MS = parseInt(process.env.PHONE_SPAM_COOLDOWN_MS) || 3000; // cooldown giữa 2 request cùng số (ms)
-const IP_ACTION_LIMIT  = parseInt(process.env.IP_ACTION_LIMIT)        || 5;    // tối đa N lần đổi số / IP / ngày
+const IP_ACTION_LIMIT = parseInt(process.env.IP_ACTION_LIMIT) || 5;    // tối đa N lần đổi số / IP / ngày
 
 // Helper: lấy ngày theo format YYYY-MM-DD
 const getToday = () => {
@@ -18,57 +17,27 @@ const getToday = () => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// Cleanup định kỳ — xóa entry của ngày hôm qua khỏi cả 3 map
-// Chạy mỗi 24h để tránh memory leak khi server chạy lâu ngày
-// ─────────────────────────────────────────────────────────────
-const startCleanup = () => {
-  setInterval(() => {
-    const today = getToday();
-
-    // phoneDiversityMap và ipActionMap dùng key dạng `ip_YYYY-MM-DD`
-    for (const key of phoneDiversityMap.keys()) {
-      if (!key.endsWith(today)) phoneDiversityMap.delete(key);
-    }
-    for (const key of ipActionMap.keys()) {
-      if (!key.endsWith(today)) ipActionMap.delete(key);
-    }
-
-    // phoneSpamMap dùng phone làm key, value là timestamp
-    // Xóa entry không hoạt động quá 1 ngày
-    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-    for (const [phone, ts] of phoneSpamMap.entries()) {
-      if (ts < oneDayAgo) phoneSpamMap.delete(phone);
-    }
-  }, 24 * 60 * 60 * 1000); // chạy mỗi 24 giờ
-};
-
-startCleanup();
-
-// ─────────────────────────────────────────────────────────────
 // 1. IP tạo quá nhiều số phone khác nhau trong 1 ngày
 // ─────────────────────────────────────────────────────────────
-exports.phoneDiversityLimiter = (req, res, next) => {
+exports.phoneDiversityLimiter = async (req, res, next) => {
   const ip = req.ip;
   const phone = req.body.phone;
-
   if (!phone) return next();
 
-  const key = `${ip}_${getToday()}`;
+  try {
+    const key = `diversity:${ip}:${getToday()}`;
+    await redisClient.sAdd(key, phone);
+    await redisClient.expire(key, 86400); // tự xóa sau 24h
 
-  if (!phoneDiversityMap.has(key)) {
-    phoneDiversityMap.set(key, new Set());
-  }
-
-  const phoneSet = phoneDiversityMap.get(key);
-  phoneSet.add(phone);
-
-  const LIMIT = DIVERSITY_LIMIT;
-
-  if (phoneSet.size > LIMIT) {
-    return res.status(429).json({
-      success: false,
-      message: 'Bạn đã nhập quá nhiều số điện thoại khác nhau hôm nay'
-    });
+    const count = await redisClient.sCard(key);
+    if (count > DIVERSITY_LIMIT) {
+      return res.status(429).json({
+        success: false,
+        message: 'Bạn đã nhập quá nhiều số điện thoại khác nhau hôm nay'
+      });
+    }
+  } catch (_) {
+    // Redis lỗi → cho qua, không block user
   }
 
   next();
@@ -77,44 +46,49 @@ exports.phoneDiversityLimiter = (req, res, next) => {
 // ─────────────────────────────────────────────────────────────
 // 2. 1 số phone spam request liên tục
 // ─────────────────────────────────────────────────────────────
-exports.phoneSpamLimiter = (req, res, next) => {
+exports.phoneSpamLimiter = async (req, res, next) => {
   const phone = req.body.phone;
   if (!phone) return next();
 
-  const now = Date.now();
-  const last = phoneSpamMap.get(phone) || 0;
+  try {
+    const key = `spam:${phone}`;
+    const last = await redisClient.get(key);
 
-  const COOLDOWN = SPAM_COOLDOWN_MS;
+    if (last && Date.now() - parseInt(last) < SPAM_COOLDOWN_MS) {
+      return res.status(429).json({
+        success: false,
+        message: 'Thao tác quá nhanh, vui lòng thử lại'
+      });
+    }
 
-  if (now - last < COOLDOWN) {
-    return res.status(429).json({
-      success: false,
-      message: 'Thao tác quá nhanh, vui lòng thử lại'
-    });
+    await redisClient.set(key, Date.now(), { EX: 10 }); // tự xóa sau 10s
+  } catch (_) {
+    // Redis lỗi → cho qua
   }
 
-  phoneSpamMap.set(phone, now);
   next();
 };
 
 // ─────────────────────────────────────────────────────────────
 // 3. 1 IP đổi số quá nhiều lần trong ngày
 // ─────────────────────────────────────────────────────────────
-exports.ipActionLimiter = (req, res, next) => {
+exports.ipActionLimiter = async (req, res, next) => {
   const ip = req.ip;
-  const key = `${ip}_${getToday()}`;
 
-  const count = ipActionMap.get(key) || 0;
+  try {
+    const key = `ipaction:${ip}:${getToday()}`;
+    const count = await redisClient.incr(key);
+    if (count === 1) await redisClient.expire(key, 86400); // tự xóa sau 24h
 
-  const LIMIT = IP_ACTION_LIMIT;
-
-  if (count >= LIMIT) {
-    return res.status(429).json({
-      success: false,
-      message: 'Bạn đã đổi số quá nhiều lần hôm nay'
-    });
+    if (count > IP_ACTION_LIMIT) {
+      return res.status(429).json({
+        success: false,
+        message: 'Bạn đã đổi số quá nhiều lần hôm nay'
+      });
+    }
+  } catch (_) {
+    // Redis lỗi → cho qua
   }
 
-  ipActionMap.set(key, count + 1);
   next();
 };

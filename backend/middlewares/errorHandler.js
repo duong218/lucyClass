@@ -27,6 +27,7 @@ const errorHandler = (err, req, res, next) => {
             method: req.method,
             ip: req.ip
         });
+        message = 'Internal Server Error';
     }
 
     if (!isProd) {
