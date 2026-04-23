@@ -29,6 +29,12 @@ const AdminLayout = () => {
     { path: '/admin/history', label: t('history.title'), icon: '📜' },
   ];
 
+  const BRAND = {
+    primary: '#1C695C',
+    primaryLight: '#3FA48F',
+    primaryDeep: '#1C6970'
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex relative overflow-x-hidden">
       {/* Sidebar Overlay */}
@@ -40,7 +46,10 @@ const AdminLayout = () => {
       )}
 
       {/* Sidebar */}
-      <aside className={`w-64 bg-gradient-to-b from-blue-600 to-blue-700 text-white flex flex-col fixed h-full z-50 transition-transform duration-300 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+      <aside
+        className={`w-64 text-white flex flex-col fixed h-full z-50 transition-transform duration-300 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
+        style={{ background: `linear-gradient(to bottom, ${BRAND.primary}, ${BRAND.primaryDeep})` }}
+      >
         <div className="p-4 border-b border-white/10">
           <div className="flex items-center gap-3">
             <img
@@ -53,9 +62,9 @@ const AdminLayout = () => {
               <h1 className="text-white font-semibold text-lg leading-tight font-display">
                 Lucy's Class
               </h1>
-              <p className="text-xs text-white/70">
+              <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-medium text-white/90">
                 {t("admin_panel")}
-              </p>
+              </span>
             </div>
             <button
               className="md:hidden ml-auto text-white/70 hover:text-white p-1"
@@ -107,7 +116,7 @@ const AdminLayout = () => {
             {/* ✅ Notification Bell */}
             <NotificationBell
               enabled={!!user}
-              accentColor="#2563eb"
+              accentColor={BRAND.primary}
             />
 
             <div className="flex flex-col items-end">

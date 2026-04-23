@@ -39,3 +39,11 @@ export const updateAttendance = (id, logs) => {
 export const upsertAttendanceByDate = (payload) => {
   return api.post('/attendance/admin/upsert', payload);
 };
+
+// Admin: xuất Excel chấm công theo khoảng ngày
+export const exportAttendanceExcel = (from, to) => {
+  return api.get('/attendance/export', {
+    params: { from, to },
+    responseType: 'blob'
+  });
+};

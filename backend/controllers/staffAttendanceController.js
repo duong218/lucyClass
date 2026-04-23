@@ -1,6 +1,7 @@
 const StaffAttendance = require('../models/StaffAttendance');
 const StaffAccount = require('../models/StaffAccount');
 const mongoose = require('mongoose');
+const ExcelJS = require('exceljs');
 
 /**
  * Helper: lấy ngày hiện tại theo VN timezone → string YYYY-MM-DD
@@ -16,6 +17,31 @@ const getTodayVN = () => {
 };
 
 const isValidDateString = (date) => /^\d{4}-\d{2}-\d{2}$/.test(date);
+const TOGGLE_MIN_INTERVAL_MS = 3000;
+
+const ensureAdmin = (req, res) => {
+  if (req.user?.role !== 'admin') {
+    res.status(403).json({ success: false, message: 'Forbidden' });
+    return false;
+  }
+  return true;
+};
+
+const ensureStaffRole = (req, res) => {
+  if (!['teacher', 'marketing'].includes(req.user?.role)) {
+    res.status(403).json({ success: false, message: 'Forbidden' });
+    return false;
+  }
+  return true;
+};
+
+const formatTimeVN = (time) =>
+  new Intl.DateTimeFormat('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).format(new Date(time));
 
 const validateAlternatingLogs = (logs = []) => {
   if (!Array.isArray(logs)) return false;
@@ -85,6 +111,7 @@ const normalizeAndValidateLogs = (logs, date) => {
 // ──────────────────────────────────────────────────────────────
 exports.toggleAttendance = async (req, res, next) => {
   try {
+    if (!ensureStaffRole(req, res)) return;
     const staffId = req.user.id;
     const today = getTodayVN();
 
@@ -107,6 +134,9 @@ exports.toggleAttendance = async (req, res, next) => {
 
     // Đã có record → kiểm tra action cuối
     const lastLog = record.logs[record.logs.length - 1];
+    if (lastLog?.time && (Date.now() - new Date(lastLog.time).getTime()) < TOGGLE_MIN_INTERVAL_MS) {
+      return res.status(429).json({ success: false, message: 'Thao tác quá nhanh, vui lòng thử lại' });
+    }
     const nextAction = lastLog.type === 'checkin' ? 'checkout' : 'checkin';
 
     record.logs.push({ type: nextAction, time: new Date() });
@@ -128,6 +158,7 @@ exports.toggleAttendance = async (req, res, next) => {
 // ──────────────────────────────────────────────────────────────
 exports.getTodayAttendance = async (req, res, next) => {
   try {
+    if (!ensureStaffRole(req, res)) return;
     const staffId = req.user.id;
     const today = getTodayVN();
 
@@ -148,6 +179,7 @@ exports.getTodayAttendance = async (req, res, next) => {
 // ──────────────────────────────────────────────────────────────
 exports.getAttendanceHistory = async (req, res, next) => {
   try {
+    if (!ensureStaffRole(req, res)) return;
     const staffId = req.user.id;
 
     // Tính ngày 30 ngày trước theo VN timezone
@@ -174,6 +206,7 @@ exports.getAttendanceHistory = async (req, res, next) => {
 // ──────────────────────────────────────────────────────────────
 exports.getAttendanceByDate = async (req, res, next) => {
   try {
+    if (!ensureAdmin(req, res)) return;
     const { date } = req.params;
 
     // Validate date format
@@ -222,6 +255,7 @@ exports.getAttendanceByDate = async (req, res, next) => {
 // ──────────────────────────────────────────────────────────────
 exports.updateAttendance = async (req, res, next) => {
   try {
+    if (!ensureAdmin(req, res)) return;
     const { id } = req.params;
     const { logs } = req.body;
 
@@ -243,6 +277,8 @@ exports.updateAttendance = async (req, res, next) => {
       type: l.type,
       time: l.time
     }));
+    record.updatedBy = req.user?.id || null;
+    record.updatedAt = new Date();
     await record.save();
 
     return res.json({
@@ -264,6 +300,7 @@ exports.updateAttendance = async (req, res, next) => {
 // ──────────────────────────────────────────────────────────────
 exports.upsertAttendanceByDate = async (req, res, next) => {
   try {
+    if (!ensureAdmin(req, res)) return;
     const { staffId, date, logs } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(staffId)) {
@@ -291,7 +328,13 @@ exports.upsertAttendanceByDate = async (req, res, next) => {
 
     const updated = await StaffAttendance.findOneAndUpdate(
       { staffId, date },
-      { staffId, date, logs: normalized.normalizedLogs },
+      {
+        staffId,
+        date,
+        logs: normalized.normalizedLogs,
+        updatedBy: req.user?.id || null,
+        updatedAt: new Date()
+      },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
@@ -303,6 +346,93 @@ exports.upsertAttendanceByDate = async (req, res, next) => {
       autoAddedCheckout: normalized.autoAddedCheckout,
       data: updated
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ──────────────────────────────────────────────────────────────
+// GET /api/staff-attendance/export?from=YYYY-MM-DD&to=YYYY-MM-DD
+// Admin: xuất file Excel chấm công nhân sự
+// ──────────────────────────────────────────────────────────────
+exports.exportAttendance = async (req, res, next) => {
+  try {
+    if (!ensureAdmin(req, res)) return;
+
+    const { from, to } = req.query;
+    if (!isValidDateString(from) || !isValidDateString(to)) {
+      return res.status(400).json({ success: false, message: 'Invalid date format (YYYY-MM-DD)' });
+    }
+    if (from > to) {
+      return res.status(400).json({ success: false, message: 'Khoảng ngày không hợp lệ' });
+    }
+
+    const records = await StaffAttendance.find({
+      date: { $gte: from, $lte: to }
+    })
+      .populate('staffId', 'displayName username role')
+      .sort({ date: 1, staffId: 1 })
+      .lean();
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Attendance');
+    const headers = ['Nhân viên', 'Vai trò', 'Ngày', 'Check-in', 'Check-out', 'Số ca'];
+    sheet.addRow(headers);
+
+    const headerRow = sheet.getRow(1);
+    headerRow.height = 22;
+    headerRow.eachCell((cell) => {
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '1F5E3B' } };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    });
+
+    records.forEach((record, idx) => {
+      const checkins = (record.logs || [])
+        .filter((l) => l.type === 'checkin')
+        .map((l) => formatTimeVN(l.time));
+      const checkouts = (record.logs || [])
+        .filter((l) => l.type === 'checkout')
+        .map((l) => formatTimeVN(l.time));
+      const sessions = Math.min(checkins.length, checkouts.length);
+
+      const row = sheet.addRow([
+        record.staffId?.displayName || record.staffId?.username || 'N/A',
+        record.staffId?.role || 'N/A',
+        record.date,
+        checkins.join(', '),
+        checkouts.join(', '),
+        sessions
+      ]);
+
+      if (idx % 2 === 1) {
+        row.eachCell((cell) => {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7F7F7' } };
+        });
+      }
+
+      row.getCell(4).font = { color: { argb: 'FF1B8F3A' } };
+      row.getCell(5).font = { color: { argb: 'FFC96A3D' } };
+      row.eachCell((cell) => {
+        cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+      });
+    });
+
+    sheet.columns.forEach((column) => {
+      let maxLength = 12;
+      column.eachCell({ includeEmpty: true }, (cell) => {
+        const value = cell.value == null ? '' : String(cell.value);
+        maxLength = Math.max(maxLength, value.length + 2);
+      });
+      column.width = Math.min(maxLength, 50);
+    });
+
+    const fileName = `staff_attendance_${from}_to_${to}.xlsx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+
+    await workbook.xlsx.write(res);
+    return res.end();
   } catch (error) {
     next(error);
   }

@@ -30,7 +30,11 @@ const staffAttendanceSchema = new mongoose.Schema(
           required: true
         }
       }
-    ]
+    ],
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null
+    }
   },
   { timestamps: true }
 );

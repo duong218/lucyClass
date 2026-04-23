@@ -33,6 +33,13 @@ router.get(
   catchAsync(attendanceController.getAttendanceByDate)
 );
 
+router.get(
+  '/export',
+  auth,
+  authorizeRoles('admin'),
+  catchAsync(attendanceController.exportAttendance)
+);
+
 router.put(
   '/:id',
   auth,

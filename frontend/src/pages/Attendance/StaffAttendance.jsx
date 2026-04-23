@@ -18,6 +18,7 @@ import {
   Calendar,
   History
 } from 'lucide-react';
+import { useLockBodyScroll } from '../../hooks/useLockBodyScroll';
 
 // ── Color palette from sample UI ───────────────────────────────────────────
 const COLORS = {
@@ -215,6 +216,7 @@ const AttendanceCalendar = ({ historyMap, onDateClick }) => {
 
 // ── Day Detail Modal ───────────────────────────────────────────────────────
 const DayDetailModal = ({ isOpen, onClose, dateStr, record }) => {
+  useLockBodyScroll(isOpen);
   if (!isOpen) return null;
 
   const displayDate = dateStr
@@ -255,7 +257,7 @@ const DayDetailModal = ({ isOpen, onClose, dateStr, record }) => {
             <p className="text-gray-400 font-semibold text-sm">Không có dữ liệu chấm công</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-3 max-h-[52vh] overflow-y-auto pr-2 custom-scrollbar">
             {logs.map((log, idx) => (
               <div
                 key={idx}

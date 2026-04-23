@@ -6,5 +6,6 @@ module.exports = {
   getAttendanceHistory: staffAttendanceController.getAttendanceHistory,
   getAttendanceByDate: staffAttendanceController.getAttendanceByDate,
   updateAttendance: staffAttendanceController.updateAttendance,
-  upsertAttendanceByDate: staffAttendanceController.upsertAttendanceByDate
+  upsertAttendanceByDate: staffAttendanceController.upsertAttendanceByDate,
+  exportAttendance: staffAttendanceController.exportAttendance
 };

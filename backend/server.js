@@ -213,6 +213,7 @@ app.use('/api/staff', staffRoutes);
 app.use('/api/me', staffDashboardRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/attendance', attendanceRoutes);
+app.use('/api/staff-attendance', attendanceRoutes);
 
 // --- 📊 GOOGLE SHEETS SUBMISSION ENDPOINT ---
 // Helpers for /api/submit

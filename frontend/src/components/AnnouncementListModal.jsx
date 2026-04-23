@@ -1,5 +1,6 @@
 import { useState, useEffect, Suspense, lazy } from 'react';
 import { useTranslation } from 'react-i18next';
+import { createPortal } from 'react-dom';
 import api from '../services/api';
 import { getImageUrl } from '../utils/getImageUrl';
 import { useLockBodyScroll } from '../hooks/useLockBodyScroll';
@@ -57,12 +58,12 @@ const AnnouncementListModal = ({ isOpen, onClose }) => {
 
   if (!isOpen && !selectedAnnouncement) return null;
 
-  return (
+  return createPortal((
     <>
       {/* ── List Modal — ẩn (không unmount) khi detail đang mở ──────── */}
       {isOpen && !selectedAnnouncement && (
       <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[200] p-4"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[99999] p-4"
         onClick={onClose}
       >
         <div
@@ -148,7 +149,7 @@ const AnnouncementListModal = ({ isOpen, onClose }) => {
         )}
       </Suspense>
     </>
-  );
+  ), document.body);
 };
 
 export default AnnouncementListModal;

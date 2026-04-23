@@ -3,7 +3,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import {
   getByDate,
   updateAttendance,
-  upsertAttendanceByDate
+  upsertAttendanceByDate,
+  exportAttendanceExcel
 } from '../../services/attendanceService';
 import { toast } from 'react-toastify';
 import {
@@ -21,7 +22,8 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Trash2
+  Trash2,
+  Download
 } from 'lucide-react';
 
 // ── Color palette from sample UI ───────────────────────────────────────────
@@ -325,6 +327,7 @@ const AttendanceManagement = () => {
   const [selectedDate, setSelectedDate] = useState(getTodayVN());
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -403,6 +406,30 @@ const AttendanceManagement = () => {
     setEditRecord(item);
     setEditStaffName(item.staff?.displayName || item.staff?.username || '');
     setEditOpen(true);
+  };
+
+  const handleExportExcel = async () => {
+    if (!selectedDate || exporting) return;
+    setExporting(true);
+    try {
+      const res = await exportAttendanceExcel(selectedDate, selectedDate);
+      const blob = new Blob([res.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `attendance_${selectedDate}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Xuất file Excel thành công');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Không thể xuất file Excel');
+    } finally {
+      setExporting(false);
+    }
   };
 
   // ── Role label ───────────────────────────────────────────────────────
@@ -505,6 +532,19 @@ const AttendanceManagement = () => {
             className="w-full bg-white border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 shadow-sm"
           />
         </div>
+        <button
+          onClick={handleExportExcel}
+          disabled={exporting || loading}
+          className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+            exporting || loading
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              : 'text-white hover:scale-[0.98]'
+          }`}
+          style={exporting || loading ? {} : { backgroundColor: COLORS.primary }}
+        >
+          <Download size={16} />
+          {exporting ? 'Đang xuất...' : 'Xuất Excel'}
+        </button>
       </div>
 
       {/* ─── Table ────────────────────────────────────────────────── */}

@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import NotificationBell from '../components/NotificationBell';
 
 const StaffLayout = () => {
+  const { i18n } = useTranslation();
   const { user, logout } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -29,6 +31,16 @@ const StaffLayout = () => {
 
   // Màu accent bell khớp với màu sidebar từng role
   const bellAccentColor = isTeacher ? '#059669' : '#7c3aed';
+
+  const toggleLang = () => {
+    const nextLang =
+      i18n.language === 'vi'
+        ? 'en'
+        : i18n.language === 'en'
+        ? 'zh'
+        : 'vi';
+    i18n.changeLanguage(nextLang);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex relative overflow-x-hidden">
@@ -130,6 +142,15 @@ const StaffLayout = () => {
           </div>
 
           <div className="flex items-center gap-3">
+            {isTeacher && (
+              <button
+                onClick={toggleLang}
+                className="w-9 h-9 rounded-full border border-gray-200 bg-white text-gray-700 text-xs font-black hover:bg-gray-50 transition-all"
+                title="Đổi ngôn ngữ"
+              >
+                {i18n.language.toUpperCase()}
+              </button>
+            )}
             {/* ✅ Notification Bell — màu + path tự động theo role */}
             <NotificationBell
               enabled={!!user}
