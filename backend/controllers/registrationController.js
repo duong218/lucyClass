@@ -1,6 +1,6 @@
 const Registration = require('../models/Registration');
 const Course = require('../models/Course');
-const xlsx = require('xlsx');
+const ExcelJS = require('exceljs');
 const axios = require('axios');
 const mongoose = require('mongoose');
 const { logAction } = require('../utils/logger');
@@ -518,46 +518,43 @@ exports.exportExcel = async (req, res, next) => {
       'Status': reg.status
     }));
 
-    // Create a new workbook and add Registrations sheet
-    const workbook = xlsx.utils.book_new();
-    const regSheet = xlsx.utils.json_to_sheet(regData);
+    // Create workbook
+    const workbook = new ExcelJS.Workbook();
 
-    // Style Header Row (Blue background, white text, bold, center) and auto-adjust widths
-    const wscols = [
-      { wch: 20 }, // Time
-      { wch: 20 }, // Parent Name
-      { wch: 15 }, // Phone
-      { wch: 20 }, // Child Name
-      { wch: 10 }, // Child Age
-      { wch: 25 }, // Course
-      { wch: 25 }, // Email
-      { wch: 30 }, // Message
-      { wch: 15 }  // Status
+    // --- Sheet 1: Registrations ---
+    const regSheet = workbook.addWorksheet('Registrations');
+    regSheet.columns = [
+      { header: 'Time',        key: 'Time',        width: 20 },
+      { header: 'Parent Name', key: 'Parent Name',  width: 20 },
+      { header: 'Phone',       key: 'Phone',        width: 15 },
+      { header: 'Child Name',  key: 'Child Name',   width: 20 },
+      { header: 'Child Age',   key: 'Child Age',    width: 10 },
+      { header: 'Course',      key: 'Course',       width: 25 },
+      { header: 'Email',       key: 'Email',        width: 25 },
+      { header: 'Message',     key: 'Message',      width: 30 },
+      { header: 'Status',      key: 'Status',       width: 15 },
     ];
-    regSheet['!cols'] = wscols;
+    regSheet.addRows(regData);
 
-    xlsx.utils.book_append_sheet(workbook, regSheet, 'Registrations');
-
-    // Create Statistics sheet
+    // --- Sheet 2: Statistics ---
     const courseStats = {};
     registrations.forEach(reg => {
       const cName = reg.courseId?.name || 'Unknown';
       courseStats[cName] = (courseStats[cName] || 0) + 1;
     });
 
-    const statsData = Object.keys(courseStats).map(course => ({
-      'Course': course,
-      'Registrations': courseStats[course]
-    }));
+    const statsSheet = workbook.addWorksheet('Statistics');
+    statsSheet.columns = [
+      { header: 'Course',        key: 'Course',        width: 25 },
+      { header: 'Registrations', key: 'Registrations', width: 15 },
+    ];
+    Object.entries(courseStats).forEach(([course, count]) => {
+      statsSheet.addRow({ Course: course, Registrations: count });
+    });
 
-    const statsSheet = xlsx.utils.json_to_sheet(statsData);
-    statsSheet['!cols'] = [{ wch: 25 }, { wch: 15 }];
-    xlsx.utils.book_append_sheet(workbook, statsSheet, 'Statistics');
+    // Generate buffer and send
+    const buffer = await workbook.xlsx.writeBuffer();
 
-    // 6. Generate Excel buffer
-    const buffer = xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-
-    // 7. Send file with correct headers
     res.status(200);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename="registrations.xlsx"');

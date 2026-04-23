@@ -2,7 +2,7 @@ const TimetableRow = require('../models/TimetableRow');
 const TimetableCell = require('../models/TimetableCell');
 const mongoose = require('mongoose');
 const logAdminAction = require('../utils/logAdminAction');
-const XLSX = require('xlsx');
+const ExcelJS = require('exceljs');
 const { cleanInput } = require('../utils/sanitize');
 
 // --- 🌍 UTC WEEK NORMALIZATION ---
@@ -383,19 +383,20 @@ exports.exportTimetable = async (req, res, next) => {
     });
 
     // Create workbook & worksheet
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('S1.07 TIMETABLE');
 
-    // Set column widths (Approximate characters)
-    ws['!cols'] = [
-      { wch: 35 }, // Column A: Room/Slot
-      ...Array(7).fill({ wch: 25 }) // B-H: Day Notes
+    // Set column widths
+    ws.columns = [
+      { width: 35 },
+      ...Array(7).fill({ width: 25 })
     ];
 
-    XLSX.utils.book_append_sheet(wb, ws, 'S1.07 TIMETABLE');
+    // Add rows from aoa
+    aoa.forEach(row => ws.addRow(row));
 
     // Generate buffer
-    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    const buf = await wb.xlsx.writeBuffer();
 
     // File name: Timetable_DD-MM-YYYY_to_DD-MM-YYYY.xlsx
     const fileName = `Timetable_${monday.getUTCDate()}-${monday.getUTCMonth()+1}-${monday.getUTCFullYear()}_to_${sunday.getUTCDate()}-${sunday.getUTCMonth()+1}.xlsx`;
