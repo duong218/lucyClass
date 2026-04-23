@@ -24,7 +24,7 @@ const verifyCSRF = (req, res, next) => {
     '/api/register'
   ];
   
-  const isWhitelisted = WHITELIST_PATHS.some(path => url === path || url.endsWith(path));
+  const isWhitelisted = WHITELIST_PATHS.some(path => url === path);
   if (isWhitelisted) {
     return next();
   }

@@ -58,7 +58,7 @@ const calculateDiffDays = (lastCheckinStr, todayStr) => {
 const formatUser = (user) => ({
   phone: user.phone,
   name: user.name,
-  email: user.email || '',
+  // email bị xóa khỏi public response — không cần thiết cho flow streak helping
   streakCount: user.streakCount || 0,
   lastCheckin: user.lastCheckin || null,
   reviveUsed: user.reviveUsed || false
@@ -80,36 +80,38 @@ exports.startStreak = async (req, res) => {
       });
     }
 
-    // tìm usage hôm nay
-    let usage = await DeviceUsage.findOne({ deviceId, date: today });
-
-    // nếu vượt quá limit
-if (usage && usage.count >= MAX_USAGE) {
-  return res.status(429).json({
-    success: false,
-    data: null,
-    message: `Bạn đã tạo quá ${MAX_USAGE} số trong ngày`
-  });
-}
-
-// nếu chưa có → tạo mới
-if (!usage) {
-  await DeviceUsage.create({
-    deviceId,
-    date: today,
-    count: 1
-  });
-} else {
-  usage.count += 1;
-  await usage.save();
-}
-
+    // P2-6 FIX: Validate phone TRƯỚC khi tăng DeviceUsage
+    // Tránh attacker dùng deviceId hợp lệ + phone rác để làm cạn limit thiết bị
     if (!phone) {
       return res.status(400).json({
         success: false,
         data: null,
         message: 'Số điện thoại không hợp lệ'
       });
+    }
+
+    // tìm usage hôm nay
+    let usage = await DeviceUsage.findOne({ deviceId, date: today });
+
+    // nếu vượt quá limit
+    if (usage && usage.count >= MAX_USAGE) {
+      return res.status(429).json({
+        success: false,
+        data: null,
+        message: `Bạn đã tạo quá ${MAX_USAGE} số trong ngày`
+      });
+    }
+
+    // nếu chưa có → tạo mới
+    if (!usage) {
+      await DeviceUsage.create({
+        deviceId,
+        date: today,
+        count: 1
+      });
+    } else {
+      usage.count += 1;
+      await usage.save();
     }
 
     let user = await Streak.findOne({ phone });

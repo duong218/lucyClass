@@ -73,12 +73,12 @@ exports.create = async (req, res) => {
   try {
     const { title, description } = req.body;
 
-    if (!title || title.trim().length > 100) {
-      return sendError(res, 'Tiêu đề không được để trống và tối đa 100 ký tự', null, 400);
+    if (!title || title.trim().length > 1000) {
+      return sendError(res, 'Tiêu đề không được để trống và tối đa 1000 ký tự', null, 400);
     }
 
-    if (!description || description.trim().length > 700) {
-      return sendError(res, 'Description is required and must be under 700 characters', null, 400);
+    if (!description || description.trim().length > 7000) {
+      return sendError(res, 'Description is required and must be under 7000 characters', null, 400);
     }
 
     if (req.file && req.file.buffer) {
@@ -138,11 +138,11 @@ exports.update = async (req, res) => {
     if (description !== undefined && description.trim().length === 0) {
       return sendError(res, 'Description cannot be empty', null, 400);
     }
-    if (title !== undefined && title.trim().length > 100) {
-      return sendError(res, 'Tiêu đề tối đa 100 ký tự', null, 400);
+    if (title !== undefined && title.trim().length > 1000) {
+      return sendError(res, 'Tiêu đề tối đa 1000 ký tự', null, 400);
     }
-    if (description !== undefined && description.trim().length > 700) {
-      return sendError(res, 'Description must be under 700 characters', null, 400);
+    if (description !== undefined && description.trim().length > 7000) {
+      return sendError(res, 'Description must be under 7000 characters', null, 400);
     }
 
     if (title !== undefined) updateData.title = cleanInput(title);

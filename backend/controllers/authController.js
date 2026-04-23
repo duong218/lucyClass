@@ -186,7 +186,7 @@ exports.refreshToken = async (req, res) => {
     const refreshTokenSecret = process.env.REFRESH_TOKEN_SECRET;
     if (!refreshTokenSecret) throw new Error('REFRESH_TOKEN_SECRET is not defined');
 
-    const decoded = jwt.verify(token, refreshTokenSecret);
+    const decoded = jwt.verify(token, refreshTokenSecret, { algorithms: ['HS256'] });
 
     // Tìm trong cả 2 collection
     let user =
@@ -245,7 +245,7 @@ exports.logout = async (req, res) => {
       // FIX #9: Dùng jwt.verify thay vì jwt.decode để đảm bảo token không bị tamper
       let decoded = null;
       try {
-        decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
+        decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET, { algorithms: ['HS256'] });
       } catch (verifyErr) {
         // Token không hợp lệ hoặc hết hạn — vẫn xóa cookie, không làm gì với DB
         console.warn('[Logout] Invalid token, skipping DB cleanup:', verifyErr.message);

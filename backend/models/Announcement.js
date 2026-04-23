@@ -12,7 +12,7 @@ const announcementSchema = new mongoose.Schema({
   title: {
     type: String,
     required: [true, "Tiêu đề không được để trống"],
-    maxlength: [100, "Tiêu đề không được vượt quá 100 ký tự"]
+    maxlength: [1000, "Tiêu đề không được vượt quá 1000 ký tự"]
   },
   description: {
     type: String,
