@@ -24,6 +24,7 @@ const AdminLayout = () => {
     { path: '/admin/students', label: t('student_management'), icon: '👨‍🎓' },
     { path: '/admin/announcements', label: t('announcements.manage_title'), icon: '📢' },
     { path: '/admin/timetable', label: t('admin.timetable'), icon: '🗓️' },
+    { path: '/admin/attendance', label: 'Chấm công', icon: '🕐' },
     { path: '/admin/accounts', label: t('admin.accounts_management'), icon: '👥' },
     { path: '/admin/history', label: t('history.title'), icon: '📜' },
   ];

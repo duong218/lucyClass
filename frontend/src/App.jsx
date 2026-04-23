@@ -26,6 +26,10 @@ import AccountManagement from './pages/AccountManagement';
 import TeacherDashboard from './pages/Teacher/TeacherDashboard';
 import MarketingDashboard from './pages/Marketing/MarketingDashboard';
 
+// Attendance
+import StaffAttendance from './pages/Attendance/StaffAttendance';
+import AttendanceManagement from './pages/Admin/AttendanceManagement';
+
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -75,6 +79,7 @@ function App() {
           <Route path="timetable" element={<TimetableEditor />} />
           <Route path="accounts" element={<AccountManagement />} />
           <Route path="history" element={<AdminHistory />} />
+          <Route path="attendance" element={<AttendanceManagement />} />
         </Route>
 
         {/* ─── Teacher routes (chỉ role: teacher) ──────────────────────────────── */}
@@ -88,6 +93,7 @@ function App() {
         >
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<TeacherDashboard />} />
+          <Route path="attendance" element={<Navigate to="/attendance" replace />} />
           {/* Xem danh sách học sinh của lớp mình phụ trách */}
           <Route path="students/course/:courseId" element={<CourseStudentList />} />
         </Route>
@@ -103,6 +109,19 @@ function App() {
         >
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<MarketingDashboard />} />
+          <Route path="attendance" element={<Navigate to="/attendance" replace />} />
+        </Route>
+
+        {/* ─── Shared staff attendance route (teacher + marketing) ───────────────── */}
+        <Route
+          path="/attendance"
+          element={
+            <ProtectedRoute allowedRoles={['teacher', 'marketing']}>
+              <StaffLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<StaffAttendance />} />
         </Route>
 
         {/* Catch all */}
