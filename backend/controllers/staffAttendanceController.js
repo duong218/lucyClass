@@ -18,6 +18,7 @@ const getTodayVN = () => {
 
 const isValidDateString = (date) => /^\d{4}-\d{2}-\d{2}$/.test(date);
 const TOGGLE_MIN_INTERVAL_MS = 3000;
+const MAX_LOGS_PER_DAY = 20; // tối đa 10 cặp checkin/checkout/ngày
 
 const ensureAdmin = (req, res) => {
   if (req.user?.role !== 'admin') {
@@ -137,6 +138,15 @@ exports.toggleAttendance = async (req, res, next) => {
     if (lastLog?.time && (Date.now() - new Date(lastLog.time).getTime()) < TOGGLE_MIN_INTERVAL_MS) {
       return res.status(429).json({ success: false, message: 'Thao tác quá nhanh, vui lòng thử lại' });
     }
+
+    // Giới hạn số lần chấm công trong ngày
+    if (record.logs.length >= MAX_LOGS_PER_DAY) {
+      return res.status(400).json({
+        success: false,
+        message: `Số lần chấm công trong ngày đã đạt giới hạn (${MAX_LOGS_PER_DAY / 2} ca)`
+      });
+    }
+
     const nextAction = lastLog.type === 'checkin' ? 'checkout' : 'checkin';
 
     record.logs.push({ type: nextAction, time: new Date() });
@@ -311,6 +321,11 @@ exports.upsertAttendanceByDate = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Invalid date format (YYYY-MM-DD)' });
     }
 
+    // Không cho phép tạo/sửa chấm công cho ngày tương lai
+    if (date > getTodayVN()) {
+      return res.status(400).json({ success: false, message: 'Không thể tạo chấm công cho ngày tương lai' });
+    }
+
     const normalized = normalizeAndValidateLogs(logs, date);
     if (!normalized.valid) {
       return res.status(400).json({ success: false, message: normalized.message });
@@ -365,6 +380,12 @@ exports.exportAttendance = async (req, res, next) => {
     }
     if (from > to) {
       return res.status(400).json({ success: false, message: 'Khoảng ngày không hợp lệ' });
+    }
+
+    // Giới hạn tối đa 90 ngày để tránh export quá lớn
+    const diffDays = (new Date(to) - new Date(from)) / (1000 * 60 * 60 * 24);
+    if (diffDays > 90) {
+      return res.status(400).json({ success: false, message: 'Khoảng thời gian xuất tối đa là 90 ngày' });
     }
 
     const records = await StaffAttendance.find({

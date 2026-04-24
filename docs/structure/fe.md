@@ -1,128 +1,271 @@
-# 📁 Frontend Structure (FE)
+# 📁 Frontend Documentation (FE)
 
----
+## 🧭 Overview
+* **Tech Stack**: React, Vite, Tailwind CSS
+* **App Structure**: Component-based architecture with centralized state (Context Providers) and decoupled API communication services.
 
-## 🌳 System Architecture Tree
+## 🔗 Data Flow
+* **UI → Service → API → Backend**:
+  * React Components (UI) capture user actions (e.g., clicking a button).
+  * The component calls a dedicated method in the `services/` layer.
+  * The service uses Axios to format and send HTTP requests to the backend API endpoints.
+  * The backend responds with data, which the service returns to the component to update local React state or global Context, triggering a UI re-render.
+
+## 📁 Folder Breakdown & File Structure
 
 ```text
 frontend/
-├── 📁 public/ (Static assets served directly without processing)
-│   ├── 🖼️ favicon.ico → browser tab icon
-│   └── 🖼️ logo.png → school brand logo
-├── 📁 src/ (Main application source code)
-│   ├── 📁 assets/ (Static images and graphic assets used in React)
-│   │   ├── 🖼️ 404-9x16.png → mobile-optimized background for 404 page
-│   │   ├── 🖼️ 404.png → desktop background for 404 page
-│   │   ├── 🖼️ announcement-bg.png → background pattern for news banners
-│   │   ├── 🖼️ flame.png → main asset for the daily streak icon
-│   │   ├── 🖼️ hero-bg.png → background image for the main landing section
-│   │   ├── 🖼️ hero-mobile.png → optimized hero image for mobile devices
-│   │   ├── 🖼️ why-us-main.png → central image for the "Why Choose Us" section
-│   │   ├── 🖼️ why-us-step1.png → icon/illustration for the first feature step
-│   │   ├── 🖼️ why-us-step2.png → icon/illustration for the second feature step
-│   │   └── 🖼️ why-us-step3.png → icon/illustration for the third feature step
-│   ├── 📁 components/ (Reusable UI modules and functional blocks)
-│   │   ├── 📁 Timetable/ (Components specific to the class schedule system)
-│   │   │   ├── 🧩 CellPopover.jsx → interactive details popup for a specific class slot
-│   │   │   ├── 🧩 RowManager.jsx → logic for adding/removing time rows in the editor
-│   │   │   └── 🧩 WeekSelector.jsx → control to switch between different study weeks
-│   │   ├── 📁 common/ (Generic UI components used across multiple pages)
-│   │   │   ├── 🧩 ConfirmModal.jsx → generic popup for action confirmations (Yes/No)
-│   │   │   └── 🧩 PrimaryButton.jsx → standardized styled button with loading state
-│   │   ├── 🧩 ActivitiesSection.jsx → displays the "Activities" grid on the homepage
-│   │   ├── 🧩 ActivityPopup.jsx → detailed modal for specific extracurricular activities
-│   │   ├── 🧩 AnnouncementListModal.jsx → [NEW] modal showing a list of all announcements for a user
-│   │   ├── 🧩 AnnouncementModal.jsx → popup display for a single important school news
-│   │   ├── 🧩 AnnouncementSection.jsx → scrolling marquee or grid of current announcements
-│   │   ├── 🧩 CourseDetailModal.jsx → informational modal showing course curriculum and price
-│   │   ├── 🧩 CoursesSection.jsx → the main landing page course catalog
-│   │   ├── 🧩 CreatorPopup.jsx → informational modal about the system developers
-│   │   ├── 🧩 Fireworks.jsx → canvas-based animation for successful check-ins
-│   │   ├── 🧩 FlameButton.jsx → floating "streak" button with complex drag/drop and state
-│   │   ├── 🧩 HeartRain.jsx → subtle background animation for specific celebrations
-│   │   ├── 🧩 HeroSection.jsx → the main "above-the-fold" landing page area
-│   │   ├── 🧩 LearningJourney.jsx → visual timeline of student progress at the center
-│   │   ├── 🧩 NotificationBell.jsx → [NEW] interactive bell icon with unread count and dropdown
-│   │   ├── 🧩 ProtectedRoute.jsx → wrapper component for routes requiring authentication
-│   │   ├── 🧩 RecaptchaBox.jsx → container for the Google reCAPTCHA v2 challenge
-│   │   ├── 🧩 RecaptchaProvider.jsx → context provider for reCAPTCHA enterprise/v3
-│   │   ├── 🧩 RegistrationForm.jsx → the primary student enrollment form with validation
-│   │   ├── 🧩 ScrollHintButton.jsx → subtle indicator to scroll for more content
-│   │   ├── 🧩 TeachersSection.jsx → interactive grid of teacher cards and bios
-│   │   ├── 🧩 TestimonialsSection.jsx → slider/grid of parent and student feedback
-│   │   └── 🧩 WhyChooseUs.jsx → feature highlight section explaining school benefits
-│   ├── 📁 config/ (Frontend environment and global settings)
-│   │   └── ⚙️ api.js → base configuration for API URLs and timeouts
-│   ├── 📁 contexts/ (React Context Providers for global state)
-│   │   └── 🔐 AuthContext.jsx → Manages user authentication, login/logout, and session persistence
-│   ├── 📁 hooks/ (Custom React hooks for shared logic)
-│   │   ├── ⚓ useLockBodyScroll.js → prevents scrolling when modals or popups are active
-│   │   └── ⚓ useNotifications.js → [NEW] hook to manage unread notifications and bell state
-│   ├── 📁 i18n/ (Internationalization and multi-language support)
-│   │   ├── 🌐 en.json → English language translations
-│   │   ├── 🌐 index.js → initialization logic for i18next
-│   │   ├── 🌐 vi.json → Vietnamese language translations
-│   │   └── 🌐 zh.json → Chinese language translations
-│   ├── 📁 layouts/ (Structural shell components that wrap page content)
-│   │   ├── 🖼️ AdminLayout.jsx → layout with sidebar and notification bell for Admin
-│   │   ├── 🖼️ Footer.jsx → common footer with contact info and social links
-│   │   ├── 🖼️ Navbar.jsx → main navigation bar with mobile/desktop variants
-│   │   └── 🖼️ StaffLayout.jsx → layout with notification bell for Teacher and Staff
-│   ├── 📁 pages/ (Primary page components mapping to application routes)
+├── 📁 src/
+│   ├── 📁 components/
+│   │   ├── 📁 Timetable/
+│   │   │   * 🧠 Purpose: Components specific to the class schedule system
+│   │   │   * 🔗 Relationships: React
+│   │   ├── 📁 common/
+│   │   │   * 🧠 Purpose: Generic UI components used across multiple pages
+│   │   │   * 🔗 Relationships: React
+│   │   ├── 🎨 ActivitiesSection.jsx
+│   │   │   * 🧠 Purpose: Displays the Activities grid
+│   │   │   * 🔗 Relationships: React
+│   │   ├── 🎨 ActivityPopup.jsx
+│   │   │   * 🧠 Purpose: Detailed modal for extracurricular activities
+│   │   │   * 🔗 Relationships: React
+│   │   ├── 🎨 AnnouncementListModal.jsx
+│   │   │   * 🧠 Purpose: Modal showing a list of all announcements
+│   │   │   * 🔗 Relationships: React
+│   │   ├── 🎨 AnnouncementModal.jsx
+│   │   │   * 🧠 Purpose: Popup display for a single important school news
+│   │   │   * 🔗 Relationships: React
+│   │   ├── 🎨 AnnouncementSection.jsx
+│   │   │   * 🧠 Purpose: Scrolling marquee or grid of current announcements
+│   │   │   * 🔗 Relationships: React
+│   │   ├── 🎨 CourseDetailModal.jsx
+│   │   │   * 🧠 Purpose: Informational modal showing course curriculum and price
+│   │   │   * 🔗 Relationships: React
+│   │   ├── 🎨 CoursesSection.jsx
+│   │   │   * 🧠 Purpose: The main landing page course catalog
+│   │   │   * 🔗 Relationships: React
+│   │   ├── 🎨 CreatorPopup.jsx
+│   │   │   * 🧠 Purpose: Informational modal about the developers
+│   │   │   * 🔗 Relationships: React
+│   │   ├── 🎨 Fireworks.jsx
+│   │   │   * 🧠 Purpose: Canvas-based animation for successful check-ins
+│   │   │   * 🔗 Relationships: React
+│   │   ├── 🎨 FlameButton.jsx
+│   │   │   * 🧠 Purpose: Floating streak button with drag/drop state
+│   │   │   * 🔗 Relationships: react-use-gesture, streakService
+│   │   ├── 🎨 HeartRain.jsx
+│   │   │   * 🧠 Purpose: Background animation for celebrations
+│   │   │   * 🔗 Relationships: React
+│   │   ├── 🎨 HeroSection.jsx
+│   │   │   * 🧠 Purpose: The main above-the-fold landing page area
+│   │   │   * 🔗 Relationships: React
+│   │   ├── 🎨 LearningJourney.jsx
+│   │   │   * 🧠 Purpose: Visual timeline of student progress
+│   │   │   * 🔗 Relationships: React
+│   │   ├── 🎨 NotificationBell.jsx
+│   │   │   * 🧠 Purpose: Interactive bell icon with unread count and dropdown
+│   │   │   * 🔗 Relationships: React, contexts
+│   │   ├── 🔐 ProtectedRoute.jsx
+│   │   │   * 🧠 Purpose: Wrapper component for routes requiring authentication
+│   │   │   * 🔗 Relationships: react-router-dom, AuthContext
+│   │   ├── 🎨 RecaptchaBox.jsx
+│   │   │   * 🧠 Purpose: Container for the Google reCAPTCHA
+│   │   │   * 🔗 Relationships: react-google-recaptcha
+│   │   ├── 🧠 RecaptchaProvider.jsx
+│   │   │   * 🧠 Purpose: Context provider for reCAPTCHA v3
+│   │   │   * 🔗 Relationships: React Context
+│   │   ├── 🎨 RegistrationForm.jsx
+│   │   │   * 🧠 Purpose: Primary student enrollment form
+│   │   │   * 🔗 Relationships: React Hook Form
+│   │   ├── 🎨 ScrollHintButton.jsx
+│   │   │   * 🧠 Purpose: Subtle indicator to scroll
+│   │   │   * 🔗 Relationships: React
+│   │   ├── 🎨 TeachersSection.jsx
+│   │   │   * 🧠 Purpose: Interactive grid of teacher cards
+│   │   │   * 🔗 Relationships: React
+│   │   ├── 🎨 TestimonialsSection.jsx
+│   │   │   * 🧠 Purpose: Slider/grid of parent and student feedback
+│   │   │   * 🔗 Relationships: React
+│   │   └── 🎨 WhyChooseUs.jsx
+│   │       * 🧠 Purpose: Feature highlight section
+│   │       * 🔗 Relationships: React
+│   ├── 📁 config/
+│   │   └── ⚙️ api.js
+│   │       * 🧠 Purpose: Backend URL and basic API configuration
+│   │       * 🔗 Relationships: App constants
+│   ├── 📁 contexts/
+│   │   └── 🧠 AuthContext.jsx
+│   │       * 🧠 Purpose: Manages authentication state and persistence
+│   │       * 🔗 Relationships: React, authService
+│   ├── 📁 hooks/
+│   │   ├── ⚙️ useLockBodyScroll.js
+│   │   │   * 🧠 Purpose: Prevents page scrolling when modal is active
+│   │   │   * 🔗 Relationships: React
+│   │   └── ⚙️ useNotifications.js
+│   │       * 🧠 Purpose: Hook to manage unread notifications and bell state
+│   │       * 🔗 Relationships: React
+│   ├── 📁 i18n/
+│   │   ├── 📄 en.json
+│   │   │   * 🧠 Purpose: English translations
+│   │   │   * 🔗 Relationships: i18next
+│   │   ├── ⚙️ index.js
+│   │   │   * 🧠 Purpose: i18next initialization and language resources
+│   │   │   * 🔗 Relationships: i18next
+│   │   ├── 📄 vi.json
+│   │   │   * 🧠 Purpose: Vietnamese translations
+│   │   │   * 🔗 Relationships: i18next
+│   │   └── 📄 zh.json
+│   │       * 🧠 Purpose: Chinese translations
+│   │       * 🔗 Relationships: i18next
+│   ├── 📁 layouts/
+│   │   ├── 🎨 AdminLayout.jsx
+│   │   │   * 🧠 Purpose: Shell layout for admin users
+│   │   │   * 🔗 Relationships: react-router-dom, Navbar
+│   │   ├── 🎨 Footer.jsx
+│   │   │   * 🧠 Purpose: Common footer with contact info
+│   │   │   * 🔗 Relationships: React
+│   │   ├── 🎨 Navbar.jsx
+│   │   │   * 🧠 Purpose: Main navigation bar
+│   │   │   * 🔗 Relationships: react-router-dom, AuthContext
+│   │   └── 🎨 StaffLayout.jsx
+│   │       * 🧠 Purpose: Shell layout for teacher and staff users
+│   │       * 🔗 Relationships: react-router-dom, Navbar
+│   ├── 📁 pages/
+│   │   ├── 📁 Admin/
+│   │   │   * 🧠 Purpose: Admin specific feature pages
+│   │   │   * 🔗 Relationships: React
+│   │   ├── 📁 Attendance/
+│   │   │   * 🧠 Purpose: Attendance specific feature pages
+│   │   │   * 🔗 Relationships: React
 │   │   ├── 📁 Marketing/
-│   │   │   └── 📄 MarketingDashboard.jsx → dashboard specialized for lead tracking and ads
-│   │   ├── 📁 NotFound/ (The 404 error page experience)
-│   │   │   ├── 📜 GameLogic.js → interactive game logic for the 404 page easter egg
-│   │   │   ├── 🎨 NotFound.css → specific styling for the immersive 404 experience
-│   │   │   └── 📄 NotFound.jsx → the main 404 page component
+│   │   │   * 🧠 Purpose: Dashboard and tools for marketing tracking
+│   │   │   * 🔗 Relationships: React
+│   │   ├── 📁 NotFound/
+│   │   │   * 🧠 Purpose: The 404 error page experience
+│   │   │   * 🔗 Relationships: React
 │   │   ├── 📁 Teacher/
-│   │   │   └── 📄 TeacherDashboard.jsx → specialized view for teachers to see their classes
-│   │   ├── 📄 AccountManagement.jsx → admin interface for managing staff logins
-│   │   ├── 📄 AdminHistory.jsx → viewer for the system-wide audit logs
-│   │   ├── 📄 AdminLogin.jsx → dedicated login page for administrative staff
-│   │   ├── 📄 AnnouncementManagement.jsx → CRUD interface for homepage announcements
-│   │   ├── 📄 CourseManagement.jsx → admin interface for creating/editing courses
-│   │   ├── 📄 CourseStudentList.jsx → detailed student roster management for a specific class
-│   │   ├── 📄 Dashboard.jsx → main overview page with stats and quick actions
-│   │   ├── 📄 FeedbackManagement.jsx → interface to moderate and view parent feedback
-│   │   ├── 📄 ForgotPassword.jsx → request page for account password recovery
-│   │   ├── 📄 HomePage.jsx → the primary public-facing landing page
-│   │   ├── 📄 RegistrationManagement.jsx → lead management and enrollment processing
-│   │   ├── 📄 ResetPassword.jsx → entry point for users coming from a reset email link
-│   │   ├── 📄 Statistics.jsx → data visualization page for registrations and streaks
-│   │   ├── 📄 StudentManagement.jsx → comprehensive search and edit for all students
-│   │   ├── 📄 TeacherManagement.jsx → admin interface for managing teacher profiles
-│   │   └── 📄 TimetableEditor.jsx → drag-and-drop tool for managing class schedules
-│   ├── 📁 services/ (Logic layer for API communication)
-│   │   ├── 🌐 api.js → Axios instance with JWT interceptors and error handling
-│   │   ├── 🌐 streakService.js → functions for streak check-ins, leaderboards, and revives
-│   │   └── 🌐 timetableService.js → functions for fetching and saving schedule data
-│   ├── 📁 utils/ (Pure functions and frontend helper utilities)
-│   │   ├── 🧰 dateUtils.js → timezone-aware date formatting and comparison (VN Time)
-│   │   ├── 🧰 deviceId.js → manages persistent unique device identification for streaks
-│   │   ├── 🧰 draggableStreak.js → math and event logic for the draggable Flame button
-│   │   ├── 🧰 getImageUrl.js → resolves local vs Cloudinary image paths
-│   │   ├── 🧰 keepAlive.js → logic to prevent the server from sleeping (if on free tier)
-│   │   ├── 🧰 modalScrollLock.js → utility to handle scroll behavior during modal open
-│   │   ├── 🧰 popupActivityData.js → static data and content for activity popups
-│   │   └── 🎨 toastUtils.jsx → standardized configuration for UI notifications
-│   ├── ⚛️ App.jsx → root component; defines routes and global providers
-│   ├── 🌐 i18n.js → main internationalization configuration file
-│   ├── 🎨 index.css → entry point for CSS; includes Tailwind directives
-│   └── ⚛️ main.jsx → application entry point; renders React to the DOM
-├── 📄 .env.example → template for client-side environment variables
-├── 📄 index.html → the main HTML entry point for the Vite app
-├── 📦 package.json → project metadata and frontend dependencies
-├── ⚙️ tailwind.config.js → configuration for Tailwind CSS themes and plugins
-└── ⚙️ vite.config.js → configuration for the Vite build tool and proxy
+│   │   │   * 🧠 Purpose: Teacher specific dashboard and tools
+│   │   │   * 🔗 Relationships: React
+│   │   ├── 🎨 AccountManagement.jsx
+│   │   │   * 🧠 Purpose: Interface to manage staff logins
+│   │   │   * 🔗 Relationships: staffService
+│   │   ├── 🎨 AdminHistory.jsx
+│   │   │   * 🧠 Purpose: Viewer for system-wide audit logs
+│   │   │   * 🔗 Relationships: auditService
+│   │   ├── 🎨 AdminLogin.jsx
+│   │   │   * 🧠 Purpose: Login page for administrative staff
+│   │   │   * 🔗 Relationships: AuthContext, authService
+│   │   ├── 🎨 AnnouncementManagement.jsx
+│   │   │   * 🧠 Purpose: CRUD interface for announcements
+│   │   │   * 🔗 Relationships: announcementService
+│   │   ├── 🎨 CourseManagement.jsx
+│   │   │   * 🧠 Purpose: Admin interface for creating/editing courses
+│   │   │   * 🔗 Relationships: courseService
+│   │   ├── 🎨 CourseStudentList.jsx
+│   │   │   * 🧠 Purpose: Detailed student roster management
+│   │   │   * 🔗 Relationships: courseService
+│   │   ├── 🎨 Dashboard.jsx
+│   │   │   * 🧠 Purpose: Main overview page with stats
+│   │   │   * 🔗 Relationships: statsService, Chart.js
+│   │   ├── 🎨 FeedbackManagement.jsx
+│   │   │   * 🧠 Purpose: Interface to moderate feedback
+│   │   │   * 🔗 Relationships: feedbackService
+│   │   ├── 🎨 ForgotPassword.jsx
+│   │   │   * 🧠 Purpose: Account password recovery request
+│   │   │   * 🔗 Relationships: authService
+│   │   ├── 🎨 HomePage.jsx
+│   │   │   * 🧠 Purpose: Primary public-facing landing page
+│   │   │   * 🔗 Relationships: HeroSection, CoursesSection
+│   │   ├── 🎨 RegistrationManagement.jsx
+│   │   │   * 🧠 Purpose: Lead management and enrollment processing
+│   │   │   * 🔗 Relationships: registrationService
+│   │   ├── 🎨 ResetPassword.jsx
+│   │   │   * 🧠 Purpose: Entry point for password reset emails
+│   │   │   * 🔗 Relationships: authService
+│   │   ├── 🎨 Statistics.jsx
+│   │   │   * 🧠 Purpose: Data visualization for registrations
+│   │   │   * 🔗 Relationships: statsService
+│   │   ├── 🎨 StudentManagement.jsx
+│   │   │   * 🧠 Purpose: Comprehensive search and edit for all students
+│   │   │   * 🔗 Relationships: studentService
+│   │   ├── 🎨 TeacherManagement.jsx
+│   │   │   * 🧠 Purpose: Admin interface for managing teacher profiles
+│   │   │   * 🔗 Relationships: teacherService
+│   │   └── 🎨 TimetableEditor.jsx
+│   │       * 🧠 Purpose: Drag-and-drop tool for managing class schedules
+│   │       * 🔗 Relationships: timetableService
+│   ├── 📁 services/
+│   │   ├── 🌐 api.js
+│   │   │   * 🧠 Purpose: Axios instance with JWT interceptors
+│   │   │   * 🔗 Relationships: axios
+│   │   ├── 🌐 attendanceService.js
+│   │   │   * 🧠 Purpose: API calls for fetching and modifying attendance
+│   │   │   * 🔗 Relationships: api.js
+│   │   ├── 🌐 streakService.js
+│   │   │   * 🧠 Purpose: API calls for streak logic
+│   │   │   * 🔗 Relationships: api.js
+│   │   └── 🌐 timetableService.js
+│   │       * 🧠 Purpose: API calls for fetching and saving schedule data
+│   │       * 🔗 Relationships: api.js
+│   ├── 📁 utils/
+│   │   ├── ⚙️ dateUtils.js
+│   │   │   * 🧠 Purpose: Timezone-aware date formatting
+│   │   │   * 🔗 Relationships: Date methods
+│   │   ├── ⚙️ deviceId.js
+│   │   │   * 🧠 Purpose: Manages persistent device identification
+│   │   │   * 🔗 Relationships: localStorage
+│   │   ├── ⚙️ draggableStreak.js
+│   │   │   * 🧠 Purpose: Math and event logic for the Flame button
+│   │   │   * 🔗 Relationships: browser DOM
+│   │   ├── ⚙️ getImageUrl.js
+│   │   │   * 🧠 Purpose: Resolves local vs remote image paths
+│   │   │   * 🔗 Relationships: string parsing
+│   │   ├── ⚙️ keepAlive.js
+│   │   │   * 🧠 Purpose: Ping server to prevent sleep on free tiers
+│   │   │   * 🔗 Relationships: fetch
+│   │   ├── ⚙️ modalScrollLock.js
+│   │   │   * 🧠 Purpose: DOM class toggling to lock scrolling
+│   │   │   * 🔗 Relationships: browser DOM
+│   │   ├── ⚙️ popupActivityData.js
+│   │   │   * 🧠 Purpose: Static data for activity popups
+│   │   │   * 🔗 Relationships: none
+│   │   └── 🎨 toastUtils.jsx
+│   │       * 🧠 Purpose: Standardized UI notification config
+│   │       * 🔗 Relationships: React Toastify
+│   ├── 🎨 App.jsx
+│   │   * 🧠 Purpose: Main app component defining routes and context providers
+│   │   * 🔗 Relationships: React Router, Contexts, Pages
+│   ├── ⚙️ i18n.js
+│   │   * 🧠 Purpose: Main initialization for internationalization
+│   │   * 🔗 Relationships: i18next
+│   ├── 🎨 index.css
+│   │   * 🧠 Purpose: Global stylesheet and Tailwind imports
+│   │   * 🔗 Relationships: Tailwind CSS
+│   └── ⚙️ main.jsx
+│       * 🧠 Purpose: React DOM entry point, renders App to the DOM
+│       * 🔗 Relationships: react-dom, App.jsx
+├── 🔐 .env.example
+│   * 🧠 Purpose: Safe template for frontend environment variables
+│   * 🔗 Relationships: dotenv
+├── 📄 index.html
+│   * 🧠 Purpose: Main HTML entry point for the Vite app
+│   * 🔗 Relationships: main.jsx
+├── 📄 package.json
+│   * 🧠 Purpose: Project dependencies and Vite scripts
+│   * 🔗 Relationships: npm
+├── 📄 package-lock.json
+│   * 🧠 Purpose: Locked frontend dependency versions
+│   * 🔗 Relationships: npm
+├── ⚙️ postcss.config.js
+│   * 🧠 Purpose: PostCSS configuration for styling
+│   * 🔗 Relationships: tailwindcss, autoprefixer
+├── ⚙️ tailwind.config.js
+│   * 🧠 Purpose: Tailwind CSS theme overrides and plugins
+│   * 🔗 Relationships: Tailwind
+├── ⚙️ vercel.json
+│   * 🧠 Purpose: Vercel deployment and routing configuration
+│   * 🔗 Relationships: Vercel Hosting
+└── ⚙️ vite.config.js
+    * 🧠 Purpose: Vite bundler and development proxy config
+    * 🔗 Relationships: vite, react plugin
 ```
-
----
-
-## 📂 Summary
-
-*   **UI/UX**: Components (🧩) and layouts (🖼️) are built with React and Tailwind CSS.
-*   **Notifications**: Handled by the `NotificationBell` (🧩) and `useNotifications` (⚓) hook.
-*   **State**: Authentication is centralized in `AuthContext` (🔐).
-*   **Language**: Support for VI, EN, and ZH is handled via `i18n/` (🌐).
-*   **API**: All backend communication is abstracted into `services/` (🌐).

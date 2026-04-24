@@ -335,7 +335,7 @@ const StaffAttendance = () => {
       setTodayRecord(todayRes.data.data);
       setHistory(historyRes.data.data || []);
     } catch (err) {
-      setError('Không thể tải dữ liệu chấm công');
+      setError(err?.message || 'Không thể tải dữ liệu chấm công');
     } finally {
       setLoading(false);
     }
@@ -357,7 +357,9 @@ const StaffAttendance = () => {
       const historyRes = await getHistory();
       setHistory(historyRes.data.data || []);
     } catch (err) {
-      toast.error(err?.response?.data?.message || err?.message || 'Lỗi chấm công');
+      // api.js interceptor đã transform error response thành data object
+      // nên err ở đây là { success, message } chứ không phải AxiosError
+      toast.error(err?.message || 'Lỗi chấm công, vui lòng thử lại');
     } finally {
       setToggling(false);
     }

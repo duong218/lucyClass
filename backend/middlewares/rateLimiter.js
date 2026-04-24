@@ -155,6 +155,21 @@ const heavyOpLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+/**
+ * 10. Toggle Attendance Limiter
+ * Bảo vệ endpoint checkin/checkout khỏi spam
+ * PROD: 20 lần / phút (tương đương 10 ca/phút — quá đủ dùng thực tế)
+ * DEV: không giới hạn thực tế
+ */
+const toggleAttendanceLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: isProduction ? 30 : 10000,
+  skip: (req) => !req.user, // đã có auth middleware trước, skip nếu chưa auth (sẽ bị chặn ở auth)
+  handler: rateLimitHandler,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 module.exports = {
   apiLimiter,
   loginLimiter,
@@ -164,5 +179,6 @@ module.exports = {
   forgotPasswordLimiter,
   resetPasswordLimiter,
   streakLimiter,
-  heavyOpLimiter
+  heavyOpLimiter,
+  toggleAttendanceLimiter
 };

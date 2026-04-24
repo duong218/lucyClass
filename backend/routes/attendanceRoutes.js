@@ -4,11 +4,13 @@ const attendanceController = require('../controllers/attendanceController');
 const auth = require('../middlewares/auth');
 const authorizeRoles = require('../middlewares/authorizeRoles');
 const catchAsync = require('../utils/catchAsync');
+const { toggleAttendanceLimiter } = require('../middlewares/rateLimiter');
 
 router.post(
   '/toggle',
   auth,
   authorizeRoles('teacher', 'marketing'),
+  toggleAttendanceLimiter,
   catchAsync(attendanceController.toggleAttendance)
 );
 

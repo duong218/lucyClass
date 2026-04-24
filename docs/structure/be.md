@@ -1,119 +1,322 @@
-# 📁 Backend Structure (BE)
+# 📁 Backend Documentation (BE)
 
----
+## 🧭 Overview
+* **Tech Stack**: Node.js, Express, MongoDB, Mongoose
+* **Architecture Style**: MVC (Model-View-Controller) pattern, separating routing, business logic, and data access.
 
-## 🌳 System Architecture Tree
+## 🔐 Auth Flow
+* **req.user injection**: The `auth` middleware verifies the JWT signature on incoming requests. If valid, the decoded payload (e.g., ID, role) is injected into `req.user`, granting downstream controllers access to the user's identity.
+* **JWT Flow**: Users authenticate via login endpoints. The server generates a signed JSON Web Token and sends it back to the client (often in HTTP-only cookies). The client sends this token in subsequent API requests.
+
+## 🌐 API Structure
+* **/attendance**: Endpoints for student class attendance tracking.
+* **/staff**: Endpoints for staff profile management and dashboard statistics.
+* **/auth**: Login, logout, refresh tokens, and password reset.
+* **/courses**: Endpoints for course enrollment, class details, and scheduling.
+* **/streak**: Logic for daily check-ins, revives, and streak counts.
+
+## 📁 Folder Breakdown & File Structure
 
 ```text
 backend/
-├── 📁 config/ (Core configuration for external services and databases)
-│   ├── ⚙️ cron.js → schedules automated tasks and data cleanup
-│   ├── ⚙️ db.js → MongoDB connection setup using Mongoose
-│   ├── ⚙️ google.js → Google API client and auth configuration
-│   └── ⚙️ redis.js → Redis client connection for server-side caching
-├── 📁 controllers/ (Handles business logic for each API module)
-│   ├── 🎮 announcementController.js → CRUD and logic for school news, updates, and target roles
-│   ├── 🎮 auditController.js → logic for tracking and exporting admin actions
-│   ├── 🎮 authController.js → handles login, logout, refresh tokens, and password reset
-│   ├── 🎮 courseController.js → manages courses, class details, and attendance
-│   ├── 🎮 feedbackController.js → processes parent/student feedback submissions
-│   ├── 🎮 google.controller.js → manages Google Drive backups and Sheet syncing
-│   ├── 🎮 rankingController.js → calculates and serves student star leaderboards
-│   ├── 🎮 registrationController.js → handles new student enrollments and capacity
-│   ├── 🎮 restore.controller.js → triggers database restoration from encrypted backups
-│   ├── 🎮 staffController.js → manages staff accounts, roles, and permissions
-│   ├── 🎮 statsController.js → aggregates data for dashboard charts and reports
-│   ├── 🎮 streakController.js → logic for daily check-ins, revives, and streak counts
-│   ├── 🎮 syncController.js → manual triggers for maintenance and data syncing
-│   ├── 🎮 teacherController.js → manages teacher profiles, avatars, and bios
-│   └── 🎮 timetableController.js → handles class schedule rows, cells, and reordering
-├── 📁 middlewares/ (Request interceptors for security, authentication, and validation)
-│   ├── 🛡️ adminValidator.js → schema validation for administrative requests
-│   ├── 🛡️ auth.js → primary JWT authentication and session conflict check
-│   ├── 🛡️ authorizeRoles.js → RBAC (Role-Based Access Control) permission checker
-│   ├── 🛡️ cacheMiddleware.js → logic for reading and writing to Redis cache
-│   ├── 🛡️ errorHandler.js → global error handling and standardized JSON responses
-│   ├── 🛡️ isAdmin.js → strict middleware to enforce admin-only access
-│   ├── 🛡️ phoneLimiter.js → rate limits requests based on student phone numbers
-│   ├── 🛡️ rateLimiter.js → generic rate limiting to prevent API abuse/DDoS
-│   ├── 🛡️ securityMiddleware.js → Origin and Custom Header-based CSRF protection
-│   ├── 🛡️ streakAuth.js → specialized authentication for the streak system
-│   ├── 🛡️ upload.js → Multer configuration for processing image uploads
-│   ├── 🛡️ userIdentifier.js → generates unique IDs for anonymous rate limiting
-│   ├── 🛡️ validate.js → helper to check express-validator result objects
-│   └── 🛡️ validateRegistration.js → complex validation logic for new enrollments
-├── 📁 models/ (Mongoose schemas defining the database architecture)
-│   ├── 📊 Admin.js → schema for root administrative users
-│   ├── 📊 Announcement.js → schema for school news, banners, and role-based targeting
-│   ├── 📊 Attendance.js → records of student presence in classes
-│   ├── 📊 AuditLog.js → persistent log of all administrative changes
-│   ├── 📊 Course.js → schema for class information and teacher links
-│   ├── 📊 DeviceUsage.js → tracks daily activity per device to prevent spam
-│   ├── 📊 Feedback.js → storage for user-submitted feedback and photos
-│   ├── 📊 GoogleToken.js → persists OAuth2 tokens for Google services
-│   ├── 📊 Log.js → generic schema for application event logging
-│   ├── 📊 Ranking.js → stores monthly star rankings for students
-│   ├── 📊 Registration.js → primary schema for student enrollment data
-│   ├── 📊 StaffAccount.js → credentials and profile links for teachers/staff
-│   ├── 📊 Streak.js → tracks daily check-in activity and user data
-│   ├── 📊 Teacher.js → detailed profile data for teaching staff
-│   ├── 📊 TimetableCell.js → individual entry in the class schedule
-│   └── 📊 TimetableRow.js → definition of a time slot in the schedule
-├── 📁 routes/ (Defines the API endpoints and connects them to controllers)
-│   ├── 跑 announcementRoutes.js → endpoints for school updates and news
-│   ├── 跑 auditRoutes.js → routes for viewing and exporting action logs
-│   ├── 跑 authRoutes.js → authentication endpoints (login, logout, password)
-│   ├── 跑 courseRoutes.js → management routes for courses and attendance
-│   ├── 跑 feedbackRoutes.js → endpoints for submitting and viewing feedback
-│   ├── 跑 googleRoutes.js → integration routes for Drive and Sheets
-│   ├── 跑 rankingRoutes.js → routes for fetching student leaderboards
-│   ├── 跑 registrationRoutes.js → primary endpoints for student enrollments
-│   ├── 跑 restoreRoutes.js → specialized routes for DB restore operations
-│   ├── 跑 staffDashboardRoutes.js → aggregate data routes for the staff UI
-│   ├── 跑 staffRoutes.js → management routes for staff and teachers
-│   ├── 跑 statsRoutes.js → endpoints for dashboard statistics
-│   ├── 跑 streakRoutes.js → routes for daily check-ins and streak revival
-│   ├── 跑 syncRoutes.js → maintenance triggers for data synchronization
-│   ├── 跑 teacherRoutes.js → public and admin routes for teacher profiles
-│   └── 跑 timetableRoutes.js → routes for class schedule management
-├── 📁 scripts/ (Utility scripts for maintenance and automation)
-│   ├── 📜 backup.js → standalone script to trigger a local DB backup
-│   └── 📜 cleanRestoreTmp.js → cleans up temporary files after a restoration
-├── 📁 services/ (Decoupled business logic for complex operations)
-│   ├── ⚡ backup.service.js → core logic for creating and encrypting database dumps
-│   ├── ⚡ deepCleanService.js → logic for deleting orphan records and old rankings
-│   ├── ⚡ drive.service.js → wrapper for Google Drive file operations
-│   └── ⚡ restore.service.js → handles decryption and importing of backup files
-├── 📁 utils/ (Reusable helper functions and system utilities)
-│   ├── 🧰 catchAsync.js → wrapper to eliminate try-catch blocks in routes
-│   ├── 🧰 cloudinary.js → service for managing image uploads to Cloudinary
-│   ├── 🧰 emailService.js → handles sending all automated emails
-│   ├── 🧰 encryptionUtils.js → cryptographic logic for securing backup files
-│   ├── 🧰 logAdminAction.js → helper function to log admin events to DB
-│   ├── 🧰 logger.js → simple console/file logger for events
-│   ├── 🧰 normalizePhone.js → standardizes phone formats (+84 to 0, etc.)
-│   ├── 🧰 sanitize.js → cleans user input strings to prevent XSS/Injection
-│   ├── 🧰 scheduledTasks.js → definition of recurring system jobs
-│   ├── 🧰 systemLogger.js → enhanced logging with contextual metadata
-│   └── 🧰 test-encryption.js → validation script for the encryption system
-├── 📁 validators/ (Input validation schemas using express-validator)
-│   ├── 📝 registrationValidator.js → strict rules for enrollment form data
-│   └── 📝 streakValidator.js → rules for phone and name in streak check-ins
-├── 📄 .dockerignore → specifies files to exclude from Docker builds
-├── 📄 .env.example → template for environment variables (safe to commit)
-├── 🐳 Dockerfile → containerization instructions for the backend
-├── 📄 googleSheets.js → standalone utility for Google Sheets syncing
-├── 📄 migrate-childAge.js → one-time database migration script
-├── 📄 nodemon.json → configuration for the nodemon development runner
-├── 📦 package.json → project metadata, scripts, and dependencies
-└── 🚀 server.js → entry point; initializes express, DB, and routes
+├── 📁 config/
+│   ├── ⚙️ cron.js
+│   │   * 🧠 Purpose: Schedules automated tasks and data cleanup
+│   │   * 🔗 Relationships: mongoose, scheduledTasks
+│   ├── ⚙️ db.js
+│   │   * 🧠 Purpose: MongoDB connection setup
+│   │   * 🔗 Relationships: mongoose
+│   ├── ⚙️ google.js
+│   │   * 🧠 Purpose: Google API client and auth configuration
+│   │   * 🔗 Relationships: googleapis
+│   └── ⚙️ redis.js
+│       * 🧠 Purpose: Redis client connection for server-side caching
+│       * 🔗 Relationships: redis
+├── 📁 controllers/
+│   ├── 🎮 announcementController.js
+│   │   * 🧠 Purpose: Handles logic for school news and updates
+│   │   * 🔗 Relationships: Announcement Model
+│   ├── 🎮 attendanceController.js
+│   │   * 🧠 Purpose: Logic for student attendance tracking
+│   │   * 🔗 Relationships: Attendance Model
+│   ├── 🎮 auditController.js
+│   │   * 🧠 Purpose: Logic for tracking and exporting admin actions
+│   │   * 🔗 Relationships: AuditLog Model
+│   ├── 🎮 authController.js
+│   │   * 🧠 Purpose: Handles login, logout, refresh tokens, password reset
+│   │   * 🔗 Relationships: StaffAccount Model, jwt
+│   ├── 🎮 courseController.js
+│   │   * 🧠 Purpose: Manages courses, class details, and attendance
+│   │   * 🔗 Relationships: Course Model
+│   ├── 🎮 feedbackController.js
+│   │   * 🧠 Purpose: Processes parent/student feedback submissions
+│   │   * 🔗 Relationships: Feedback Model
+│   ├── 🎮 google.controller.js
+│   │   * 🧠 Purpose: Manages Google Drive backups and Sheet syncing
+│   │   * 🔗 Relationships: googleapis
+│   ├── 🎮 rankingController.js
+│   │   * 🧠 Purpose: Calculates and serves student leaderboards
+│   │   * 🔗 Relationships: Ranking Model
+│   ├── 🎮 registrationController.js
+│   │   * 🧠 Purpose: Handles new student enrollments
+│   │   * 🔗 Relationships: Registration Model
+│   ├── 🎮 restore.controller.js
+│   │   * 🧠 Purpose: Triggers DB restoration from backups
+│   │   * 🔗 Relationships: restoreService
+│   ├── 🎮 staffAttendanceController.js
+│   │   * 🧠 Purpose: Handles staff check-in/out logic
+│   │   * 🔗 Relationships: StaffAttendance Model
+│   ├── 🎮 staffController.js
+│   │   * 🧠 Purpose: Manages staff accounts, roles, and permissions
+│   │   * 🔗 Relationships: StaffAccount Model
+│   ├── 🎮 statsController.js
+│   │   * 🧠 Purpose: Aggregates data for dashboard charts and reports
+│   │   * 🔗 Relationships: Mongoose aggregations
+│   ├── 🎮 streakController.js
+│   │   * 🧠 Purpose: Logic for daily check-ins, revives, and streak counts
+│   │   * 🔗 Relationships: Streak Model
+│   ├── 🎮 syncController.js
+│   │   * 🧠 Purpose: Manual triggers for data synchronization
+│   │   * 🔗 Relationships: External sync services
+│   ├── 🎮 teacherController.js
+│   │   * 🧠 Purpose: Manages teacher profiles and bios
+│   │   * 🔗 Relationships: Teacher Model
+│   └── 🎮 timetableController.js
+│       * 🧠 Purpose: Handles class schedule logic
+│       * 🔗 Relationships: TimetableRow, TimetableCell Models
+├── 📁 middlewares/
+│   ├── 🔐 adminValidator.js
+│   │   * 🧠 Purpose: Validates admin specific requests
+│   │   * 🔗 Relationships: express-validator
+│   ├── 🔐 auth.js
+│   │   * 🧠 Purpose: Primary JWT authentication and verification
+│   │   * 🔗 Relationships: jwt
+│   ├── 🔐 authorizeRoles.js
+│   │   * 🧠 Purpose: Role-Based Access Control permission checker
+│   │   * 🔗 Relationships: auth.js
+│   ├── 🔐 cacheMiddleware.js
+│   │   * 🧠 Purpose: Intercepts and caches API responses using Redis
+│   │   * 🔗 Relationships: redis.js
+│   ├── 🔐 errorHandler.js
+│   │   * 🧠 Purpose: Global error handling and response formatting
+│   │   * 🔗 Relationships: logger
+│   ├── 🔐 isAdmin.js
+│   │   * 🧠 Purpose: Strict middleware to enforce admin-only access
+│   │   * 🔗 Relationships: express req.user
+│   ├── 🔐 phoneLimiter.js
+│   │   * 🧠 Purpose: Rate limits requests based on phone numbers
+│   │   * 🔗 Relationships: express-rate-limit
+│   ├── 🔐 rateLimiter.js
+│   │   * 🧠 Purpose: Generic rate limiting to prevent abuse
+│   │   * 🔗 Relationships: express-rate-limit
+│   ├── 🔐 securityMiddleware.js
+│   │   * 🧠 Purpose: Origin and Custom Header-based CSRF protection
+│   │   * 🔗 Relationships: express, helmet
+│   ├── 🔐 streakAuth.js
+│   │   * 🧠 Purpose: Specialized authentication for the streak system
+│   │   * 🔗 Relationships: Device usage tracking
+│   ├── 🔐 upload.js
+│   │   * 🧠 Purpose: Multer configuration for image uploads
+│   │   * 🔗 Relationships: multer
+│   ├── 🔐 userIdentifier.js
+│   │   * 🧠 Purpose: Generates unique IDs for rate limiting
+│   │   * 🔗 Relationships: crypto
+│   ├── 🔐 validate.js
+│   │   * 🧠 Purpose: Checks express-validator result objects
+│   │   * 🔗 Relationships: express-validator
+│   └── 🔐 validateRegistration.js
+│       * 🧠 Purpose: Complex validation logic for new enrollments
+│       * 🔗 Relationships: express-validator
+├── 📁 models/
+│   ├── 📊 Admin.js
+│   │   * 🧠 Purpose: Schema for root administrative users
+│   │   * 🔗 Relationships: mongoose
+│   ├── 📊 Announcement.js
+│   │   * 🧠 Purpose: Schema for school news and banners
+│   │   * 🔗 Relationships: mongoose
+│   ├── 📊 Attendance.js
+│   │   * 🧠 Purpose: Schema for student attendance records
+│   │   * 🔗 Relationships: mongoose
+│   ├── 📊 AuditLog.js
+│   │   * 🧠 Purpose: Schema for persistent log of admin changes
+│   │   * 🔗 Relationships: mongoose
+│   ├── 📊 Course.js
+│   │   * 🧠 Purpose: Schema for class info and teacher links
+│   │   * 🔗 Relationships: mongoose
+│   ├── 📊 DeviceUsage.js
+│   │   * 🧠 Purpose: Schema to track daily activity per device
+│   │   * 🔗 Relationships: mongoose
+│   ├── 📊 Feedback.js
+│   │   * 🧠 Purpose: Schema for user-submitted feedback
+│   │   * 🔗 Relationships: mongoose
+│   ├── 📊 GoogleToken.js
+│   │   * 🧠 Purpose: Schema for Google OAuth tokens
+│   │   * 🔗 Relationships: mongoose
+│   ├── 📊 Log.js
+│   │   * 🧠 Purpose: Schema for application event logging
+│   │   * 🔗 Relationships: mongoose
+│   ├── 📊 Ranking.js
+│   │   * 🧠 Purpose: Schema for monthly star rankings
+│   │   * 🔗 Relationships: mongoose
+│   ├── 📊 Registration.js
+│   │   * 🧠 Purpose: Schema for student enrollment data
+│   │   * 🔗 Relationships: mongoose
+│   ├── 📊 StaffAccount.js
+│   │   * 🧠 Purpose: Schema for staff credentials and roles
+│   │   * 🔗 Relationships: mongoose
+│   ├── 📊 StaffAttendance.js
+│   │   * 🧠 Purpose: Schema for staff check-in/out records
+│   │   * 🔗 Relationships: mongoose
+│   ├── 📊 Streak.js
+│   │   * 🧠 Purpose: Schema for daily check-in activity
+│   │   * 🔗 Relationships: mongoose
+│   ├── 📊 Teacher.js
+│   │   * 🧠 Purpose: Schema for teacher profiles
+│   │   * 🔗 Relationships: mongoose
+│   ├── 📊 TimetableCell.js
+│   │   * 🧠 Purpose: Schema for a class schedule cell
+│   │   * 🔗 Relationships: mongoose
+│   └── 📊 TimetableRow.js
+│       * 🧠 Purpose: Schema for a time slot row
+│       * 🔗 Relationships: mongoose
+├── 📁 routes/
+│   ├── 🌐 announcementRoutes.js
+│   │   * 🧠 Purpose: Endpoints for school updates
+│   │   * 🔗 Relationships: express.Router, announcementController
+│   ├── 🌐 attendanceRoutes.js
+│   │   * 🧠 Purpose: Endpoints for attendance logic
+│   │   * 🔗 Relationships: express.Router, attendanceController
+│   ├── 🌐 auditRoutes.js
+│   │   * 🧠 Purpose: Endpoints for action logs
+│   │   * 🔗 Relationships: express.Router, auditController
+│   ├── 🌐 authRoutes.js
+│   │   * 🧠 Purpose: Authentication endpoints
+│   │   * 🔗 Relationships: express.Router, authController
+│   ├── 🌐 courseRoutes.js
+│   │   * 🧠 Purpose: Management routes for courses
+│   │   * 🔗 Relationships: express.Router, courseController
+│   ├── 🌐 feedbackRoutes.js
+│   │   * 🧠 Purpose: Endpoints for feedback
+│   │   * 🔗 Relationships: express.Router, feedbackController
+│   ├── 🌐 googleRoutes.js
+│   │   * 🧠 Purpose: Integration routes for Google APIs
+│   │   * 🔗 Relationships: express.Router, google.controller
+│   ├── 🌐 rankingRoutes.js
+│   │   * 🧠 Purpose: Routes for fetching leaderboards
+│   │   * 🔗 Relationships: express.Router, rankingController
+│   ├── 🌐 registrationRoutes.js
+│   │   * 🧠 Purpose: Endpoints for student enrollments
+│   │   * 🔗 Relationships: express.Router, registrationController
+│   ├── 🌐 restoreRoutes.js
+│   │   * 🧠 Purpose: Specialized routes for DB restore
+│   │   * 🔗 Relationships: express.Router, restore.controller
+│   ├── 🌐 staffDashboardRoutes.js
+│   │   * 🧠 Purpose: Data routes for the staff UI
+│   │   * 🔗 Relationships: express.Router, statsController
+│   ├── 🌐 staffRoutes.js
+│   │   * 🧠 Purpose: Management routes for staff
+│   │   * 🔗 Relationships: express.Router, staffController
+│   ├── 🌐 statsRoutes.js
+│   │   * 🧠 Purpose: Endpoints for dashboard statistics
+│   │   * 🔗 Relationships: express.Router, statsController
+│   ├── 🌐 streakRoutes.js
+│   │   * 🧠 Purpose: Routes for daily check-ins
+│   │   * 🔗 Relationships: express.Router, streakController
+│   ├── 🌐 syncRoutes.js
+│   │   * 🧠 Purpose: Triggers for data sync
+│   │   * 🔗 Relationships: express.Router, syncController
+│   ├── 🌐 teacherRoutes.js
+│   │   * 🧠 Purpose: Routes for teacher profiles
+│   │   * 🔗 Relationships: express.Router, teacherController
+│   └── 🌐 timetableRoutes.js
+│       * 🧠 Purpose: Routes for class schedules
+│       * 🔗 Relationships: express.Router, timetableController
+├── 📁 scripts/
+│   ├── ⚙️ backup.js
+│   │   * 🧠 Purpose: Database backup utility
+│   │   * 🔗 Relationships: child_process
+│   └── ⚙️ cleanRestoreTmp.js
+│       * 🧠 Purpose: Cleans temporary backup files
+│       * 🔗 Relationships: fs
+├── 📁 services/
+│   ├── ⚙️ backup.service.js
+│   │   * 🧠 Purpose: Creates and encrypts database dumps
+│   │   * 🔗 Relationships: child_process
+│   ├── ⚙️ deepCleanService.js
+│   │   * 🧠 Purpose: Logic for deleting old records
+│   │   * 🔗 Relationships: Models
+│   ├── ⚙️ drive.service.js
+│   │   * 🧠 Purpose: Wrapper for Google Drive files
+│   │   * 🔗 Relationships: googleapis
+│   └── ⚙️ restore.service.js
+│       * 🧠 Purpose: Handles decryption of backup files
+│       * 🔗 Relationships: child_process, encryptionUtils
+├── 📁 utils/
+│   ├── ⚙️ catchAsync.js
+│   │   * 🧠 Purpose: Wrapper to eliminate try-catch blocks
+│   │   * 🔗 Relationships: express
+│   ├── ⚙️ cloudinary.js
+│   │   * 🧠 Purpose: Cloudinary image upload helper
+│   │   * 🔗 Relationships: cloudinary
+│   ├── ⚙️ emailService.js
+│   │   * 🧠 Purpose: Handles sending automated emails
+│   │   * 🔗 Relationships: nodemailer
+│   ├── ⚙️ encryptionUtils.js
+│   │   * 🧠 Purpose: Cryptographic logic for secure backups
+│   │   * 🔗 Relationships: crypto
+│   ├── ⚙️ logAdminAction.js
+│   │   * 🧠 Purpose: Logs admin events to DB
+│   │   * 🔗 Relationships: AuditLog Model
+│   ├── ⚙️ logger.js
+│   │   * 🧠 Purpose: Standard file/console logger
+│   │   * 🔗 Relationships: winston
+│   ├── ⚙️ normalizePhone.js
+│   │   * 🧠 Purpose: Standardizes phone formats
+│   │   * 🔗 Relationships: regex
+│   ├── ⚙️ sanitize.js
+│   │   * 🧠 Purpose: Cleans user input to prevent XSS
+│   │   * 🔗 Relationships: xss
+│   ├── ⚙️ scheduledTasks.js
+│   │   * 🧠 Purpose: Recurring system jobs
+│   │   * 🔗 Relationships: node-cron
+│   ├── ⚙️ systemLogger.js
+│   │   * 🧠 Purpose: Enhanced logger with metadata
+│   │   * 🔗 Relationships: winston
+│   └── ⚙️ test-encryption.js
+│       * 🧠 Purpose: Validation for the encryption system
+│       * 🔗 Relationships: crypto
+├── 📁 validators/
+│   ├── 🔐 registrationValidator.js
+│   │   * 🧠 Purpose: Validation rules for user enrollment
+│   │   * 🔗 Relationships: express-validator
+│   └── 🔐 streakValidator.js
+│       * 🧠 Purpose: Validation rules for check-ins
+│       * 🔗 Relationships: express-validator
+├── 📄 .dockerignore
+│   * 🧠 Purpose: Specifies ignored files for Docker build
+│   * 🔗 Relationships: Docker
+├── 🔐 .env.example
+│   * 🧠 Purpose: Safe template for environment variables
+│   * 🔗 Relationships: dotenv
+├── 📄 Dockerfile
+│   * 🧠 Purpose: Container build instructions
+│   * 🔗 Relationships: Docker
+├── ⚙️ googleSheets.js
+│   * 🧠 Purpose: Google Sheets integration logic
+│   * 🔗 Relationships: googleapis
+├── ⚙️ migrate-childAge.js
+│   * 🧠 Purpose: Database migration script for age calculation
+│   * 🔗 Relationships: mongoose
+├── 📄 nodemon.json
+│   * 🧠 Purpose: Configuration for development runner
+│   * 🔗 Relationships: nodemon
+├── 📄 package.json
+│   * 🧠 Purpose: Project dependencies and scripts
+│   * 🔗 Relationships: npm
+├── 📄 package-lock.json
+│   * 🧠 Purpose: Locked dependency versions
+│   * 🔗 Relationships: npm
+└── ⚙️ server.js
+    * 🧠 Purpose: Main entry point, initializes Express, DB, and routes
+    * 🔗 Relationships: express, mongoose, routes
 ```
-
----
-
-## 📂 Summary
-
-*   **Logic Core**: All business rules reside in `controllers/` (🎮) and `services/` (⚡).
-*   **Security**: Handled by `middlewares/` (🛡️) (Auth, CSRF, Rate Limiting).
-*   **Data Structure**: Defined in `models/` (📊) using Mongoose.
-*   **API Mapping**: All endpoints are strictly defined in `routes/` (跑).
