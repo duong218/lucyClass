@@ -18,11 +18,48 @@ const announcementSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  // ✅ NEW: đánh dấu thông báo mới để hiện badge trên bell icon
-  // Tự động reset về false sau 24h qua scheduled task hoặc khi admin xem
+  // ✅ Badge bell icon
   isUnread: {
     type: Boolean,
     default: true
+  },
+
+  // ─── MKT Submission Workflow ─────────────────────────────────────────────
+  /**
+   * status:
+   *  'published'  — hiển thị công khai (default cho admin tạo trực tiếp)
+   *  'pending'    — MKT đã gửi, chờ admin duyệt
+   *  'rejected'   — Admin từ chối, kết quả trả về cho MKT
+   */
+  status: {
+    type: String,
+    enum: ['published', 'pending', 'rejected'],
+    default: 'published'
+  },
+
+  // _id của StaffAccount (role: marketing) đã gửi bài
+  submittedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'StaffAccount',
+    default: null
+  },
+
+  // Ghi chú từ admin (lý do từ chối hoặc nhận xét)
+  reviewNote: {
+    type: String,
+    default: ''
+  },
+
+  // _id của admin đã duyệt/từ chối
+  reviewedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'StaffAccount',
+    default: null
+  },
+
+  reviewedAt: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true

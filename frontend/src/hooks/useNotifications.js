@@ -1,76 +1,67 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import api from '../services/api';
+import { getLatestAnnouncement, markAnnouncementsSeen } from '../services/announcementService';
 
 /**
  * useNotifications
- * Hook dùng chung cho Admin, Teacher, Marketing.
- * Polling /api/announcements/latest mỗi `interval` ms để cập nhật badge.
+ * Hook polling /announcements/latest mỗi `interval` ms.
  *
- * @param {object} options
- * @param {number} [options.interval=60000]  - polling interval (ms), default 1 phút
- * @param {boolean} [options.enabled=true]   - tắt polling khi user chưa login
+ * Trả về:
+ *  newCount     — số thông báo published chưa đọc (badge đỏ)
+ *  pendingCount — số thông báo đang chờ admin duyệt (badge vàng, admin thấy)
+ *  latest       — thông báo published mới nhất
+ *  isOpen       — trạng thái mở/đóng dropdown
+ *  toggleBell   — toggle dropdown
+ *  closeBell    — đóng dropdown
  */
-const useNotifications = ({ interval = 60_000, enabled = true } = {}) => {
-  const [newCount, setNewCount] = useState(0);
-  const [latest, setLatest] = useState(null);   // thông báo mới nhất để preview
-  const [loading, setLoading] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
-  const timerRef = useRef(null);
+const useNotifications = ({ enabled = true, interval = 60000 } = {}) => {
+  const [newCount, setNewCount]         = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [latest, setLatest]             = useState(null);
+  const [isOpen, setIsOpen]             = useState(false);
+  const isMounted = useRef(true);
 
-  // ─── Fetch ──────────────────────────────────────────────────────────────
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
+
   const fetchLatest = useCallback(async () => {
     if (!enabled) return;
     try {
-      const res = await api.get('/announcements/latest');
-      if (res.data?.success) {
-        setNewCount(res.data.data.newCount ?? 0);
-        setLatest(res.data.data.latest ?? null);
-      }
+      const res = await getLatestAnnouncement();
+      const { latest: l, newCount: n, pendingCount: p } = res.data?.data || {};
+      if (!isMounted.current) return;
+      setLatest(l || null);
+      setNewCount(typeof n === 'number' ? n : 0);
+      setPendingCount(typeof p === 'number' ? p : 0);
     } catch {
-      // silent — không spam console khi user logout
+      // silent — không làm rỗng data cũ
     }
   }, [enabled]);
 
-  // ─── Polling ────────────────────────────────────────────────────────────
+  // Polling
   useEffect(() => {
     if (!enabled) return;
+    fetchLatest();
+    const id = setInterval(fetchLatest, interval);
+    return () => clearInterval(id);
+  }, [enabled, interval, fetchLatest]);
 
-    fetchLatest();                               // fetch ngay khi mount
-    timerRef.current = setInterval(fetchLatest, interval);
-
-    return () => clearInterval(timerRef.current);
-  }, [fetchLatest, interval, enabled]);
-
-  // ─── Mở bell → mark seen ────────────────────────────────────────────────
-  const openBell = useCallback(async () => {
-    setIsOpen(true);
-    if (newCount > 0) {
-      setNewCount(0);                            // optimistic update UI ngay
-      try {
-        await api.patch('/announcements/mark-seen');
-      } catch {
-        // nếu lỗi, lần poll tiếp sẽ tự đồng bộ lại
+  const toggleBell = useCallback(async () => {
+    setIsOpen(prev => {
+      const next = !prev;
+      // Khi mở → mark seen (reset isUnread trên server)
+      if (next) {
+        markAnnouncementsSeen().catch(() => {});
+        setNewCount(0);
       }
-    }
-  }, [newCount]);
+      return next;
+    });
+  }, []);
 
   const closeBell = useCallback(() => setIsOpen(false), []);
 
-  const toggleBell = useCallback(() => {
-    if (isOpen) closeBell();
-    else openBell();
-  }, [isOpen, openBell, closeBell]);
-
-  return {
-    newCount,   // số hiện trên badge
-    latest,     // object announcement mới nhất (title, description, image, createdAt)
-    loading,
-    isOpen,
-    toggleBell,
-    openBell,
-    closeBell,
-    refresh: fetchLatest,
-  };
+  return { newCount, pendingCount, latest, isOpen, toggleBell, closeBell };
 };
 
 export default useNotifications;

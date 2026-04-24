@@ -25,6 +25,7 @@ import AccountManagement from './pages/AccountManagement';
 // Staff pages
 import TeacherDashboard from './pages/Teacher/TeacherDashboard';
 import MarketingDashboard from './pages/Marketing/MarketingDashboard';
+import MktAnnouncementPage from './pages/Marketing/MktAnnouncementPage';
 
 // Attendance
 import StaffAttendance from './pages/Attendance/StaffAttendance';
@@ -110,6 +111,7 @@ function App() {
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<MarketingDashboard />} />
           <Route path="attendance" element={<Navigate to="/attendance" replace />} />
+          <Route path="announcements" element={<MktAnnouncementPage />} />
         </Route>
 
         {/* ─── Shared staff attendance route (teacher + marketing) ───────────────── */}
