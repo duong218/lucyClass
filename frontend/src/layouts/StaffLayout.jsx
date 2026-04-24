@@ -57,24 +57,83 @@ const StaffLayout = () => {
       <aside className={`w-64 bg-gradient-to-b ${sidebarGradient} text-white flex flex-col fixed h-full z-50 transition-transform duration-300 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
 
         {/* Header */}
-        <div className="p-4 border-b border-white/10">
-          <div className="flex items-center gap-3">
-            <img
-              src="/logo.jpeg"
-              alt="Lucy Logo"
-              className="w-10 h-10 object-contain rounded-lg shadow-sm hover:scale-105 transition duration-200"
-              onError={e => e.target.src = '/placeholder.jpg'}
-            />
-            <div>
-              <h1 className="text-white font-semibold text-lg leading-tight font-display">
-                Lucy's Class
-              </h1>
-              <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-medium text-white/90">
-                {roleLabel}
-              </span>
+        <div className="px-4 py-5 border-b border-white/10">
+          <div className="flex items-center justify-between">
+            {/* Brand Logo */}
+            <div className="flex items-center gap-3 group cursor-pointer">
+              {/* Logo circle */}
+              <div
+                className="relative flex-shrink-0 rounded-full overflow-hidden transition-all duration-300 group-hover:scale-105 group-hover:shadow-xl"
+                style={{
+                  width: 46,
+                  height: 46,
+                  background: 'rgba(255,255,255,0.15)',
+                  border: '2px solid rgba(255,255,255,0.35)',
+                  boxShadow: '0 2px 12px rgba(0,0,0,0.2)',
+                }}
+              >
+                <img
+                  src="/logo.jpeg"
+                  alt="Lucy's Class"
+                  className="w-full h-full object-cover"
+                  onError={e => e.target.src = '/placeholder.jpg'}
+                />
+              </div>
+
+              {/* Brand text */}
+              <div className="flex flex-col leading-none select-none">
+                <div className="flex items-baseline gap-0">
+                  <span
+                    style={{
+                      fontFamily: "'Nunito', 'Baloo 2', system-ui, sans-serif",
+                      fontSize: '1.25rem',
+                      fontWeight: 900,
+                      letterSpacing: '0.14em',
+                      color: '#ffffff',
+                      lineHeight: 1,
+                      textTransform: 'uppercase',
+                      textShadow: '0 1px 4px rgba(0,0,0,0.2)',
+                    }}
+                  >
+                    LUCY
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: "'Nunito', 'Baloo 2', system-ui, sans-serif",
+                      fontSize: '0.7rem',
+                      fontWeight: 900,
+                      letterSpacing: '0.22em',
+                      color: 'rgba(255,255,255,0.65)',
+                      lineHeight: 1,
+                      textTransform: 'uppercase',
+                      marginLeft: '5px',
+                      alignSelf: 'flex-end',
+                      paddingBottom: '1px',
+                    }}
+                  >
+                    CLASS
+                  </span>
+                </div>
+                {/* Role badge */}
+                <span
+                  className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest"
+                  style={{
+                    background: 'rgba(255,255,255,0.18)',
+                    color: 'rgba(255,255,255,0.9)',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    backdropFilter: 'blur(4px)',
+                  }}
+                >
+                  <span style={{ fontSize: '8px' }}>
+                    {isTeacher ? '🎓' : '📣'}
+                  </span>
+                  {roleLabel}
+                </span>
+              </div>
             </div>
+
             <button
-              className="md:hidden ml-auto text-white/70 hover:text-white p-1"
+              className="md:hidden text-white/60 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-all"
               onClick={() => setIsSidebarOpen(false)}
             >
               ✕
