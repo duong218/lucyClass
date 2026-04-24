@@ -98,11 +98,7 @@ exports.create = async (req, res) => {
     if (uploadResult) {
       announcementData.image = uploadResult.secure_url;
       announcementData.imagePublicId = uploadResult.public_id;
-    } else if (req.body.image) {
-      announcementData.image = req.body.image;
-    }
-
-    if (!announcementData.image) {
+    } else {
       return sendError(res, 'Image is required', null, 400);
     }
 

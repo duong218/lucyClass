@@ -243,15 +243,17 @@ exports.create = async (req, res) => {
       return res.status(400).json({ success: false, message: err.message });
     }
 
-    if (req.file && req.file.buffer) {
-      try {
-        uploadResult = await uploadImageBuffer(req.file.buffer, 'courses');
-      } catch (err) {
-        return res.status(500).json({ success: false, message: 'Image upload failed' });
-      }
-      data.image = uploadResult.secure_url;
-      data.imagePublicId = uploadResult.public_id;
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ success: false, message: 'Course image is required' });
     }
+
+    try {
+      uploadResult = await uploadImageBuffer(req.file.buffer, 'courses');
+    } catch (err) {
+      return res.status(500).json({ success: false, message: 'Image upload failed' });
+    }
+    data.image = uploadResult.secure_url;
+    data.imagePublicId = uploadResult.public_id;
 
     const course = await Course.create(data);
     await clearCache('/api/courses');
