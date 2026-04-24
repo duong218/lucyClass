@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { User, Phone, Mail, BookOpen, AlertCircle, Users, ChevronRight } from 'lucide-react';
 
 const TeacherDashboard = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
@@ -17,7 +19,7 @@ const TeacherDashboard = () => {
         const res = await api.get('/me/profile');
         setProfile(res.data.data);
       } catch (err) {
-        setError('Không thể tải thông tin. Vui lòng thử lại.');
+        setError(t('teacher.error_load'));
       } finally {
         setLoading(false);
       }
@@ -48,7 +50,7 @@ const TeacherDashboard = () => {
 
   return (
     <div className="p-6 md:p-8 space-y-6 max-w-4xl">
-      <h1 className="text-2xl font-bold text-gray-800">Trang giáo viên</h1>
+      <h1 className="text-2xl font-bold text-gray-800">{t('teacher.dashboard_title')}</h1>
 
       {/* ── Thông tin cá nhân ──────────────────────────────────────── */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -61,20 +63,20 @@ const TeacherDashboard = () => {
               {profile?.displayName || profile?.username}
             </h2>
             <span className="inline-block bg-emerald-100 text-emerald-700 text-xs font-semibold px-2.5 py-1 rounded-full mt-1">
-              Giáo viên
+              {t('teacher.role_label')}
             </span>
           </div>
         </div>
 
         <div className="p-6 space-y-4">
-          <InfoRow icon={<User size={16} />} label="Tên đăng nhập" value={profile?.username} mono />
-          <InfoRow icon={<Mail size={16} />} label="Email" value={profile?.email || '(chưa cập nhật)'} dim={!profile?.email} />
-          <InfoRow icon={<Phone size={16} />} label="Số điện thoại" value={profile?.phone || '(chưa cập nhật)'} dim={!profile?.phone} />
+          <InfoRow icon={<User size={16} />} label={t('teacher.username')} value={profile?.username} mono />
+          <InfoRow icon={<Mail size={16} />} label={t('teacher.email')} value={profile?.email || t('teacher.not_updated')} dim={!profile?.email} />
+          <InfoRow icon={<Phone size={16} />} label={t('teacher.phone')} value={profile?.phone || t('teacher.not_updated')} dim={!profile?.phone} />
         </div>
 
         <div className="px-6 pb-5">
           <p className="text-xs text-gray-400">
-            Để cập nhật thông tin cá nhân, vui lòng liên hệ admin.
+            {t('teacher.contact_admin')}
           </p>
         </div>
       </div>
@@ -83,17 +85,17 @@ const TeacherDashboard = () => {
       <div>
         <div className="flex items-center gap-2 mb-4">
           <BookOpen size={18} className="text-blue-500" />
-          <h2 className="text-lg font-bold text-gray-800">Lớp học của tôi</h2>
+          <h2 className="text-lg font-bold text-gray-800">{t('teacher.my_classes')}</h2>
           <span className="ml-1 bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">
-            {courses.length} lớp
+            {t('teacher.class_count', { count: courses.length })}
           </span>
         </div>
 
         {courses.length === 0 ? (
           <div className="bg-white rounded-2xl border-2 border-dashed border-gray-200 p-12 text-center">
             <div className="text-5xl mb-3 opacity-30">📭</div>
-            <p className="text-gray-400 font-semibold">Bạn chưa được gán lớp nào</p>
-            <p className="text-gray-300 text-sm mt-1">Liên hệ admin để được phân công lớp học</p>
+            <p className="text-gray-400 font-semibold">{t('teacher.no_class')}</p>
+            <p className="text-gray-300 text-sm mt-1">{t('teacher.no_class_hint')}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -122,15 +124,15 @@ const TeacherDashboard = () => {
                     {/* Status badge */}
                     {isFull ? (
                       <span className="ml-3 shrink-0 text-[10px] font-black px-2.5 py-1 rounded-full bg-rose-100 text-rose-600 uppercase tracking-wide">
-                        Đầy lớp
+                        {t('teacher.status_full')}
                       </span>
                     ) : isNearFull ? (
                       <span className="ml-3 shrink-0 text-[10px] font-black px-2.5 py-1 rounded-full bg-amber-100 text-amber-600 uppercase tracking-wide">
-                        Gần đầy
+                        {t('teacher.status_near_full')}
                       </span>
                     ) : (
                       <span className="ml-3 shrink-0 text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-600 uppercase tracking-wide">
-                        Còn chỗ
+                        {t('teacher.status_available')}
                       </span>
                     )}
                   </div>
@@ -141,7 +143,7 @@ const TeacherDashboard = () => {
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-1.5 text-gray-500">
                         <Users size={14} />
-                        <span className="font-medium">Sĩ số</span>
+                        <span className="font-medium">{t('teacher.student_count')}</span>
                       </div>
                       <span className="font-black text-gray-700">
                         {course.activeStudentCount ?? 0}
@@ -176,7 +178,7 @@ const TeacherDashboard = () => {
                       className="w-full mt-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm shadow-blue-200"
                     >
                       <Users size={15} />
-                      Xem danh sách học sinh
+                      {t('teacher.view_students')}
                       <ChevronRight size={15} className="group-hover:translate-x-1 transition-transform" />
                     </button>
                   </div>

@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import NotificationBell from '../components/NotificationBell';
 
 const StaffLayout = () => {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user, logout } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -14,16 +14,16 @@ const StaffLayout = () => {
 
   const menuItems = isTeacher
     ? [
-        { path: '/teacher/dashboard', label: 'Trang của tôi', icon: '👤' },
-        { path: '/attendance', label: 'Chấm công', icon: '🕐' },
+        { path: '/teacher/dashboard', label: t('staff.my_page'), icon: '👤' },
+        { path: '/attendance', label: t('staff.attendance'), icon: '🕐' },
       ]
     : [
-        { path: '/marketing/dashboard',     label: 'Thông tin cá nhân', icon: '👤' },
-        { path: '/attendance',              label: 'Chấm công',          icon: '🕐' },
-        { path: '/marketing/announcements', label: 'Thông báo',          icon: '📢' },
+        { path: '/marketing/dashboard',     label: t('staff.my_info'),        icon: '👤' },
+        { path: '/attendance',              label: t('staff.attendance'),      icon: '🕐' },
+        { path: '/marketing/announcements', label: t('staff.announcements'),   icon: '📢' },
       ];
 
-  const roleLabel = isTeacher ? 'Giáo viên' : 'Marketing';
+  const roleLabel = isTeacher ? t('teacher.role_label') : 'Marketing';
 
   const sidebarGradient = isTeacher
     ? 'from-emerald-600 to-emerald-700'
@@ -166,7 +166,7 @@ const StaffLayout = () => {
         {/* User info + Logout */}
         <div className="p-4 border-t border-white/10">
           <div className="mb-3 px-1">
-            <p className="text-xs text-white/50 mb-0.5">Đăng nhập với</p>
+            <p className="text-xs text-white/50 mb-0.5">{t('staff.logged_in_as')}</p>
             <p className="text-sm font-bold text-white truncate">
               {user?.displayName || user?.username}
             </p>
@@ -176,7 +176,7 @@ const StaffLayout = () => {
             onClick={logout}
             className="w-full flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white/90 hover:text-white text-sm font-semibold transition-all"
           >
-            <span>🚪</span> Đăng xuất
+            <span>🚪</span> {t('staff.logout')}
           </button>
         </div>
       </aside>

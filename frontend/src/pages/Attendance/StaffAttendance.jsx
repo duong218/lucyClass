@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   toggleAttendance,
@@ -45,7 +46,7 @@ const getTodayVN = () => {
 };
 
 // ── Live Clock Component ───────────────────────────────────────────────────
-const LiveClock = () => {
+const LiveClock = ({ t }) => {
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {
@@ -88,7 +89,7 @@ const LiveClock = () => {
 };
 
 // ── Calendar Component ─────────────────────────────────────────────────────
-const AttendanceCalendar = ({ historyMap, onDateClick }) => {
+const AttendanceCalendar = ({ historyMap, onDateClick, t }) => {
   const [viewDate, setViewDate] = useState(new Date());
 
   const year = viewDate.getFullYear();
@@ -151,7 +152,7 @@ const AttendanceCalendar = ({ historyMap, onDateClick }) => {
 
       {/* Weekday headers */}
       <div className="grid grid-cols-7 px-3 pt-3">
-        {['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'].map(d => (
+        {(t('attendance.weekdays', { returnObjects: true })).map(d => (
           <div key={d} className="text-center text-[10px] font-bold text-gray-400 uppercase tracking-wider py-2">
             {d}
           </div>
@@ -199,15 +200,15 @@ const AttendanceCalendar = ({ historyMap, onDateClick }) => {
       <div className="px-5 pb-4 flex items-center gap-4 justify-center border-t border-gray-50 pt-3">
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded-full bg-emerald-400" />
-          <span className="text-[10px] text-gray-500 font-semibold">Đủ công</span>
+          <span className="text-[10px] text-gray-500 font-semibold">{t('attendance.legend_complete')}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded-full bg-amber-400" />
-          <span className="text-[10px] text-gray-500 font-semibold">Thiếu checkout</span>
+          <span className="text-[10px] text-gray-500 font-semibold">{t('attendance.legend_incomplete')}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded-full bg-red-300" />
-          <span className="text-[10px] text-gray-500 font-semibold">Không có dữ liệu</span>
+          <span className="text-[10px] text-gray-500 font-semibold">{t('attendance.legend_no_data')}</span>
         </div>
       </div>
     </div>
@@ -215,7 +216,7 @@ const AttendanceCalendar = ({ historyMap, onDateClick }) => {
 };
 
 // ── Day Detail Modal ───────────────────────────────────────────────────────
-const DayDetailModal = ({ isOpen, onClose, dateStr, record }) => {
+const DayDetailModal = ({ isOpen, onClose, dateStr, record, t }) => {
   useLockBodyScroll(isOpen);
   if (!isOpen) return null;
 
@@ -239,7 +240,7 @@ const DayDetailModal = ({ isOpen, onClose, dateStr, record }) => {
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h3 className="font-bold text-gray-800 text-lg">Chi tiết chấm công</h3>
+            <h3 className="font-bold text-gray-800 text-lg">{t('attendance.modal_title')}</h3>
             <p className="text-xs text-gray-400 font-medium capitalize mt-0.5">{displayDate}</p>
           </div>
           <button
@@ -254,7 +255,7 @@ const DayDetailModal = ({ isOpen, onClose, dateStr, record }) => {
         {logs.length === 0 ? (
           <div className="text-center py-8">
             <div className="text-4xl mb-2 opacity-30">📭</div>
-            <p className="text-gray-400 font-semibold text-sm">Không có dữ liệu chấm công</p>
+            <p className="text-gray-400 font-semibold text-sm">{t('attendance.modal_no_data')}</p>
           </div>
         ) : (
           <div className="space-y-3 max-h-[52vh] overflow-y-auto pr-2 custom-scrollbar">
@@ -301,7 +302,7 @@ const DayDetailModal = ({ isOpen, onClose, dateStr, record }) => {
           className="w-full mt-5 py-3 rounded-2xl font-bold text-sm transition-all"
           style={{ backgroundColor: COLORS.primary, color: '#fff' }}
         >
-          Đóng
+          {t('attendance.modal_close')}
         </button>
       </div>
     </div>
@@ -312,6 +313,7 @@ const DayDetailModal = ({ isOpen, onClose, dateStr, record }) => {
 // MAIN COMPONENT
 // ══════════════════════════════════════════════════════════════════════════
 const StaffAttendance = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
 
   const [todayRecord, setTodayRecord] = useState(null);
@@ -335,7 +337,7 @@ const StaffAttendance = () => {
       setTodayRecord(todayRes.data.data);
       setHistory(historyRes.data.data || []);
     } catch (err) {
-      setError(err?.message || 'Không thể tải dữ liệu chấm công');
+      setError(err?.message || t('attendance.error_load'));
     } finally {
       setLoading(false);
     }
@@ -359,7 +361,7 @@ const StaffAttendance = () => {
     } catch (err) {
       // api.js interceptor đã transform error response thành data object
       // nên err ở đây là { success, message } chứ không phải AxiosError
-      toast.error(err?.message || 'Lỗi chấm công, vui lòng thử lại');
+      toast.error(err?.message || t('attendance.error_toggle'));
     } finally {
       setToggling(false);
     }
@@ -420,7 +422,7 @@ const StaffAttendance = () => {
 
   return (
     <div className="space-y-6 max-w-5xl">
-      <h1 className="text-2xl font-bold text-gray-800">Chấm công</h1>
+      <h1 className="text-2xl font-bold text-gray-800">{t('attendance.title')}</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
@@ -429,7 +431,7 @@ const StaffAttendance = () => {
 
           {/* Clock & Action Card */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 flex flex-col items-center">
-            <LiveClock />
+            <LiveClock t={t} />
 
             <div className="w-full flex gap-4 mt-8">
               <button
@@ -443,7 +445,7 @@ const StaffAttendance = () => {
                 style={nextAction === 'checkin' ? { backgroundColor: COLORS.primary } : {}}
               >
                 <LogIn size={18} />
-                Check-in
+                {t('attendance.checkin')}
               </button>
               <button
                 onClick={() => nextAction === 'checkout' && handleToggle()}
@@ -456,7 +458,7 @@ const StaffAttendance = () => {
                 style={nextAction === 'checkout' ? { backgroundColor: COLORS.accentOrange } : {}}
               >
                 <LogOut size={18} />
-                Check-out
+                {t('attendance.checkout')}
               </button>
             </div>
 
@@ -467,7 +469,7 @@ const StaffAttendance = () => {
                   lastLog.type === 'checkin' ? 'bg-emerald-400 animate-pulse' : 'bg-orange-400'
                 }`} />
                 <span className="text-gray-400 font-medium">
-                  {lastLog.type === 'checkin' ? 'Đã check-in' : 'Đã check-out'} lúc{' '}
+                  {lastLog.type === 'checkin' ? t('attendance.checked_in_at') : t('attendance.checked_out_at')}{' '}
                   <span className="font-bold text-gray-600">
                     {new Date(lastLog.time).toLocaleTimeString('vi-VN', {
                       hour: '2-digit',
@@ -482,7 +484,7 @@ const StaffAttendance = () => {
             {toggling && (
               <div className="mt-4 flex items-center gap-2 text-gray-400 text-sm">
                 <div className="w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin" />
-                Đang xử lý...
+                {t('attendance.processing')}
               </div>
             )}
           </div>
@@ -490,15 +492,15 @@ const StaffAttendance = () => {
           {/* Stat Cards */}
           <div className="grid grid-cols-3 gap-4">
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <p className="text-xs font-semibold text-gray-400 mb-1">Tổng ngày</p>
+              <p className="text-xs font-semibold text-gray-400 mb-1">{t('attendance.stat_total')}</p>
               <p className="text-2xl font-black text-gray-800">{totalDays}</p>
             </div>
             <div className="rounded-2xl shadow-sm p-5 text-white" style={{ backgroundColor: COLORS.statusSuccess }}>
-              <p className="text-xs font-semibold opacity-80 mb-1">Đủ công</p>
+              <p className="text-xs font-semibold opacity-80 mb-1">{t('attendance.stat_complete')}</p>
               <p className="text-2xl font-black">{completeDays}</p>
             </div>
             <div className="rounded-2xl shadow-sm p-5 text-white" style={{ backgroundColor: COLORS.accentYellow }}>
-              <p className="text-xs font-semibold opacity-80 mb-1">Thiếu checkout</p>
+              <p className="text-xs font-semibold opacity-80 mb-1">{t('attendance.stat_incomplete')}</p>
               <p className="text-2xl font-black">{incompleteDays}</p>
             </div>
           </div>
@@ -508,7 +510,7 @@ const StaffAttendance = () => {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
               <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
                 <Clock size={16} style={{ color: COLORS.primary }} />
-                Hoạt động hôm nay
+                {t('attendance.today_activity')}
               </h3>
               <div className="space-y-2">
                 {logs.map((log, idx) => (
@@ -542,17 +544,17 @@ const StaffAttendance = () => {
 
         {/* ─── Right: Calendar + Recent History ──────────────────── */}
         <div className="lg:col-span-5 space-y-6">
-          <AttendanceCalendar historyMap={historyMap} onDateClick={handleDateClick} />
+          <AttendanceCalendar historyMap={historyMap} onDateClick={handleDateClick} t={t} />
 
           {/* Recent history list */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
               <h3 className="font-bold text-gray-800 flex items-center gap-2">
                 <History size={16} style={{ color: COLORS.primary }} />
-                Lịch sử gần đây
+                {t('attendance.recent_history')}
               </h3>
               <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-bold">
-                30 ngày
+                {t('attendance.days_30')}
               </span>
             </div>
 
@@ -560,7 +562,7 @@ const StaffAttendance = () => {
               {history.length === 0 ? (
                 <div className="py-10 text-center">
                   <div className="text-3xl opacity-20 mb-2">📋</div>
-                  <p className="text-gray-400 text-sm font-semibold">Chưa có lịch sử</p>
+                  <p className="text-gray-400 text-sm font-semibold">{t('attendance.no_history')}</p>
                 </div>
               ) : (
                 <div className="divide-y divide-gray-50">
@@ -570,7 +572,7 @@ const StaffAttendance = () => {
                     const firstIn = record.logs.find(l => l.type === 'checkin');
                     const lastOut = [...record.logs].reverse().find(l => l.type === 'checkout');
 
-                    const statusLabel = hasIn && hasOut ? 'Đủ công' : hasIn ? 'Thiếu checkout' : 'Không rõ';
+                    const statusLabel = hasIn && hasOut ? t('attendance.status_complete') : hasIn ? t('attendance.status_incomplete') : t('attendance.status_unknown');
                     const statusColor = hasIn && hasOut
                       ? 'bg-emerald-50 text-emerald-600'
                       : hasIn
@@ -638,6 +640,7 @@ const StaffAttendance = () => {
         onClose={() => setModalOpen(false)}
         dateStr={modalDate}
         record={modalRecord}
+        t={t}
       />
     </div>
   );
