@@ -419,6 +419,34 @@ const CourseStudentList = () => {
     const [rankingStudent, setRankingStudent]   = useState(null);
     const [transferStudent, setTransferStudent] = useState(null); // học viên đang chuyển lớp
 
+    // ── Column visibility (mobile) ───────────────────────────────────────
+    const ALL_COLUMNS = isTeacher
+        ? ['age', 'parent', 'phone', 'status']        // teacher: 4 optional cols (STT, Tên, Điểm danh luôn hiện)
+        : ['age', 'parent', 'phone', 'status'];        // admin: same optional cols (STT, Tên, Ranking, Actions luôn hiện)
+    const COLUMN_LABELS = { age: 'Tuổi', parent: 'Phụ huynh', phone: 'SĐT', status: 'Trạng thái' };
+    // Mặc định ẩn tuổi + phụ huynh để bảng gọn hơn trên mobile
+    const [hiddenColumns, setHiddenColumns] = useState(new Set(['age', 'parent']));
+    const [showColPicker, setShowColPicker] = useState(false);
+
+    const toggleColumn = (col) => {
+        setHiddenColumns(prev => {
+            const next = new Set(prev);
+            next.has(col) ? next.delete(col) : next.add(col);
+            return next;
+        });
+    };
+    const isColVisible = (col) => !hiddenColumns.has(col);
+
+    // Đóng dropdown khi click ra ngoài
+    useEffect(() => {
+        if (!showColPicker) return;
+        const handler = (e) => {
+            if (!e.target.closest('[data-col-picker]')) setShowColPicker(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [showColPicker]);
+
     // ── Attendance state ─────────────────────────────────────────────────
     const todayStr = new Date().toISOString().split('T')[0];
     const [selectedDate, setSelectedDate]           = useState(todayStr);
@@ -672,7 +700,7 @@ const CourseStudentList = () => {
                             className="w-full pl-10 pr-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                             value={search} onChange={e => setSearch(e.target.value)} />
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap items-center">
                         {['all', 'active', 'inactive'].map(f => {
                             const labels = { all: t('admin.filterAll'), active: t('admin.active'), inactive: t('admin.inactive') };
                             return (
@@ -682,6 +710,60 @@ const CourseStudentList = () => {
                                     }`}>{labels[f]}</button>
                             );
                         })}
+
+                        {/* ── Nút ẩn/hiện cột (mobile) ── */}
+                        <div className="relative ml-auto" data-col-picker>
+                            <button
+                                onClick={() => setShowColPicker(v => !v)}
+                                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold transition-all border ${
+                                    showColPicker
+                                        ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-100'
+                                        : 'bg-gray-50 text-gray-500 hover:bg-gray-100 border-gray-200'
+                                }`}
+                                title="Ẩn/hiện cột">
+                                <span>⚙️</span>
+                                <span className="hidden sm:inline">Cột</span>
+                                {hiddenColumns.size > 0 && (
+                                    <span className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-[10px] font-black">
+                                        {hiddenColumns.size}
+                                    </span>
+                                )}
+                            </button>
+
+                            <AnimatePresence>
+                                {showColPicker && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 6, scale: 0.95 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: 6, scale: 0.95 }}
+                                        transition={{ duration: 0.15 }}
+                                        className="absolute right-0 top-full mt-2 z-50 bg-white rounded-2xl shadow-2xl border border-gray-100 p-3 min-w-[160px]">
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 px-1">Hiện/Ẩn cột</p>
+                                        {ALL_COLUMNS.map(col => (
+                                            <button key={col} onClick={() => toggleColumn(col)}
+                                                className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-bold transition-all mb-1 last:mb-0 ${
+                                                    isColVisible(col)
+                                                        ? 'bg-blue-50 text-blue-700'
+                                                        : 'bg-gray-50 text-gray-400'
+                                                }`}>
+                                                <span className={`w-4 h-4 rounded flex items-center justify-center text-[10px] font-black shrink-0 ${
+                                                    isColVisible(col) ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-400'
+                                                }`}>
+                                                    {isColVisible(col) ? '✓' : ''}
+                                                </span>
+                                                {COLUMN_LABELS[col]}
+                                            </button>
+                                        ))}
+                                        <div className="border-t border-gray-100 mt-2 pt-2">
+                                            <button onClick={() => setHiddenColumns(new Set())}
+                                                className="w-full text-xs font-bold text-blue-500 hover:text-blue-700 py-1 transition-all">
+                                                Hiện tất cả
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
                     </div>
                 </div>
 
@@ -691,10 +773,10 @@ const CourseStudentList = () => {
                             <tr className="text-left border-b text-gray-400 text-xs uppercase tracking-wider font-extrabold">
                                 <th className="pb-4 px-4">STT</th>
                                 <th className="pb-4 px-4">{t('admin.child')}</th>
-                                <th className="pb-4 px-4">{t('admin.age')}</th>
-                                <th className="pb-4 px-4">{t('admin.parent')}</th>
-                                <th className="pb-4 px-4">{t('admin.phone')}</th>
-                                <th className="pb-4 px-4">{t('admin.status')}</th>
+                                {isColVisible('age') && <th className="pb-4 px-4">{t('admin.age')}</th>}
+                                {isColVisible('parent') && <th className="pb-4 px-4">{t('admin.parent')}</th>}
+                                {isColVisible('phone') && <th className="pb-4 px-4">{t('admin.phone')}</th>}
+                                {isColVisible('status') && <th className="pb-4 px-4">{t('admin.status')}</th>}
                                 {isTeacher ? (
                                     <th className="pb-4 px-4 text-center">Điểm danh</th>
                                 ) : (
@@ -708,7 +790,7 @@ const CourseStudentList = () => {
                         <tbody className="divide-y divide-gray-50">
                             {filteredStudents.length === 0 ? (
                                 <tr>
-                                    <td colSpan={isTeacher ? 7 : 8} className="py-12 text-center text-gray-400">
+                                    <td colSpan={(isTeacher ? 3 : 4) + (ALL_COLUMNS.length - hiddenColumns.size)} className="py-12 text-center text-gray-400">
                                         {t('admin.emptyStudents')}
                                     </td>
                                 </tr>
@@ -727,9 +809,10 @@ const CourseStudentList = () => {
                                                 />
                                             </div>
                                         </td>
-                                        <td className="py-5 px-4 text-sm text-gray-600 font-medium">{s.childAge}</td>
-                                        <td className="py-5 px-4 text-sm text-gray-600 font-medium">{s.parentName}</td>
-                                        <td className="py-5 px-4 text-sm text-gray-600 font-medium font-mono">{s.phone}</td>
+                                        {isColVisible('age') && <td className="py-5 px-4 text-sm text-gray-600 font-medium">{s.childAge}</td>}
+                                        {isColVisible('parent') && <td className="py-5 px-4 text-sm text-gray-600 font-medium">{s.parentName}</td>}
+                                        {isColVisible('phone') && <td className="py-5 px-4 text-sm text-gray-600 font-medium font-mono">{s.phone}</td>}
+                                        {isColVisible('status') && (
                                         <td className="py-5 px-4">
                                             <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tight ${
                                                 s.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'
@@ -737,6 +820,7 @@ const CourseStudentList = () => {
                                                 {s.isActive ? t('admin.active') : t('admin.inactive')}
                                             </span>
                                         </td>
+                                        )}
 
                                         {isTeacher ? (
                                             <td className="py-5 px-4">
