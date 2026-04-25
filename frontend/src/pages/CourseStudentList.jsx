@@ -467,6 +467,34 @@ const CourseStudentList = () => {
         if (isTeacher && courseId) fetchAttendance(selectedDate);
     }, [selectedDate, courseId, isTeacher]);
 
+    // ── Polling đồng bộ điểm danh mỗi 5s ───────────────────────────────────
+    // Tự động fetch lại để đồng bộ khi giáo viên phụ đã lưu điểm danh
+    // Không overwrite khi đang có thay đổi chưa lưu (attendanceDirty = true)
+    useEffect(() => {
+        if (!isTeacher || !courseId) return;
+
+        const poll = async () => {
+            if (attendanceDirty) return;
+            try {
+                const res = await api.get(`/courses/${courseId}/attendance`, {
+                    params: { date: selectedDate }
+                });
+                if (res.data.success) {
+                    const map = {};
+                    (res.data.data.records || []).forEach(r => {
+                        map[r.studentId?.toString?.() || r.studentId] = r.status;
+                    });
+                    setAttendanceMap(map);
+                }
+            } catch {
+                // poll thất bại thì im lặng, không hiện toast
+            }
+        };
+
+        const intervalId = setInterval(poll, 5000);
+        return () => clearInterval(intervalId);
+    }, [isTeacher, courseId, selectedDate, attendanceDirty]);
+
     // Fetch danh sách tất cả courses để TransferBadge resolve tên (chỉ admin cần)
     useEffect(() => {
         if (!isTeacher) {

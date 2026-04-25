@@ -10,6 +10,7 @@ import {
   reviveStreak
 } from '../services/streakService';
 import { useDraggableStreak } from "../utils/draggableStreak";
+import { useLocation } from 'react-router-dom';
 
 /**
  * Gets date in YYYY-MM-DD format (Vietnam timezone)
@@ -33,7 +34,6 @@ const FlameButton = () => {
   const { elementRef, hasMoved } = useDraggableStreak();
   const location = useLocation();
 
-  if (location.pathname !== '/') return null; //chỉ hiện streak ở trang Home
   const [isOpen, setIsOpen] = useState(false);
   const [isBouncing, setIsBouncing] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -339,6 +339,9 @@ const FlameButton = () => {
     userData.lastCheckin !== threeDaysAgo;
 
   const isMilestone = FIREWORK_MILESTONES.includes(userData?.streakCount);
+
+  // Chỉ hiện ở trang chủ
+  if (location.pathname !== '/') return null;
 
   return (
     <>
