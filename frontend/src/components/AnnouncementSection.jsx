@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 
 import { getImageUrl } from '../utils/getImageUrl';
-import { openModal, closeModal } from '../utils/modalScrollLock';
-// Lazy load modal
+import AnnouncementListModal from './AnnouncementListModal';
+// Lazy load modal chi tiet (dung cho card click truc tiep)
 const AnnouncementModal = lazy(() => import('./AnnouncementModal'));
 
 const AnnouncementSection = () => {
@@ -31,19 +31,6 @@ const AnnouncementSection = () => {
     fetchAnnouncements();
   }, []);
 
-  useEffect(() => {
-    if (openAll) {
-      openModal();
-    } else {
-      closeModal();
-    }
-
-    return () => {
-      if (openAll) {
-        closeModal();
-      }
-    };
-  }, [openAll]);
 
 
   const handleImageError = (e) => {
@@ -253,74 +240,10 @@ const AnnouncementSection = () => {
             </button>
           </div>
 
-          {/* View All Modal */}
-          {openAll && (
-            <div 
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4"
-              onClick={() => setOpenAll(false)}
-            >
-                <div 
-                  className="bg-white rounded-[40px] p-8 w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col shadow-heavy border-4 border-primary-100 overscroll-contain"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-gray-800">
-                    {t("announcements.all", "Tất cả thông báo")}
-                  </h2>
-                  <button 
-                    onClick={() => setOpenAll(false)}
-                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                <div className="overflow-y-auto pr-2 custom-scrollbar">
-                  <div className="space-y-6 pb-4">
-                    {latestTen.map((item) => (
-                      <div 
-                        key={item._id} 
-                        className="group/item flex gap-6 p-4 rounded-3xl hover:bg-primary-50 transition-all border border-transparent hover:border-primary-100 cursor-pointer"
-                        onClick={() => {
-                          setSelectedAnnouncement(item);
-                          setOpenAll(false);
-                        }}
-                      >
-                        <div className="w-24 h-24 flex-shrink-0 overflow-hidden rounded-2xl shadow-sm">
-                          <img 
-                            src={getImageUrl(item.image)} 
-                            alt={item.title}
-                            className="w-full h-full object-cover group-hover/item:scale-110 transition-transform duration-500"
-                            onError={handleImageError}
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-display font-black text-gray-800 mb-2 group-hover/item:text-primary-500 transition-colors uppercase text-sm tracking-tight">
-                            {item.title}
-                          </h4>
-                          <p className="text-sm text-gray-500 font-medium line-clamp-2">
-                            {item.description}
-                          </p>
-                          <span className="text-[10px] text-primary-400 font-black tracking-widest uppercase mt-3 inline-block">
-                            {new Date(item.createdAt).toLocaleDateString()}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex justify-end mt-6 pt-4 border-t border-gray-100 dark:border-slate-700">
-                  <button
-                    onClick={() => setOpenAll(false)}
-                    className="px-10 py-3 bg-gray-100 text-gray-700 rounded-full font-black uppercase tracking-widest hover:bg-primary-50 transition-all"
-                  >
-                    {t("common.close", "Đóng")}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          <AnnouncementListModal
+            isOpen={openAll}
+            onClose={() => setOpenAll(false)}
+          />
         </div>
       </div>
 
