@@ -6,6 +6,9 @@ const { uploadImageBuffer, deleteImageFromCloudinary } = require('../utils/cloud
 const { cleanInput } = require('../utils/sanitize');
 const { clearCache } = require('../middlewares/cacheMiddleware');
 
+// Các field nội bộ không được trả về public API
+const EXCLUDED_FIELDS = '-staffAccountId -avatarPublicId -isDeleted -deletedAt';
+
 function pickTeacherInput(body) {
   if (!body || typeof body !== 'object') return {};
   return {
@@ -43,7 +46,10 @@ function parseRatingStrict(raw) {
 // GET /api/teachers
 exports.getAll = async (req, res, next) => {
   try {
-    const teachers = await Teacher.find({ isDeleted: { $ne: true } }).sort({ createdAt: -1 });
+    const teachers = await Teacher
+      .find({ isDeleted: { $ne: true } })
+      .select(EXCLUDED_FIELDS)
+      .sort({ createdAt: -1 });
     return res.json({ success: true, data: teachers });
   } catch (error) {
     next(error);
@@ -57,7 +63,9 @@ exports.getById = async (req, res, next) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ success: false, message: 'Invalid ID format' });
     }
-    const teacher = await Teacher.findOne({ _id: id, isDeleted: { $ne: true } });
+    const teacher = await Teacher
+      .findOne({ _id: id, isDeleted: { $ne: true } })
+      .select(EXCLUDED_FIELDS);
     if (!teacher) return res.status(404).json({ success: false, message: 'Teacher not found' });
     return res.status(200).json({ success: true, data: teacher });
   } catch (error) {
@@ -141,9 +149,10 @@ exports.create = async (req, res) => {
       req
     });
 
+    // toJSON transform trên schema sẽ tự strip staffAccountId, avatarPublicId, ...
     return res.status(201).json({
       success: true,
-      data: teacher,
+      data: teacher.toJSON(),
       message: 'Teacher created successfully',
       // Trả về thông tin tài khoản để admin thông báo cho giáo viên — chỉ xuất hiện 1 lần
       staffAccount: {
@@ -275,7 +284,9 @@ exports.update = async (req, res) => {
       clearCache('/api/teachers'),
       clearCache('/api/courses')
     ]);
-    return res.json({ success: true, data: teacher, message: 'Teacher updated successfully' });
+
+    // toJSON transform trên schema sẽ tự strip staffAccountId, avatarPublicId, ...
+    return res.json({ success: true, data: teacher.toJSON(), message: 'Teacher updated successfully' });
   } catch (error) {
     // Rollback newly uploaded image if DB update fails
     if (!dbUpdated && uploadResult?.public_id) {

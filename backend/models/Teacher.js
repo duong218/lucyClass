@@ -61,4 +61,15 @@ const teacherSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Ẩn các field nội bộ khỏi mọi JSON response trả về client
+teacherSchema.set('toJSON', {
+  transform: (doc, ret) => {
+    delete ret.staffAccountId; // ID nội bộ liên kết StaffAccount, không được public
+    delete ret.avatarPublicId; // ID nội bộ Cloudinary
+    delete ret.isDeleted;
+    delete ret.deletedAt;
+    return ret;
+  }
+});
+
 module.exports = mongoose.model('Teacher', teacherSchema);

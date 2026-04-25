@@ -1,5 +1,19 @@
 const AuditLog = require('../models/AuditLog');
-const { Parser } = require('json2csv');
+
+/**
+ * Sanitize một cell CSV để chống Excel Formula Injection.
+ * Nếu giá trị bắt đầu bằng =, +, -, @, Tab, CR thì Excel sẽ hiểu là công thức.
+ * Fix: prefix bằng dấu ' (apostrophe) để Excel treat as plain text.
+ */
+function sanitizeCsvCell(value) {
+  if (value == null) return '""';
+  let str = String(value);
+  if (/^[=+\-@\t\r]/.test(str)) {
+    str = "'" + str;
+  }
+  // Wrap trong double-quotes và escape dấu " bên trong
+  return `"${str.replace(/"/g, '""')}"`;
+}
 
 // GET /api/admin/history
 exports.getHistory = async (req, res, next) => {
@@ -90,29 +104,26 @@ exports.getStats = async (req, res, next) => {
 exports.exportCSV = async (req, res, next) => {
   try {
     const logs = await AuditLog.find().sort({ createdAt: -1 });
-    
-    // Simple manual CSV conversion if json2csv is not available, 
-    // but I'll try to use a standard format.
-    const fields = ['createdAt', 'adminName', 'action', 'targetType', 'description', 'ipAddress', 'suspicious'];
-    const csvRows = [];
-    
-    // Header
-    csvRows.push(fields.join(','));
-    
-    // Data
+
+    const headers = ['Thời gian', 'Quản trị viên', 'Thao tác', 'Loại đối tượng', 'Mô tả', 'Địa chỉ IP', 'Trạng thái'];
+    const csvRows = [headers.map(h => sanitizeCsvCell(h)).join(',')];
+
     for (const log of logs) {
-      const row = fields.map(field => {
-        let val = log[field];
-        if (field === 'createdAt') val = new Date(val).toLocaleString();
-        if (typeof val === 'string') val = `"${val.replace(/"/g, '""')}"`;
-        return val;
-      });
+      const row = [
+        sanitizeCsvCell(new Date(log.createdAt).toLocaleString('vi-VN')),
+        sanitizeCsvCell(log.adminName),
+        sanitizeCsvCell(log.action),
+        sanitizeCsvCell(log.targetType),
+        sanitizeCsvCell(log.description), // field nguy hiểm nhất — chứa input từ user
+        sanitizeCsvCell(log.ipAddress),
+        sanitizeCsvCell(log.suspicious ? 'Khả nghi' : 'Bình thường'),
+      ];
       csvRows.push(row.join(','));
     }
-    
-    const csvContent = csvRows.join('\n');
-    
-    res.setHeader('Content-Type', 'text/csv');
+
+    const csvContent = '\uFEFF' + csvRows.join('\n'); // BOM để Excel mở đúng UTF-8 tiếng Việt
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename=admin_activity_history.csv');
     res.status(200).send(csvContent);
   } catch (error) {
