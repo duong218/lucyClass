@@ -377,7 +377,11 @@
     "lost_streak_hint": "💔 Chuỗi của con đã bị ngắt rồi...",
     "lost_streak_desc": "Chúng mình cùng bắt đầu lại từ hôm nay nha!",
     "title": "Chuỗi Học Tập",
-    "subtitle": "Xếp hạng streak tuần này"
+    "subtitle": "Xếp hạng streak tuần này",
+    "error_revive_expired": "Bạn đã quá thời hạn cho phép khôi phục chuỗi này 😢",
+    "error_revive_used": "Bạn đã dùng lượt khôi phục cho chuỗi này rồi 🎟️",
+    "revive_used_banner": "Đã dùng lượt khôi phục",
+    "revive_used_banner_desc": "Bạn đã dùng 1 lượt cứu streak cho chuỗi hiện tại rồi nhé!"
   },
   "ranking": {
     "title": "Học Viên Xuất Sắc",

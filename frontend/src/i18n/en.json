@@ -377,7 +377,11 @@
     "lost_streak_hint": "💔 Your streak has been broken...",
     "lost_streak_desc": "Let's start fresh from today!",
     "title": "Learning Streak",
-    "subtitle": "This week's streak ranking"
+    "subtitle": "This week's streak ranking",
+    "error_revive_expired": "Your streak is past the recovery window 😢",
+    "error_revive_used": "You've already used your revival for this streak 🎟️",
+    "revive_used_banner": "Revival already used",
+    "revive_used_banner_desc": "You already used your one streak revival for this run!"
   },
   "ranking": {
     "title": "Outstanding Students",

@@ -189,7 +189,7 @@ exports.getStreak = async (req, res) => {
     return res.json({
       success: true,
       data: formatUser(user),
-      streakExpired: diffDays >= 4,
+      streakExpired: diffDays >= 6,
       diffDays,
       today
     });
@@ -253,7 +253,7 @@ exports.checkIn = async (req, res) => {
       }
     }
     // CASE 3: Need revive (missed 1-2 days)
-    else if ((diffDays === 2 || diffDays === 3) && !forceReset) {
+    else if ((diffDays >= 2 && diffDays <= 5) && !forceReset) {
       return res.json({
         success: true,
         needRevive: true,
@@ -279,7 +279,7 @@ exports.checkIn = async (req, res) => {
     return res.json({
       success: true,
       data: formatUser(user),
-      message: diffDays >= 4 ? 'Chuỗi đã bị reset do không hoạt động quá lâu' : 'Check-in thành công'
+      message: diffDays >= 6 ? 'Chuỗi đã bị reset do không hoạt động quá lâu' : 'Check-in thành công'
     });
   } catch (_error) {
     console.error('Checkin Error:', _error);
@@ -316,7 +316,7 @@ exports.reviveStreak = async (req, res) => {
     const diffDays = calculateDiffDays(user.lastCheckin, today);
 
     // VALIDATE: 2-3 days gap and revive not used
-    if ((diffDays === 2 || diffDays === 3) && !user.reviveUsed) {
+    if ((diffDays >= 2 && diffDays <= 5) && !user.reviveUsed) {
       // Atomic update for revive
       const updatedUser = await Streak.findOneAndUpdate({
         phone,

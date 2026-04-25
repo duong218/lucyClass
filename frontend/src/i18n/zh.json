@@ -377,7 +377,11 @@
     "lost_streak_hint": "💔 您的学习记录已中断...",
     "lost_streak_desc": "让我们从今天重新开始吧！",
     "title": "学习记录",
-    "subtitle": "本周学习记录排名"
+    "subtitle": "本周学习记录排名",
+    "error_revive_expired": "您的连续记录已超过可恢复的时间范围 😢",
+    "error_revive_used": "您已经使用过本次连续记录的复活机会了 🎟️",
+    "revive_used_banner": "复活机会已使用",
+    "revive_used_banner_desc": "您已经用过一次复活机会了，加油保持吧！"
   },
   "ranking": {
     "title": "优秀学生",

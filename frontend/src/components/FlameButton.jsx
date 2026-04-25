@@ -299,6 +299,18 @@ const FlameButton = () => {
 
   const handleRevive = async () => {
     if (loading) return;
+
+    // Guard: streak quá hạn khôi phục (>= 6 ngày)
+    if (isReviveExpired) {
+      setErrorMsg(t('streak.error_revive_expired'));
+      return;
+    }
+    // Guard: đã dùng lượt khôi phục rồi
+    if (reviveAlreadyUsed) {
+      setErrorMsg(t('streak.error_revive_used'));
+      return;
+    }
+
     setLoading(true);
     setErrorMsg('');
     const res = await reviveStreak(savedPhone);
@@ -306,7 +318,7 @@ const FlameButton = () => {
       setUserData(res.data);
       handleReviveModalClose();
     } else {
-      setErrorMsg(res.message || t('streak.unknown_error'));
+      setErrorMsg(res.message || t("streak.unknown_error"));
     }
     setLoading(false);
   };
@@ -322,21 +334,29 @@ const FlameButton = () => {
   };
 
   const today = getVNDate(0);
-  const twoDaysAgo = getVNDate(-2);
-  const threeDaysAgo = getVNDate(-3);
 
   const hasCheckedInToday = userData?.lastCheckin === today;
 
-  const isRevivableDate =
-    userData?.lastCheckin === twoDaysAgo ||
-    userData?.lastCheckin === threeDaysAgo;
-  const canRevive = isRevivableDate && !userData?.reviveUsed;
+  // Calculate diffDays on client (same logic as BE: YYYY-MM-DD UTC diff)
+  const calcDiffDays = (lastCheckin) => {
+    if (!lastCheckin) return 999;
+    const last = new Date(lastCheckin + 'T00:00:00Z');
+    const curr = new Date(today + 'T00:00:00Z');
+    return Math.round((curr - last) / (1000 * 60 * 60 * 24));
+  };
 
-  const hasMultipleMissed = userData?.lastCheckin &&
-    userData.lastCheckin !== today &&
-    userData.lastCheckin !== getVNDate(-1) &&
-    userData.lastCheckin !== twoDaysAgo &&
-    userData.lastCheckin !== threeDaysAgo;
+  const diffDays = calcDiffDays(userData?.lastCheckin);
+
+  // In revive window (2–5 days missed) — matches BE validation exactly
+  const isInReviveWindow = diffDays >= 2 && diffDays <= 5;
+  // Past the revive window entirely (>= 6 days)
+  const isReviveExpired = diffDays >= 6;
+
+  const canRevive = isInReviveWindow && !userData?.reviveUsed;
+  // Already used revive token while still in window
+  const reviveAlreadyUsed = isInReviveWindow && userData?.reviveUsed;
+
+  const hasMultipleMissed = isReviveExpired;
 
   const isMilestone = FIREWORK_MILESTONES.includes(userData?.streakCount);
 
@@ -600,6 +620,17 @@ const FlameButton = () => {
                       </div>
                     )}
 
+                    {reviveAlreadyUsed && (
+                      <div className="bg-amber-50 border-2 border-amber-100 rounded-xl md:rounded-[2rem] p-3 text-center">
+                        <p className="text-amber-600 text-[12px] md:text-[13px] font-black flex items-center justify-center gap-1">
+                          <span>🎟️</span> <span>{t('streak.revive_used_banner')}</span>
+                        </p>
+                        <p className="text-amber-400 text-[10px] md:text-[11px] font-bold mt-0.5">
+                          {t('streak.revive_used_banner_desc')}
+                        </p>
+                      </div>
+                    )}
+
                     {hasMultipleMissed && (
                       <div className="bg-orange-50 border-2 border-orange-100 rounded-xl md:rounded-[2rem] p-3 text-center">
                         <p className="text-orange-600 text-[12px] md:text-[13px] font-black">
@@ -612,6 +643,7 @@ const FlameButton = () => {
                     )}
 
                     <div className="flex flex-col max-md:gap-2.5 gap-2.5 mt-auto">
+                      {/* Revive button: only shown when actually revivable */}
                       {canRevive && (
                         <button
                           onClick={handleRevive}
