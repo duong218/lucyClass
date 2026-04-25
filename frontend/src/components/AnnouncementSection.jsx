@@ -83,6 +83,205 @@ const AnnouncementSection = () => {
       className="relative py-24 px-6 overflow-hidden bg-white border-t border-primary-50 isolate z-0 font-sans"
     >
 
+      {/* ═══════════════════════════════════════════════════════════════════
+          MILKY WAY BACKGROUND — Desktop Only, purely decorative
+          All pointer-events: none, z-index below content
+      ═══════════════════════════════════════════════════════════════════ */}
+      <div className="hidden lg:block absolute inset-0 pointer-events-none overflow-hidden z-0">
+
+        {/* Milky Way arc — soft diagonal aurora band */}
+        <div
+          className="absolute"
+          style={{
+            top: '-10%', left: '-5%', width: '110%', height: '70%',
+            background: 'linear-gradient(125deg, rgba(147,197,253,0.70) 0%, rgba(196,181,253,0.65) 35%, rgba(249,168,212,0.55) 65%, rgba(253,230,138,0.50) 100%)',
+            borderRadius: '0 0 60% 40%',
+            filter: 'blur(48px)',
+            transform: 'rotate(-8deg)',
+          }}
+        />
+
+        {/* Secondary aurora ribbon — bottom */}
+        <div
+          className="absolute"
+          style={{
+            bottom: '-5%', right: '-5%', width: '80%', height: '45%',
+            background: 'linear-gradient(300deg, rgba(167,139,250,0.50) 0%, rgba(110,231,183,0.40) 50%, rgba(96,165,250,0.50) 100%)',
+            borderRadius: '40% 0 0 60%',
+            filter: 'blur(56px)',
+          }}
+        />
+
+        {/* Star field — tiny twinkling dots */}
+        {[
+          { top:'8%', left:'7%', size:5, delay:'0s', color:'#3b82f6' },
+          { top:'14%', left:'18%', size:6, delay:'0.8s', color:'#8b5cf6' },
+          { top:'6%', left:'32%', size:5, delay:'1.4s', color:'#f59e0b' },
+          { top:'18%', left:'48%', size:7, delay:'0.3s', color:'#ec4899' },
+          { top:'9%', left:'62%', size:5, delay:'2.1s', color:'#10b981' },
+          { top:'22%', left:'75%', size:6, delay:'0.6s', color:'#3b82f6' },
+          { top:'7%', left:'88%', size:5, delay:'1.8s', color:'#8b5cf6' },
+          { top:'32%', left:'5%', size:6, delay:'1.1s', color:'#f59e0b' },
+          { top:'38%', left:'92%', size:5, delay:'0.4s', color:'#ec4899' },
+          { top:'55%', left:'3%', size:7, delay:'2.5s', color:'#3b82f6' },
+          { top:'60%', left:'94%', size:6, delay:'1.3s', color:'#8b5cf6' },
+          { top:'72%', left:'8%', size:5, delay:'0.9s', color:'#10b981' },
+          { top:'78%', left:'88%', size:6, delay:'2.0s', color:'#f59e0b' },
+          { top:'85%', left:'20%', size:5, delay:'0.2s', color:'#ec4899' },
+          { top:'88%', left:'72%', size:7, delay:'1.6s', color:'#3b82f6' },
+        ].map((star, i) => (
+          <div
+            key={i}
+            className="absolute rounded-full animate-twinkle-slower"
+            style={{
+              top: star.top, left: star.left,
+              width: star.size, height: star.size,
+              background: star.color,
+              boxShadow: `0 0 ${star.size * 4}px ${star.color}, 0 0 ${star.size * 2}px ${star.color}`,
+              animationDelay: star.delay,
+            }}
+          />
+        ))}
+
+        {/* Sparkle ✦ stars — larger decorative */}
+        {[
+          { top:'12%', left:'12%', size:'1.6rem', color:'#7c3aed', delay:'0s' },
+          { top:'20%', left:'55%', size:'1.3rem', color:'#2563eb', delay:'1.2s' },
+          { top:'10%', left:'78%', size:'1.5rem', color:'#db2777', delay:'0.6s' },
+          { top:'45%', left:'2%', size:'1.4rem', color:'#059669', delay:'2.0s' },
+          { top:'50%', left:'96%', size:'1.3rem', color:'#d97706', delay:'0.9s' },
+          { top:'75%', left:'14%', size:'1.5rem', color:'#4f46e5', delay:'1.5s' },
+          { top:'82%', left:'80%', size:'1.4rem', color:'#e11d48', delay:'0.3s' },
+        ].map((sp, i) => (
+          <span
+            key={i}
+            className="absolute animate-twinkle-slower"
+            style={{
+              top: sp.top, left: sp.left,
+              fontSize: sp.size, color: sp.color,
+              lineHeight: 1,
+              animationDelay: sp.delay,
+              filter: `drop-shadow(0 0 6px ${sp.color}) drop-shadow(0 0 10px ${sp.color})`,
+            }}
+          >✦</span>
+        ))}
+
+        {/* Floating educational icons — SVG inline, gentle drift */}
+        {/* Book — top left zone */}
+        <div className="absolute animate-float-around" style={{ top:'15%', left:'3%', animationDelay:'0.5s', opacity:0.90 }}>
+          <svg width="38" height="38" viewBox="0 0 38 38" fill="none">
+            <rect x="4" y="6" width="22" height="26" rx="3" fill="#60a5fa" stroke="#2563eb" strokeWidth="1.5"/>
+            <rect x="8" y="6" width="3" height="26" rx="1.5" fill="#1d4ed8"/>
+            <line x1="12" y1="14" x2="22" y2="14" stroke="#eff6ff" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="12" y1="19" x2="22" y2="19" stroke="#eff6ff" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="12" y1="24" x2="18" y2="24" stroke="#eff6ff" strokeWidth="1.5" strokeLinecap="round"/>
+            <text x="28" y="12" fontSize="10" fill="#f59e0b">★</text>
+          </svg>
+        </div>
+
+        {/* Pencil — top right zone */}
+        <div className="absolute animate-float-around" style={{ top:'8%', right:'4%', animationDelay:'1.8s', opacity:0.88 }}>
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+            <rect x="15" y="4" width="7" height="22" rx="2" fill="#a78bfa" stroke="#7c3aed" strokeWidth="1.5" transform="rotate(35 18 15)"/>
+            <polygon points="11,28 18,14 22,17" fill="#fef3c7" stroke="#d97706" strokeWidth="1"/>
+            <rect x="15" y="4" width="7" height="4" rx="2" fill="#ec4899" transform="rotate(35 18 15)"/>
+          </svg>
+        </div>
+
+        {/* Lightbulb — left mid zone */}
+        <div className="absolute animate-float-around" style={{ top:'48%', left:'1.5%', animationDelay:'2.8s', opacity:0.88 }}>
+          <svg width="34" height="40" viewBox="0 0 34 40" fill="none">
+            <ellipse cx="17" cy="15" rx="11" ry="12" fill="#fde68a" stroke="#d97706" strokeWidth="1.5"/>
+            <rect x="12" y="25" width="10" height="4" rx="2" fill="#9ca3af" stroke="#6b7280" strokeWidth="1"/>
+            <rect x="13" y="29" width="8" height="3" rx="1.5" fill="#6b7280"/>
+            <line x1="17" y1="6" x2="17" y2="4" stroke="#d97706" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="8" y1="9" x2="6.5" y2="7.5" stroke="#d97706" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="26" y1="9" x2="27.5" y2="7.5" stroke="#d97706" strokeWidth="1.5" strokeLinecap="round"/>
+            <ellipse cx="17" cy="17" rx="5" ry="6" fill="#fbbf24" opacity="0.9"/>
+          </svg>
+        </div>
+
+        {/* Rocket — right mid zone */}
+        <div className="absolute animate-float-around" style={{ top:'42%', right:'1.5%', animationDelay:'0.7s', opacity:0.88 }}>
+          <svg width="34" height="40" viewBox="0 0 34 40" fill="none">
+            <path d="M17 4 C12 10 10 18 10 24 L17 28 L24 24 C24 18 22 10 17 4Z" fill="#818cf8" stroke="#4f46e5" strokeWidth="1.5"/>
+            <ellipse cx="17" cy="21" rx="4" ry="4" fill="#312e81" opacity="0.85"/>
+            <path d="M10 24 L6 30 L10 28Z" fill="#ef4444"/>
+            <path d="M24 24 L28 30 L24 28Z" fill="#ef4444"/>
+            <path d="M13 28 C13 32 14 35 17 36 C20 35 21 32 21 28Z" fill="#fb923c" opacity="0.95"/>
+          </svg>
+        </div>
+
+        {/* Musical note — bottom left */}
+        <div className="absolute animate-float-around" style={{ bottom:'14%', left:'4%', animationDelay:'1.4s', opacity:0.88 }}>
+          <svg width="30" height="34" viewBox="0 0 30 34" fill="none">
+            <path d="M14 6 L22 4 L22 12 L14 14 Z" fill="#f472b6" stroke="#be185d" strokeWidth="1.2"/>
+            <line x1="14" y1="14" x2="14" y2="26" stroke="#be185d" strokeWidth="1.5" strokeLinecap="round"/>
+            <ellipse cx="11" cy="26" rx="4" ry="3" fill="#f472b6" stroke="#be185d" strokeWidth="1.2"/>
+          </svg>
+        </div>
+
+        {/* Globe — bottom right */}
+        <div className="absolute animate-float-around" style={{ bottom:'12%', right:'3%', animationDelay:'2.2s', opacity:0.88 }}>
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+            <circle cx="18" cy="18" r="13" fill="#6ee7b7" stroke="#059669" strokeWidth="1.5"/>
+            <ellipse cx="18" cy="18" rx="6" ry="13" fill="none" stroke="#047857" strokeWidth="1" opacity="0.9"/>
+            <line x1="5" y1="18" x2="31" y2="18" stroke="#047857" strokeWidth="1" opacity="0.9"/>
+            <line x1="7" y1="12" x2="29" y2="12" stroke="#047857" strokeWidth="0.8" opacity="0.7"/>
+            <line x1="7" y1="24" x2="29" y2="24" stroke="#047857" strokeWidth="0.8" opacity="0.7"/>
+          </svg>
+        </div>
+
+        {/* Floating color bubbles — scattered, translucent */}
+        {[
+          { top:'25%', left:'8%', w:70, h:70, bg:'rgba(96,165,250,0.55)', delay:'0.3s' },
+          { top:'65%', left:'6%', w:50, h:50, bg:'rgba(167,139,250,0.52)', delay:'1.7s' },
+          { top:'35%', right:'6%', w:80, h:80, bg:'rgba(244,114,182,0.48)', delay:'0.9s' },
+          { top:'70%', right:'5%', w:55, h:55, bg:'rgba(52,211,153,0.50)', delay:'2.4s' },
+          { top:'50%', left:'88%', w:40, h:40, bg:'rgba(251,191,36,0.55)', delay:'1.1s' },
+          { bottom:'6%', left:'42%', w:60, h:60, bg:'rgba(129,140,248,0.48)', delay:'0.6s' },
+        ].map((b, i) => (
+          <div
+            key={i}
+            className="absolute rounded-full animate-float-around"
+            style={{
+              top: b.top, left: b.left, right: b.right, bottom: b.bottom,
+              width: b.w, height: b.h,
+              background: b.bg,
+              border: '2px solid rgba(255,255,255,0.8)',
+              animationDelay: b.delay,
+            }}
+          />
+        ))}
+
+        {/* Confetti dots — tiny scattered colorful circles */}
+        {[
+          { top:'30%', left:'16%', s:10, c:'#f59e0b' },
+          { top:'42%', left:'11%', s:8, c:'#ec4899' },
+          { top:'56%', left:'15%', s:11, c:'#10b981' },
+          { top:'28%', right:'12%', s:9, c:'#8b5cf6' },
+          { top:'58%', right:'10%', s:10, c:'#3b82f6' },
+          { top:'15%', left:'42%', s:8, c:'#ef4444' },
+          { bottom:'20%', left:'30%', s:11, c:'#f59e0b' },
+          { bottom:'28%', right:'28%', s:9, c:'#7c3aed' },
+          { top:'3%', left:'55%', s:8, c:'#059669' },
+        ].map((dot, i) => (
+          <div
+            key={i}
+            className="absolute rounded-full animate-float-around"
+            style={{
+              top: dot.top, left: dot.left, right: dot.right, bottom: dot.bottom,
+              width: dot.s, height: dot.s,
+              background: dot.c,
+              opacity: 0.85,
+              animationDelay: `${i * 0.35}s`,
+            }}
+          />
+        ))}
+
+      </div>
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+
       <div className="relative group max-w-7xl mx-auto">
         {/* OUTER GLOW LAYER (soft pastel gradient) */}
         <div
