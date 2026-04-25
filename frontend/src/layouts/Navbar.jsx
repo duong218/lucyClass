@@ -79,8 +79,8 @@ const Navbar = () => {
           <div
             className="relative flex items-center justify-center rounded-full overflow-hidden shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105"
             style={{
-              width: 48,
-              height: 48,
+              width: 64,
+              height: 64,
               background: "#1C695C",
               border: "2.5px solid #3FA48F",
               flexShrink: 0,

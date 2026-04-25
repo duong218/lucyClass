@@ -21,8 +21,41 @@ const Footer = () => {
 
         {/* Brand & Social */}
         <div>
-          <div className="bg-white px-4 py-2 rounded-full shadow-sm font-display font-bold text-xl inline-flex items-center gap-2 mb-6">
-            Lucy's Class
+          {/* ── Brand block — đồng nhất với Navbar ── */}
+          <div className="inline-flex items-center gap-3 bg-white rounded-full px-4 py-2.5 shadow-md border mb-6" style={{ borderColor: "#3FA48F30" }}>
+            {/* Logo circle */}
+            <div
+              className="relative flex items-center justify-center rounded-full overflow-hidden shadow-lg flex-shrink-0"
+              style={{ width: 64, height: 64, background: "#1C695C", border: "2.5px solid #3FA48F" }}
+            >
+              <img
+                src="/logo.jpeg"
+                alt="Lucy's Class logo"
+                className="w-full h-full object-cover"
+                onError={(e) => (e.target.src = "/placeholder.jpg")}
+              />
+            </div>
+            {/* Brand text */}
+            <div className="flex flex-col leading-none select-none">
+              <span
+                className="font-black tracking-widest uppercase"
+                style={{ fontSize: "1.1rem", color: "#1C695C", letterSpacing: "0.18em", lineHeight: 1, fontFamily: "'Nunito', 'Fredoka One', 'Baloo 2', system-ui, sans-serif" }}
+              >
+                LUCY
+              </span>
+              <span
+                className="font-black tracking-[0.22em] uppercase"
+                style={{ fontSize: "0.68rem", color: "#C96A3D", letterSpacing: "0.28em", lineHeight: 1.2, fontFamily: "'Nunito', 'Fredoka One', 'Baloo 2', system-ui, sans-serif" }}
+              >
+                CLASS
+              </span>
+              <span
+                className="mt-0.5 font-medium italic"
+                style={{ fontSize: "0.52rem", color: "#3FA48F", letterSpacing: "0.04em", lineHeight: 1, fontFamily: "Georgia, 'Times New Roman', serif" }}
+              >
+                Teach from the heart, learn from the joy
+              </span>
+            </div>
           </div>
           <p className="font-semibold opacity-80 mb-6 max-w-xs">
             {t('footer.desc')}
