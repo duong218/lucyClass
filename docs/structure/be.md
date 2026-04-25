@@ -1,322 +1,546 @@
-# 📁 Backend Documentation (BE)
+# Cấu trúc Backend
 
-## 🧭 Overview
-* **Tech Stack**: Node.js, Express, MongoDB, Mongoose
-* **Architecture Style**: MVC (Model-View-Controller) pattern, separating routing, business logic, and data access.
+## Phạm vi tài liệu
+- Tài liệu này mô tả phần mã nguồn backend thực tế trong `backend/`.
+- Chủ đích là ghi rõ từng folder, từng file chính và chức năng hiện có của chúng.
+- Không liệt kê `node_modules/`, `logs/`, file build tạm, hoặc nội dung phụ thuộc cài từ package manager.
 
-## 🔐 Auth Flow
-* **req.user injection**: The `auth` middleware verifies the JWT signature on incoming requests. If valid, the decoded payload (e.g., ID, role) is injected into `req.user`, granting downstream controllers access to the user's identity.
-* **JWT Flow**: Users authenticate via login endpoints. The server generates a signed JSON Web Token and sends it back to the client (often in HTTP-only cookies). The client sends this token in subsequent API requests.
+## Tổng quan
+- Stack chính: `Node.js`, `Express`, `MongoDB`, `Mongoose`, `Redis`.
+- Điểm vào ứng dụng: `backend/server.js`.
+- Kiến trúc chính: tách `config`, `routes`, `controllers`, `middlewares`, `models`, `services`, `utils`, `validators`, `scripts`.
+- Chức năng nghiệp vụ chính:
+  - Xác thực và quản lý phiên cho `admin`, `teacher`, `marketing`.
+  - Quản lý khóa học, giáo viên, học viên đăng ký, phản hồi, thông báo.
+  - Chấm công staff, thời khóa biểu, thống kê, lịch sử thao tác admin.
+  - Sao lưu và khôi phục dữ liệu qua Google Drive.
+  - Tính năng `streak/ranking` riêng cho luồng tương tác công khai.
 
-## 🌐 API Structure
-* **/attendance**: Endpoints for student class attendance tracking.
-* **/staff**: Endpoints for staff profile management and dashboard statistics.
-* **/auth**: Login, logout, refresh tokens, and password reset.
-* **/courses**: Endpoints for course enrollment, class details, and scheduling.
-* **/streak**: Logic for daily check-ins, revives, and streak counts.
-
-## 📁 Folder Breakdown & File Structure
+## Sơ đồ thư mục
 
 ```text
 backend/
-├── 📁 config/
-│   ├── ⚙️ cron.js
-│   │   * 🧠 Purpose: Schedules automated tasks and data cleanup
-│   │   * 🔗 Relationships: mongoose, scheduledTasks
-│   ├── ⚙️ db.js
-│   │   * 🧠 Purpose: MongoDB connection setup
-│   │   * 🔗 Relationships: mongoose
-│   ├── ⚙️ google.js
-│   │   * 🧠 Purpose: Google API client and auth configuration
-│   │   * 🔗 Relationships: googleapis
-│   └── ⚙️ redis.js
-│       * 🧠 Purpose: Redis client connection for server-side caching
-│       * 🔗 Relationships: redis
-├── 📁 controllers/
-│   ├── 🎮 announcementController.js
-│   │   * 🧠 Purpose: Handles logic for school news and updates
-│   │   * 🔗 Relationships: Announcement Model
-│   ├── 🎮 attendanceController.js
-│   │   * 🧠 Purpose: Logic for student attendance tracking
-│   │   * 🔗 Relationships: Attendance Model
-│   ├── 🎮 auditController.js
-│   │   * 🧠 Purpose: Logic for tracking and exporting admin actions
-│   │   * 🔗 Relationships: AuditLog Model
-│   ├── 🎮 authController.js
-│   │   * 🧠 Purpose: Handles login, logout, refresh tokens, password reset
-│   │   * 🔗 Relationships: StaffAccount Model, jwt
-│   ├── 🎮 courseController.js
-│   │   * 🧠 Purpose: Manages courses, class details, and attendance
-│   │   * 🔗 Relationships: Course Model
-│   ├── 🎮 feedbackController.js
-│   │   * 🧠 Purpose: Processes parent/student feedback submissions
-│   │   * 🔗 Relationships: Feedback Model
-│   ├── 🎮 google.controller.js
-│   │   * 🧠 Purpose: Manages Google Drive backups and Sheet syncing
-│   │   * 🔗 Relationships: googleapis
-│   ├── 🎮 rankingController.js
-│   │   * 🧠 Purpose: Calculates and serves student leaderboards
-│   │   * 🔗 Relationships: Ranking Model
-│   ├── 🎮 registrationController.js
-│   │   * 🧠 Purpose: Handles new student enrollments
-│   │   * 🔗 Relationships: Registration Model
-│   ├── 🎮 restore.controller.js
-│   │   * 🧠 Purpose: Triggers DB restoration from backups
-│   │   * 🔗 Relationships: restoreService
-│   ├── 🎮 staffAttendanceController.js
-│   │   * 🧠 Purpose: Handles staff check-in/out logic
-│   │   * 🔗 Relationships: StaffAttendance Model
-│   ├── 🎮 staffController.js
-│   │   * 🧠 Purpose: Manages staff accounts, roles, and permissions
-│   │   * 🔗 Relationships: StaffAccount Model
-│   ├── 🎮 statsController.js
-│   │   * 🧠 Purpose: Aggregates data for dashboard charts and reports
-│   │   * 🔗 Relationships: Mongoose aggregations
-│   ├── 🎮 streakController.js
-│   │   * 🧠 Purpose: Logic for daily check-ins, revives, and streak counts
-│   │   * 🔗 Relationships: Streak Model
-│   ├── 🎮 syncController.js
-│   │   * 🧠 Purpose: Manual triggers for data synchronization
-│   │   * 🔗 Relationships: External sync services
-│   ├── 🎮 teacherController.js
-│   │   * 🧠 Purpose: Manages teacher profiles and bios
-│   │   * 🔗 Relationships: Teacher Model
-│   └── 🎮 timetableController.js
-│       * 🧠 Purpose: Handles class schedule logic
-│       * 🔗 Relationships: TimetableRow, TimetableCell Models
-├── 📁 middlewares/
-│   ├── 🔐 adminValidator.js
-│   │   * 🧠 Purpose: Validates admin specific requests
-│   │   * 🔗 Relationships: express-validator
-│   ├── 🔐 auth.js
-│   │   * 🧠 Purpose: Primary JWT authentication and verification
-│   │   * 🔗 Relationships: jwt
-│   ├── 🔐 authorizeRoles.js
-│   │   * 🧠 Purpose: Role-Based Access Control permission checker
-│   │   * 🔗 Relationships: auth.js
-│   ├── 🔐 cacheMiddleware.js
-│   │   * 🧠 Purpose: Intercepts and caches API responses using Redis
-│   │   * 🔗 Relationships: redis.js
-│   ├── 🔐 errorHandler.js
-│   │   * 🧠 Purpose: Global error handling and response formatting
-│   │   * 🔗 Relationships: logger
-│   ├── 🔐 isAdmin.js
-│   │   * 🧠 Purpose: Strict middleware to enforce admin-only access
-│   │   * 🔗 Relationships: express req.user
-│   ├── 🔐 phoneLimiter.js
-│   │   * 🧠 Purpose: Rate limits requests based on phone numbers
-│   │   * 🔗 Relationships: express-rate-limit
-│   ├── 🔐 rateLimiter.js
-│   │   * 🧠 Purpose: Generic rate limiting to prevent abuse
-│   │   * 🔗 Relationships: express-rate-limit
-│   ├── 🔐 securityMiddleware.js
-│   │   * 🧠 Purpose: Origin and Custom Header-based CSRF protection
-│   │   * 🔗 Relationships: express, helmet
-│   ├── 🔐 streakAuth.js
-│   │   * 🧠 Purpose: Specialized authentication for the streak system
-│   │   * 🔗 Relationships: Device usage tracking
-│   ├── 🔐 upload.js
-│   │   * 🧠 Purpose: Multer configuration for image uploads
-│   │   * 🔗 Relationships: multer
-│   ├── 🔐 userIdentifier.js
-│   │   * 🧠 Purpose: Generates unique IDs for rate limiting
-│   │   * 🔗 Relationships: crypto
-│   ├── 🔐 validate.js
-│   │   * 🧠 Purpose: Checks express-validator result objects
-│   │   * 🔗 Relationships: express-validator
-│   └── 🔐 validateRegistration.js
-│       * 🧠 Purpose: Complex validation logic for new enrollments
-│       * 🔗 Relationships: express-validator
-├── 📁 models/
-│   ├── 📊 Admin.js
-│   │   * 🧠 Purpose: Schema for root administrative users
-│   │   * 🔗 Relationships: mongoose
-│   ├── 📊 Announcement.js
-│   │   * 🧠 Purpose: Schema for school news and banners
-│   │   * 🔗 Relationships: mongoose
-│   ├── 📊 Attendance.js
-│   │   * 🧠 Purpose: Schema for student attendance records
-│   │   * 🔗 Relationships: mongoose
-│   ├── 📊 AuditLog.js
-│   │   * 🧠 Purpose: Schema for persistent log of admin changes
-│   │   * 🔗 Relationships: mongoose
-│   ├── 📊 Course.js
-│   │   * 🧠 Purpose: Schema for class info and teacher links
-│   │   * 🔗 Relationships: mongoose
-│   ├── 📊 DeviceUsage.js
-│   │   * 🧠 Purpose: Schema to track daily activity per device
-│   │   * 🔗 Relationships: mongoose
-│   ├── 📊 Feedback.js
-│   │   * 🧠 Purpose: Schema for user-submitted feedback
-│   │   * 🔗 Relationships: mongoose
-│   ├── 📊 GoogleToken.js
-│   │   * 🧠 Purpose: Schema for Google OAuth tokens
-│   │   * 🔗 Relationships: mongoose
-│   ├── 📊 Log.js
-│   │   * 🧠 Purpose: Schema for application event logging
-│   │   * 🔗 Relationships: mongoose
-│   ├── 📊 Ranking.js
-│   │   * 🧠 Purpose: Schema for monthly star rankings
-│   │   * 🔗 Relationships: mongoose
-│   ├── 📊 Registration.js
-│   │   * 🧠 Purpose: Schema for student enrollment data
-│   │   * 🔗 Relationships: mongoose
-│   ├── 📊 StaffAccount.js
-│   │   * 🧠 Purpose: Schema for staff credentials and roles
-│   │   * 🔗 Relationships: mongoose
-│   ├── 📊 StaffAttendance.js
-│   │   * 🧠 Purpose: Schema for staff check-in/out records
-│   │   * 🔗 Relationships: mongoose
-│   ├── 📊 Streak.js
-│   │   * 🧠 Purpose: Schema for daily check-in activity
-│   │   * 🔗 Relationships: mongoose
-│   ├── 📊 Teacher.js
-│   │   * 🧠 Purpose: Schema for teacher profiles
-│   │   * 🔗 Relationships: mongoose
-│   ├── 📊 TimetableCell.js
-│   │   * 🧠 Purpose: Schema for a class schedule cell
-│   │   * 🔗 Relationships: mongoose
-│   └── 📊 TimetableRow.js
-│       * 🧠 Purpose: Schema for a time slot row
-│       * 🔗 Relationships: mongoose
-├── 📁 routes/
-│   ├── 🌐 announcementRoutes.js
-│   │   * 🧠 Purpose: Endpoints for school updates
-│   │   * 🔗 Relationships: express.Router, announcementController
-│   ├── 🌐 attendanceRoutes.js
-│   │   * 🧠 Purpose: Endpoints for attendance logic
-│   │   * 🔗 Relationships: express.Router, attendanceController
-│   ├── 🌐 auditRoutes.js
-│   │   * 🧠 Purpose: Endpoints for action logs
-│   │   * 🔗 Relationships: express.Router, auditController
-│   ├── 🌐 authRoutes.js
-│   │   * 🧠 Purpose: Authentication endpoints
-│   │   * 🔗 Relationships: express.Router, authController
-│   ├── 🌐 courseRoutes.js
-│   │   * 🧠 Purpose: Management routes for courses
-│   │   * 🔗 Relationships: express.Router, courseController
-│   ├── 🌐 feedbackRoutes.js
-│   │   * 🧠 Purpose: Endpoints for feedback
-│   │   * 🔗 Relationships: express.Router, feedbackController
-│   ├── 🌐 googleRoutes.js
-│   │   * 🧠 Purpose: Integration routes for Google APIs
-│   │   * 🔗 Relationships: express.Router, google.controller
-│   ├── 🌐 rankingRoutes.js
-│   │   * 🧠 Purpose: Routes for fetching leaderboards
-│   │   * 🔗 Relationships: express.Router, rankingController
-│   ├── 🌐 registrationRoutes.js
-│   │   * 🧠 Purpose: Endpoints for student enrollments
-│   │   * 🔗 Relationships: express.Router, registrationController
-│   ├── 🌐 restoreRoutes.js
-│   │   * 🧠 Purpose: Specialized routes for DB restore
-│   │   * 🔗 Relationships: express.Router, restore.controller
-│   ├── 🌐 staffDashboardRoutes.js
-│   │   * 🧠 Purpose: Data routes for the staff UI
-│   │   * 🔗 Relationships: express.Router, statsController
-│   ├── 🌐 staffRoutes.js
-│   │   * 🧠 Purpose: Management routes for staff
-│   │   * 🔗 Relationships: express.Router, staffController
-│   ├── 🌐 statsRoutes.js
-│   │   * 🧠 Purpose: Endpoints for dashboard statistics
-│   │   * 🔗 Relationships: express.Router, statsController
-│   ├── 🌐 streakRoutes.js
-│   │   * 🧠 Purpose: Routes for daily check-ins
-│   │   * 🔗 Relationships: express.Router, streakController
-│   ├── 🌐 syncRoutes.js
-│   │   * 🧠 Purpose: Triggers for data sync
-│   │   * 🔗 Relationships: express.Router, syncController
-│   ├── 🌐 teacherRoutes.js
-│   │   * 🧠 Purpose: Routes for teacher profiles
-│   │   * 🔗 Relationships: express.Router, teacherController
-│   └── 🌐 timetableRoutes.js
-│       * 🧠 Purpose: Routes for class schedules
-│       * 🔗 Relationships: express.Router, timetableController
-├── 📁 scripts/
-│   ├── ⚙️ backup.js
-│   │   * 🧠 Purpose: Database backup utility
-│   │   * 🔗 Relationships: child_process
-│   └── ⚙️ cleanRestoreTmp.js
-│       * 🧠 Purpose: Cleans temporary backup files
-│       * 🔗 Relationships: fs
-├── 📁 services/
-│   ├── ⚙️ backup.service.js
-│   │   * 🧠 Purpose: Creates and encrypts database dumps
-│   │   * 🔗 Relationships: child_process
-│   ├── ⚙️ deepCleanService.js
-│   │   * 🧠 Purpose: Logic for deleting old records
-│   │   * 🔗 Relationships: Models
-│   ├── ⚙️ drive.service.js
-│   │   * 🧠 Purpose: Wrapper for Google Drive files
-│   │   * 🔗 Relationships: googleapis
-│   └── ⚙️ restore.service.js
-│       * 🧠 Purpose: Handles decryption of backup files
-│       * 🔗 Relationships: child_process, encryptionUtils
-├── 📁 utils/
-│   ├── ⚙️ catchAsync.js
-│   │   * 🧠 Purpose: Wrapper to eliminate try-catch blocks
-│   │   * 🔗 Relationships: express
-│   ├── ⚙️ cloudinary.js
-│   │   * 🧠 Purpose: Cloudinary image upload helper
-│   │   * 🔗 Relationships: cloudinary
-│   ├── ⚙️ emailService.js
-│   │   * 🧠 Purpose: Handles sending automated emails
-│   │   * 🔗 Relationships: nodemailer
-│   ├── ⚙️ encryptionUtils.js
-│   │   * 🧠 Purpose: Cryptographic logic for secure backups
-│   │   * 🔗 Relationships: crypto
-│   ├── ⚙️ logAdminAction.js
-│   │   * 🧠 Purpose: Logs admin events to DB
-│   │   * 🔗 Relationships: AuditLog Model
-│   ├── ⚙️ logger.js
-│   │   * 🧠 Purpose: Standard file/console logger
-│   │   * 🔗 Relationships: winston
-│   ├── ⚙️ normalizePhone.js
-│   │   * 🧠 Purpose: Standardizes phone formats
-│   │   * 🔗 Relationships: regex
-│   ├── ⚙️ sanitize.js
-│   │   * 🧠 Purpose: Cleans user input to prevent XSS
-│   │   * 🔗 Relationships: xss
-│   ├── ⚙️ scheduledTasks.js
-│   │   * 🧠 Purpose: Recurring system jobs
-│   │   * 🔗 Relationships: node-cron
-│   ├── ⚙️ systemLogger.js
-│   │   * 🧠 Purpose: Enhanced logger with metadata
-│   │   * 🔗 Relationships: winston
-│   └── ⚙️ test-encryption.js
-│       * 🧠 Purpose: Validation for the encryption system
-│       * 🔗 Relationships: crypto
-├── 📁 validators/
-│   ├── 🔐 registrationValidator.js
-│   │   * 🧠 Purpose: Validation rules for user enrollment
-│   │   * 🔗 Relationships: express-validator
-│   └── 🔐 streakValidator.js
-│       * 🧠 Purpose: Validation rules for check-ins
-│       * 🔗 Relationships: express-validator
-├── 📄 .dockerignore
-│   * 🧠 Purpose: Specifies ignored files for Docker build
-│   * 🔗 Relationships: Docker
-├── 🔐 .env.example
-│   * 🧠 Purpose: Safe template for environment variables
-│   * 🔗 Relationships: dotenv
-├── 📄 Dockerfile
-│   * 🧠 Purpose: Container build instructions
-│   * 🔗 Relationships: Docker
-├── ⚙️ googleSheets.js
-│   * 🧠 Purpose: Google Sheets integration logic
-│   * 🔗 Relationships: googleapis
-├── ⚙️ migrate-childAge.js
-│   * 🧠 Purpose: Database migration script for age calculation
-│   * 🔗 Relationships: mongoose
-├── 📄 nodemon.json
-│   * 🧠 Purpose: Configuration for development runner
-│   * 🔗 Relationships: nodemon
-├── 📄 package.json
-│   * 🧠 Purpose: Project dependencies and scripts
-│   * 🔗 Relationships: npm
-├── 📄 package-lock.json
-│   * 🧠 Purpose: Locked dependency versions
-│   * 🔗 Relationships: npm
-└── ⚙️ server.js
-    * 🧠 Purpose: Main entry point, initializes Express, DB, and routes
-    * 🔗 Relationships: express, mongoose, routes
+├── config/
+├── controllers/
+├── middlewares/
+├── models/
+├── routes/
+├── scripts/
+├── services/
+├── utils/
+├── validators/
+├── .dockerignore
+├── .env
+├── .env.example
+├── .env.production
+├── Dockerfile
+├── googleSheets.js
+├── migrate-childAge.js
+├── nodemon.json
+├── package-lock.json
+├── package.json
+├── readme1.txt
+└── server.js
 ```
+
+## Thư mục `config`
+
+### `backend/config/cron.js`
+- Khởi tạo các cron job nền.
+- Phục vụ lịch sao lưu định kỳ và các tác vụ dọn dẹp bảo trì.
+
+### `backend/config/db.js`
+- Tạo kết nối MongoDB cho toàn hệ thống.
+- Được gọi khi server khởi động.
+
+### `backend/config/google.js`
+- Cấu hình OAuth/client Google dùng cho luồng sao lưu và khôi phục qua Drive.
+
+### `backend/config/redis.js`
+- Khởi tạo Redis client dùng cho cache và một số cơ chế giới hạn spam.
+
+## Thư mục `controllers`
+
+### `backend/controllers/announcementController.js`
+- Xử lý toàn bộ nghiệp vụ thông báo.
+- Bao gồm:
+  - lấy danh sách thông báo public đã `published`,
+  - lấy thông báo mới nhất cho chuông thông báo,
+  - đánh dấu đã xem,
+  - marketing gửi bài chờ duyệt,
+  - admin duyệt/từ chối,
+  - admin CRUD trực tiếp.
+
+### `backend/controllers/attendanceController.js`
+- Là lớp bọc xuất lại nghiệp vụ từ `staffAttendanceController.js`.
+- Dùng để giữ interface route `/api/attendance` thống nhất.
+
+### `backend/controllers/auditController.js`
+- Xử lý lịch sử thao tác admin.
+- Bao gồm:
+  - lấy danh sách log có phân trang/lọc,
+  - thống kê log,
+  - xuất CSV lịch sử thao tác.
+- Có sanitize ô CSV để chống Excel formula injection.
+
+### `backend/controllers/authController.js`
+- Xử lý đăng nhập, refresh token, đăng xuất, quên mật khẩu, đặt lại mật khẩu, kiểm tra session.
+- Các điểm đáng chú ý:
+  - sinh `accessToken` và `refreshToken`,
+  - lưu `activeSessionId`,
+  - rotate refresh token,
+  - khóa tạm tài khoản khi login sai nhiều lần,
+  - bắt reCAPTCHA ở login và forgot password,
+  - hỗ trợ cả `Admin` và `StaffAccount`.
+
+### `backend/controllers/courseController.js`
+- Xử lý nghiệp vụ khóa học.
+- Bao gồm:
+  - lấy danh sách/public chi tiết khóa học,
+  - tạo/sửa/xóa khóa học,
+  - lấy danh sách điểm danh theo khóa,
+  - lưu điểm danh,
+  - xuất Excel điểm danh,
+  - kiểm tra quyền giáo viên với khóa học qua giáo viên chính/phụ.
+
+### `backend/controllers/feedbackController.js`
+- Quản lý phản hồi/phụ huynh đánh giá.
+- Bao gồm public read và admin CRUD.
+
+### `backend/controllers/google.controller.js`
+- Điều phối OAuth Google và sao lưu Drive.
+- Bao gồm:
+  - chuyển hướng xác thực Google,
+  - xử lý callback,
+  - backup dữ liệu lên Google Drive.
+
+### `backend/controllers/rankingController.js`
+- Xử lý bảng xếp hạng.
+- Bao gồm tạo/cập nhật ranking và lấy top ranking công khai.
+
+### `backend/controllers/registrationController.js`
+- Xử lý đơn đăng ký học và chuyển đổi thành học viên.
+- Bao gồm:
+  - tạo đăng ký công khai,
+  - kiểm tra trùng,
+  - kiểm tra sức chứa lớp,
+  - gửi email,
+  - đồng bộ Google Sheets,
+  - cập nhật/xóa đăng ký,
+  - xuất Excel đăng ký,
+  - lấy danh sách học sinh theo lớp,
+  - cho học sinh nghỉ,
+  - chuyển lớp học viên.
+
+### `backend/controllers/restore.controller.js`
+- Điều phối khôi phục dữ liệu từ Google Drive hoặc file backup.
+- Bao gồm:
+  - liệt kê danh sách backup trên Drive,
+  - kích hoạt restore,
+  - trả tiến độ restore.
+
+### `backend/controllers/staffAttendanceController.js`
+- Xử lý chấm công staff.
+- Bao gồm:
+  - check-in/check-out,
+  - lấy chấm công hôm nay,
+  - lấy lịch sử chấm công,
+  - admin xem theo ngày,
+  - admin chỉnh sửa/upsert,
+  - admin xuất Excel chấm công.
+
+### `backend/controllers/staffController.js`
+- Quản lý tài khoản staff.
+- Bao gồm:
+  - admin tạo tài khoản teacher/marketing,
+  - cập nhật thông tin staff,
+  - reset mật khẩu staff,
+  - vô hiệu hóa hoặc xóa vĩnh viễn tài khoản,
+  - staff tự xem hồ sơ cá nhân và lớp phụ trách.
+
+### `backend/controllers/statsController.js`
+- Cung cấp dữ liệu thống kê tổng quan cho dashboard admin.
+- Bao gồm số liệu nhanh và dữ liệu biểu đồ.
+
+### `backend/controllers/streakController.js`
+- Xử lý tính năng streak công khai.
+- Bao gồm tạo streak, xem streak hiện tại, check-in, revive, leaderboard ngày/tuần.
+
+### `backend/controllers/syncController.js`
+- Xử lý các thao tác đồng bộ/dọn dẹp dữ liệu nặng.
+- Bao gồm:
+  - đồng bộ ranking,
+  - deep clean dữ liệu.
+
+### `backend/controllers/teacherController.js`
+- Quản lý giáo viên.
+- Bao gồm:
+  - public read danh sách/chi tiết,
+  - admin CRUD,
+  - upload avatar lên Cloudinary,
+  - tự động tạo `StaffAccount` cho giáo viên mới,
+  - soft delete giáo viên và vô hiệu hóa tài khoản staff liên kết,
+  - ẩn các field nội bộ khỏi response public.
+
+### `backend/controllers/timetableController.js`
+- Xử lý thời khóa biểu.
+- Bao gồm:
+  - lấy lưới thời khóa biểu theo tuần,
+  - tạo/sửa/xóa hàng,
+  - đổi thứ tự hàng,
+  - upsert ô trong bảng,
+  - xuất file thời khóa biểu.
+
+## Thư mục `middlewares`
+
+### `backend/middlewares/adminValidator.js`
+- Chứa rule validate cho các form admin như khóa học, giáo viên.
+
+### `backend/middlewares/auth.js`
+- Middleware xác thực JWT access token.
+- Gắn `req.user`, nhận diện role, kiểm tra `activeSessionId`, kiểm tra staff bị vô hiệu hóa.
+- Với role `teacher`, tự truy ra `teacherId` để dùng cho kiểm soát truy cập lớp.
+
+### `backend/middlewares/authorizeRoles.js`
+- Middleware phân quyền theo danh sách role cho route.
+
+### `backend/middlewares/cacheMiddleware.js`
+- Cache response GET bằng Redis.
+- Có hàm xóa cache theo prefix và xóa toàn bộ cache sau restore.
+
+### `backend/middlewares/errorHandler.js`
+- Bộ xử lý lỗi toàn cục của Express.
+
+### `backend/middlewares/isAdmin.js`
+- Middleware chặn nếu user không phải admin.
+
+### `backend/middlewares/phoneLimiter.js`
+- Bộ limiter theo số điện thoại/IP cho tính năng streak.
+- Chống 1 IP dùng quá nhiều số, 1 số spam liên tục, 1 IP đổi số quá nhiều lần.
+
+### `backend/middlewares/rateLimiter.js`
+- Tập hợp limiter dùng `express-rate-limit`.
+- Có limiter riêng cho:
+  - API chung,
+  - login,
+  - đăng ký,
+  - thống kê,
+  - forgot/reset password,
+  - streak,
+  - tác vụ nặng backup/restore,
+  - toggle attendance.
+
+### `backend/middlewares/securityMiddleware.js`
+- Kiểm tra CSRF theo `Origin` + header `X-Requested-With`.
+- Bỏ qua `GET/HEAD/OPTIONS` và một số path public được whitelist.
+
+### `backend/middlewares/streakAuth.js`
+- Middleware xác thực/phụ trợ riêng cho khu vực `streak` nếu cần phân tách luồng.
+
+### `backend/middlewares/upload.js`
+- Cấu hình upload ảnh bằng `multer.memoryStorage()`.
+- Kiểm tra:
+  - phần mở rộng,
+  - MIME type,
+  - magic number,
+  - kích thước file,
+  - giới hạn pixel,
+  - re-encode ảnh để loại EXIF/payload ẩn.
+
+### `backend/middlewares/userIdentifier.js`
+- Nhận diện người dùng từ token mà không chặn request.
+- Dùng để limiter có thể biết admin và bỏ qua giới hạn nếu cần.
+
+### `backend/middlewares/validate.js`
+- Middleware gom lỗi validation và trả response chuẩn hóa.
+
+### `backend/middlewares/validateRegistration.js`
+- Validate form đăng ký public.
+- Bao gồm:
+  - honeypot `website`,
+  - cooldown theo IP,
+  - kiểm tra tên, số điện thoại, nhóm tuổi, email.
+
+## Thư mục `models`
+
+### `backend/models/Admin.js`
+- Model tài khoản admin.
+- Chứa email, password hash, refresh tokens, lock trạng thái, reset token.
+
+### `backend/models/Announcement.js`
+- Model dữ liệu thông báo.
+- Lưu trạng thái như pending/published/rejected và metadata duyệt bài.
+
+### `backend/models/Attendance.js`
+- Model dữ liệu điểm danh học viên theo khóa/ngày.
+
+### `backend/models/AuditLog.js`
+- Model log thao tác admin.
+- Dùng cho trang lịch sử và export CSV.
+
+### `backend/models/Course.js`
+- Model khóa học.
+- Lưu thông tin lớp, giáo viên chính/phụ, sức chứa, trạng thái hoạt động.
+
+### `backend/models/DeviceUsage.js`
+- Model theo dõi sử dụng thiết bị, phục vụ streak hoặc cơ chế chống spam.
+
+### `backend/models/Feedback.js`
+- Model phản hồi/phụ huynh đánh giá hiển thị trên website.
+
+### `backend/models/GoogleToken.js`
+- Model lưu token Google OAuth để thao tác Drive.
+
+### `backend/models/Log.js`
+- Model log hệ thống/phụ trợ cho hoạt động nội bộ.
+
+### `backend/models/Ranking.js`
+- Model dữ liệu xếp hạng.
+
+### `backend/models/Registration.js`
+- Model đăng ký học.
+- Có:
+  - trạng thái đăng ký,
+  - cờ `isActive`,
+  - lịch sử chuyển lớp,
+  - index phục vụ kiểm tra trùng/lọc,
+  - TTL index dọn dữ liệu cũ sau 1 năm.
+
+### `backend/models/StaffAccount.js`
+- Model tài khoản staff cho `teacher` và `marketing`.
+- Có:
+  - username dạng `LC########`,
+  - password hash,
+  - role,
+  - displayName,
+  - `isActive`,
+  - refresh tokens,
+  - helper tạo username/mật khẩu ngẫu nhiên.
+
+### `backend/models/StaffAttendance.js`
+- Model lưu log chấm công staff.
+
+### `backend/models/Streak.js`
+- Model lưu trạng thái streak của người dùng công khai.
+
+### `backend/models/Teacher.js`
+- Model giáo viên public.
+- Có liên kết nội bộ tới `StaffAccount` qua `staffAccountId`.
+- `toJSON()` tự loại bỏ `staffAccountId`, `avatarPublicId`, `isDeleted`, `deletedAt`.
+
+### `backend/models/TimetableCell.js`
+- Model ô dữ liệu của thời khóa biểu.
+
+### `backend/models/TimetableRow.js`
+- Model hàng của thời khóa biểu.
+
+## Thư mục `routes`
+
+### `backend/routes/announcementRoutes.js`
+- Route thông báo public, staff và admin.
+
+### `backend/routes/attendanceRoutes.js`
+- Route chấm công staff dùng chung cho teacher/marketing/admin.
+
+### `backend/routes/auditRoutes.js`
+- Route lịch sử thao tác admin.
+
+### `backend/routes/authRoutes.js`
+- Route xác thực:
+  - `me`,
+  - login,
+  - logout,
+  - refresh-token,
+  - forgot/reset password,
+  - check-session.
+
+### `backend/routes/courseRoutes.js`
+- Route khóa học, danh sách học sinh theo lớp, điểm danh theo lớp, chuyển lớp.
+
+### `backend/routes/feedbackRoutes.js`
+- Route phản hồi public/admin.
+
+### `backend/routes/googleRoutes.js`
+- Route kết nối Google, backup và restore qua Drive.
+
+### `backend/routes/rankingRoutes.js`
+- Route tạo/cập nhật ranking và lấy top ranking.
+
+### `backend/routes/registrationRoutes.js`
+- Route quản lý đăng ký học và export đăng ký.
+
+### `backend/routes/restoreRoutes.js`
+- Route lấy tiến độ restore.
+
+### `backend/routes/staffDashboardRoutes.js`
+- Route để teacher/marketing lấy profile cá nhân.
+
+### `backend/routes/staffRoutes.js`
+- Route quản lý tài khoản staff cho admin.
+
+### `backend/routes/statsRoutes.js`
+- Route thống kê admin và dữ liệu dashboard.
+
+### `backend/routes/streakRoutes.js`
+- Route tính năng streak public.
+
+### `backend/routes/syncRoutes.js`
+- Route đồng bộ ranking và deep clean dữ liệu.
+
+### `backend/routes/teacherRoutes.js`
+- Route public/admin cho giáo viên.
+
+### `backend/routes/timetableRoutes.js`
+- Route quản lý thời khóa biểu.
+
+## Thư mục `services`
+
+### `backend/services/backup.service.js`
+- Dịch vụ backup MongoDB.
+- Bao gồm:
+  - chạy `mongodump`,
+  - tạo file ZIP,
+  - mã hóa file trước khi upload,
+  - upload Google Drive,
+  - retry file `.uploading` dở dang khi khởi động lại.
+
+### `backend/services/deepCleanService.js`
+- Dịch vụ dọn sâu dữ liệu phục vụ `sync/deep-clean`.
+
+### `backend/services/drive.service.js`
+- Lớp làm việc với Google Drive.
+- Bao gồm upload, download, dọn backup cũ, lấy danh sách backup.
+
+### `backend/services/restore.service.js`
+- Dịch vụ restore dữ liệu.
+- Bao gồm:
+  - giải mã file `.enc`,
+  - safety backup trước restore,
+  - chống zip slip,
+  - restore thử vào DB tạm,
+  - restore thật bằng `mongorestore --drop`,
+  - xóa toàn bộ Redis cache sau restore.
+
+## Thư mục `utils`
+
+### `backend/utils/catchAsync.js`
+- Wrapper bắt lỗi async cho controller route.
+
+### `backend/utils/cloudinary.js`
+- Tiện ích upload/xóa ảnh trên Cloudinary.
+
+### `backend/utils/emailService.js`
+- Gửi email xác nhận đăng ký, email admin notification, email reset mật khẩu.
+
+### `backend/utils/encryptionUtils.js`
+- Mã hóa/giải mã file bằng `AES-256-GCM`.
+- Dùng cho backup trước khi đẩy lên Drive.
+
+### `backend/utils/logAdminAction.js`
+- Ghi log thao tác admin vào `AuditLog`.
+
+### `backend/utils/logger.js`
+- Ghi log nghiệp vụ chung.
+
+### `backend/utils/normalizePhone.js`
+- Chuẩn hóa số điện thoại trước khi xử lý/lưu dữ liệu.
+
+### `backend/utils/sanitize.js`
+- Làm sạch chuỗi và object đệ quy.
+- Loại HTML tag, chặn key nguy hiểm như `__proto__`, chuẩn hóa Unicode, giới hạn độ dài.
+
+### `backend/utils/scheduledTasks.js`
+- Đăng ký/cấu hình các tác vụ nền cần khởi chạy cùng ứng dụng.
+
+### `backend/utils/systemLogger.js`
+- Logger hệ thống cho lỗi nghiêm trọng, rate limit, CSRF, startup/shutdown.
+
+### `backend/utils/test-encryption.js`
+- File test/thử nghiệm cho luồng mã hóa backup.
+
+## Thư mục `validators`
+
+### `backend/validators/registrationValidator.js`
+- Validator bổ sung cho đăng ký nếu cần dùng ở những route chuyên biệt.
+
+### `backend/validators/streakValidator.js`
+- Rule validate cho `start`, `checkin`, `revive` của streak.
+
+## Thư mục `scripts`
+
+### `backend/scripts/backup.js`
+- Script chạy backup thủ công từ môi trường dòng lệnh.
+
+### `backend/scripts/cleanRestoreTmp.js`
+- Script dọn file/thư mục tạm sinh ra trong quá trình restore.
+
+## Các file gốc ở `backend/`
+
+### `backend/.dockerignore`
+- Khai báo file/thư mục bỏ qua khi build Docker image.
+
+### `backend/.env`
+- Biến môi trường nội bộ cho local/deploy hiện tại.
+
+### `backend/.env.example`
+- Mẫu biến môi trường tham chiếu.
+
+### `backend/.env.production`
+- Mẫu/cấu hình môi trường production.
+
+### `backend/Dockerfile`
+- Cấu hình build container backend.
+
+### `backend/googleSheets.js`
+- Tiện ích ghi dữ liệu đăng ký sang Google Sheets.
+
+### `backend/migrate-childAge.js`
+- Script migrate dữ liệu `childAge`.
+
+### `backend/nodemon.json`
+- Cấu hình chạy dev với `nodemon`.
+
+### `backend/package-lock.json`
+- Khóa phiên bản dependency backend.
+
+### `backend/package.json`
+- Khai báo package, script và dependency backend.
+
+### `backend/readme1.txt`
+- Tài liệu ghi chú cũ của backend.
+
+### `backend/server.js`
+- File khởi động chính của backend.
+- Chức năng chính:
+  - nạp env,
+  - validate biến môi trường bắt buộc,
+  - cấu hình cookie parser, CORS, Helmet, CSRF, body parser,
+  - gắn sanitize toàn cục,
+  - mount toàn bộ route,
+  - định nghĩa endpoint `/api/submit` và `/api/health`,
+  - kết nối MongoDB/Redis,
+  - khởi động cron job,
+  - cấu hình graceful shutdown.
+
+## Luồng chính backend
+
+### Luồng public
+- Website gọi các API public như:
+  - `/api/courses`,
+  - `/api/teachers`,
+  - `/api/feedback`,
+  - `/api/announcements`,
+  - `/api/registrations`,
+  - `/api/streak`,
+  - `/api/rankings/top`.
+
+### Luồng admin/staff
+- Frontend đăng nhập qua `/api/auth/login`.
+- Access token gửi trong header `Authorization`.
+- Refresh token lưu bằng cookie `httpOnly`.
+- Route protected đi qua `auth` rồi mới đến `authorizeRoles` hoặc `isAdmin`.
+
+### Luồng backup/restore
+- Admin kết nối Google.
+- Backup dùng `backup.service.js` để dump DB, zip, mã hóa, upload Drive.
+- Restore dùng `restore.service.js` để giải mã, kiểm tra file, restore thử, restore thật và xóa cache Redis.
