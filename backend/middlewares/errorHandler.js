@@ -8,7 +8,7 @@ const errorHandler = (err, req, res, next) => {
 
     if (err.name === 'MulterError') {
         status = 400;
-        if (err.code === 'LIMIT_FILE_SIZE') message = 'File too large (Max 2MB)';
+        if (err.code === 'LIMIT_FILE_SIZE') message = 'File too large (Max 5MB)';
     }
 
     if (err.name === 'ValidationError') {
