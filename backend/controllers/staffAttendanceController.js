@@ -458,3 +458,144 @@ exports.exportAttendance = async (req, res, next) => {
     next(error);
   }
 };
+
+// ──────────────────────────────────────────────────────────────
+// GET /api/attendance/export-month?year=YYYY&month=MM
+// Admin: xuất Excel chấm công toàn bộ một tháng
+// File có 2 sheet: nhóm theo nhân viên + nhóm theo ngày
+// ──────────────────────────────────────────────────────────────
+exports.exportAttendanceByMonth = async (req, res, next) => {
+  try {
+    if (!ensureAdmin(req, res)) return;
+
+    const { year, month } = req.query;
+    const y = parseInt(year, 10);
+    const m = parseInt(month, 10);
+
+    if (!year || !month || isNaN(y) || isNaN(m) || m < 1 || m > 12 || y < 2000 || y > 2100) {
+      return res.status(400).json({ success: false, message: 'Tham số year/month không hợp lệ' });
+    }
+
+    const from = `${y}-${String(m).padStart(2, '0')}-01`;
+    const lastDay = new Date(y, m, 0).getDate();
+    const to = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+    const records = await StaffAttendance.find({ date: { $gte: from, $lte: to } })
+      .populate('staffId', 'displayName username role')
+      .sort({ date: 1, staffId: 1 })
+      .lean();
+
+    // ── Group dữ liệu ─────────────────────────────────────────
+    const byStaff = {};
+    const byDate = {};
+
+    records.forEach((rec) => {
+      const sid = rec.staffId?._id?.toString() || 'unknown';
+      const name = rec.staffId?.displayName || rec.staffId?.username || 'N/A';
+      const role = rec.staffId?.role || 'N/A';
+      const checkins = (rec.logs || []).filter(l => l.type === 'checkin').map(l => formatTimeVN(l.time));
+      const checkouts = (rec.logs || []).filter(l => l.type === 'checkout').map(l => formatTimeVN(l.time));
+      const sessions = Math.min(checkins.length, checkouts.length);
+      const note = rec.updatedBy ? 'Đã chỉnh sửa' : '';
+
+      if (!byStaff[sid]) byStaff[sid] = { name, role, days: [] };
+      byStaff[sid].days.push({ date: rec.date, checkins, checkouts, sessions, note });
+
+      if (!byDate[rec.date]) byDate[rec.date] = { date: rec.date, entries: [] };
+      byDate[rec.date].entries.push({ name, role, checkins, checkouts, sessions, note });
+    });
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'AttendanceSystem';
+
+    const COLOR_HEADER_BG = '1F5E3B';
+    const COLOR_GROUP_BG  = 'D9EAD3';
+    const COLOR_ROW_ALT   = 'F4FAF6';
+    const COLOR_CHECKIN   = '1B8F3A';
+    const COLOR_CHECKOUT  = 'C96A3D';
+    const COLOR_SUMMARY_BG = 'EAF4EC';
+
+    const styleHeader = (row) => {
+      row.height = 22;
+      row.eachCell((cell) => {
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, name: 'Arial', size: 10 };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_HEADER_BG } };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      });
+    };
+
+    const styleGroup = (row, ncols, label) => {
+      row.height = 20;
+      row.getCell(1).value = label;
+      for (let c = 1; c <= ncols; c++) {
+        row.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_GROUP_BG } };
+        row.getCell(c).font = { bold: true, name: 'Arial', size: 10 };
+      }
+      row.getCell(1).alignment = { vertical: 'middle', horizontal: 'left' };
+    };
+
+    const styleData = (row, alt) => {
+      row.eachCell({ includeEmpty: true }, (cell) => {
+        cell.font = { name: 'Arial', size: 10 };
+        cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+        if (alt) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_ALT } };
+      });
+    };
+
+    // ── Sheet 1: Theo nhân viên ───────────────────────────────
+    const s1 = workbook.addWorksheet('Theo nhan vien', { views: [{ state: 'frozen', ySplit: 1 }] });
+    s1.columns = [
+      { width: 22 }, { width: 13 }, { width: 20 }, { width: 20 }, { width: 8 }, { width: 16 }
+    ];
+    styleHeader(s1.addRow(['Nhân viên', 'Ngày', 'Check-in', 'Check-out', 'Số ca', 'Ghi chú']));
+
+    let alt1 = false;
+    Object.values(byStaff).sort((a, b) => a.name.localeCompare(b.name, 'vi')).forEach((staff) => {
+      styleGroup(s1.addRow([]), 6, `${staff.name}  (${staff.role})`);
+      staff.days.sort((a, b) => a.date.localeCompare(b.date)).forEach((day) => {
+        const row = s1.addRow(['', day.date, day.checkins.join('\n') || '—', day.checkouts.join('\n') || '—', day.sessions, day.note]);
+        styleData(row, alt1);
+        row.getCell(3).font = { color: { argb: COLOR_CHECKIN }, name: 'Arial', size: 10 };
+        row.getCell(4).font = { color: { argb: COLOR_CHECKOUT }, name: 'Arial', size: 10 };
+        alt1 = !alt1;
+      });
+      const totalSessions = staff.days.reduce((s, d) => s + d.sessions, 0);
+      const sumRow = s1.addRow(['', `Tổng: ${staff.days.length} ngày`, '', '', totalSessions, '']);
+      sumRow.eachCell({ includeEmpty: true }, (cell) => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_SUMMARY_BG } };
+        cell.font = { bold: true, italic: true, name: 'Arial', size: 10 };
+        cell.alignment = { vertical: 'middle', horizontal: 'left' };
+      });
+      s1.addRow([]);
+    });
+
+    // ── Sheet 2: Theo ngày ────────────────────────────────────
+    const s2 = workbook.addWorksheet('Theo ngay', { views: [{ state: 'frozen', ySplit: 1 }] });
+    s2.columns = [
+      { width: 22 }, { width: 13 }, { width: 20 }, { width: 20 }, { width: 8 }, { width: 16 }
+    ];
+    styleHeader(s2.addRow(['Nhân viên', 'Vai trò', 'Check-in', 'Check-out', 'Số ca', 'Ghi chú']));
+
+    let alt2 = false;
+    Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date)).forEach((day) => {
+      styleGroup(s2.addRow([]), 6, `${day.date}  —  ${day.entries.length} nhân viên`);
+      day.entries.sort((a, b) => a.name.localeCompare(b.name, 'vi')).forEach((entry) => {
+        const row = s2.addRow([entry.name, entry.role, entry.checkins.join('\n') || '—', entry.checkouts.join('\n') || '—', entry.sessions, entry.note]);
+        styleData(row, alt2);
+        row.getCell(3).font = { color: { argb: COLOR_CHECKIN }, name: 'Arial', size: 10 };
+        row.getCell(4).font = { color: { argb: COLOR_CHECKOUT }, name: 'Arial', size: 10 };
+        alt2 = !alt2;
+      });
+      s2.addRow([]);
+    });
+
+    const fileName = `cham_cong_thang_${String(m).padStart(2, '0')}_${y}.xlsx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`);
+
+    await workbook.xlsx.write(res);
+    return res.end();
+  } catch (error) {
+    next(error);
+  }
+};

@@ -4,7 +4,8 @@ import {
   getByDate,
   updateAttendance,
   upsertAttendanceByDate,
-  exportAttendanceExcel
+  exportAttendanceByDate,
+  exportAttendanceByMonth
 } from '../../services/attendanceService';
 import { toast } from 'react-toastify';
 import {
@@ -22,6 +23,7 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Trash2,
   Download
 } from 'lucide-react';
@@ -336,6 +338,13 @@ const AttendanceManagement = () => {
   const [editRecord, setEditRecord] = useState(null);
   const [editStaffName, setEditStaffName] = useState('');
 
+  // Export panel
+  const [exportPanelOpen, setExportPanelOpen] = useState(false);
+  const [exportTab, setExportTab] = useState('date'); // 'date' | 'month'
+  const nowVN = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+  const [exportMonth, setExportMonth] = useState(nowVN.getMonth() + 1);
+  const [exportYear, setExportYear] = useState(nowVN.getFullYear());
+
   // ── Fetch ────────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -408,22 +417,26 @@ const AttendanceManagement = () => {
     setEditOpen(true);
   };
 
-  const handleExportExcel = async () => {
+  const handleExportByDate = async () => {
     if (!selectedDate || exporting) return;
     setExporting(true);
+    setExportPanelOpen(false);
     try {
-      const res = await exportAttendanceExcel(selectedDate, selectedDate);
-      const blob = new Blob([res.data], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `attendance_${selectedDate}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+      await exportAttendanceByDate(selectedDate);
+      toast.success('Xuất file Excel thành công');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Không thể xuất file Excel');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportByMonth = async () => {
+    if (exporting) return;
+    setExporting(true);
+    setExportPanelOpen(false);
+    try {
+      await exportAttendanceByMonth(exportYear, exportMonth);
       toast.success('Xuất file Excel thành công');
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Không thể xuất file Excel');
@@ -532,19 +545,136 @@ const AttendanceManagement = () => {
             className="w-full bg-white border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 shadow-sm"
           />
         </div>
-        <button
-          onClick={handleExportExcel}
-          disabled={exporting || loading}
-          className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
-            exporting || loading
-              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              : 'text-white hover:scale-[0.98]'
-          }`}
-          style={exporting || loading ? {} : { backgroundColor: COLORS.primary }}
-        >
-          <Download size={16} />
-          {exporting ? 'Đang xuất...' : 'Xuất Excel'}
-        </button>
+        <div className="relative">
+          <button
+            onClick={() => setExportPanelOpen(prev => !prev)}
+            disabled={exporting || loading}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+              exporting || loading
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'text-white hover:scale-[0.98]'
+            }`}
+            style={exporting || loading ? {} : { backgroundColor: COLORS.primary }}
+          >
+            <Download size={16} />
+            {exporting ? 'Đang xuất...' : 'Xuất Excel'}
+            <ChevronDown size={14} className={`transition-transform ${exportPanelOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {/* Export dropdown panel */}
+          {exportPanelOpen && (
+            <div
+              className="absolute right-0 top-full mt-2 z-30 bg-white border border-gray-200 rounded-2xl shadow-lg p-4 w-72"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Overlay để đóng khi click ngoài */}
+              <div
+                className="fixed inset-0 z-[-1]"
+                onClick={() => setExportPanelOpen(false)}
+              />
+
+              <p className="text-xs font-semibold text-gray-500 mb-3">Chọn kiểu xuất</p>
+
+              {/* Tab */}
+              <div className="flex rounded-lg overflow-hidden border border-gray-200 mb-4 text-xs">
+                <button
+                  onClick={() => setExportTab('date')}
+                  className={`flex-1 py-2 px-3 font-semibold transition-colors ${
+                    exportTab === 'date' ? 'text-white' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                  }`}
+                  style={exportTab === 'date' ? { backgroundColor: COLORS.primary } : {}}
+                >
+                  📅 Theo ngày
+                </button>
+                <button
+                  onClick={() => setExportTab('month')}
+                  className={`flex-1 py-2 px-3 font-semibold transition-colors ${
+                    exportTab === 'month' ? 'text-white' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                  }`}
+                  style={exportTab === 'month' ? { backgroundColor: COLORS.primary } : {}}
+                >
+                  🗓 Theo tháng
+                </button>
+              </div>
+
+              {exportTab === 'date' ? (
+                <div className="space-y-3">
+                  <p className="text-xs text-gray-400">Xuất chấm công ngày đang xem. File có 2 sheet: theo nhân viên &amp; theo ngày.</p>
+                  <div className="bg-gray-50 rounded-xl px-3 py-2 text-xs font-bold text-gray-700">
+                    📅 {selectedDate}
+                  </div>
+                  <button
+                    onClick={handleExportByDate}
+                    className="w-full py-2.5 rounded-xl text-white text-xs font-bold transition-all hover:scale-[0.98]"
+                    style={{ backgroundColor: COLORS.primary }}
+                  >
+                    ⬇ Tải xuống
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-xs text-gray-400">Xuất toàn bộ tháng. File có 2 sheet: theo nhân viên &amp; theo ngày.</p>
+
+                  {/* Chọn năm */}
+                  <div>
+                    <p className="text-[10px] font-semibold text-gray-400 mb-1.5">Năm</p>
+                    <div className="flex gap-1.5">
+                      {[nowVN.getFullYear(), nowVN.getFullYear() - 1, nowVN.getFullYear() - 2].map(y => (
+                        <button
+                          key={y}
+                          onClick={() => setExportYear(y)}
+                          className={`flex-1 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                            exportYear === y
+                              ? 'text-white border-transparent'
+                              : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-400'
+                          }`}
+                          style={exportYear === y ? { backgroundColor: COLORS.primary } : {}}
+                        >
+                          {y}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Chọn tháng — lưới 4×3 */}
+                  <div>
+                    <p className="text-[10px] font-semibold text-gray-400 mb-1.5">Tháng</p>
+                    <div className="grid grid-cols-4 gap-1">
+                      {Array.from({ length: 12 }, (_, i) => i + 1).map(m => {
+                        const isFuture = exportYear === nowVN.getFullYear() && m > nowVN.getMonth() + 1;
+                        return (
+                          <button
+                            key={m}
+                            disabled={isFuture}
+                            onClick={() => !isFuture && setExportMonth(m)}
+                            className={`py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                              exportMonth === m && !isFuture
+                                ? 'text-white border-transparent'
+                                : isFuture
+                                ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'
+                                : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-400'
+                            }`}
+                            style={exportMonth === m && !isFuture ? { backgroundColor: COLORS.primary } : {}}
+                          >
+                            T{m}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleExportByMonth}
+                    className="w-full py-2.5 rounded-xl text-white text-xs font-bold transition-all hover:scale-[0.98]"
+                    style={{ backgroundColor: COLORS.primary }}
+                  >
+                    ⬇ Tải xuống T{exportMonth}/{exportYear}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ─── Table ────────────────────────────────────────────────── */}

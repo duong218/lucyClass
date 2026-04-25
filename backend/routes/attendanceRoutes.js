@@ -42,6 +42,13 @@ router.get(
   catchAsync(attendanceController.exportAttendance)
 );
 
+router.get(
+  '/export-month',
+  auth,
+  authorizeRoles('admin'),
+  catchAsync(attendanceController.exportAttendanceByMonth)
+);
+
 router.put(
   '/:id',
   auth,
