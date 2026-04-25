@@ -31,6 +31,9 @@ const FIREWORK_MILESTONES = [1, 3, 7, 30, 100];
 const FlameButton = () => {
   const { t } = useTranslation();
   const { elementRef, hasMoved } = useDraggableStreak();
+  const location = useLocation();
+
+  if (location.pathname !== '/') return null; //chỉ hiện streak ở trang Home
   const [isOpen, setIsOpen] = useState(false);
   const [isBouncing, setIsBouncing] = useState(false);
   const [loading, setLoading] = useState(false);
