@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 import { getImageUrl } from '../utils/getImageUrl';
+import { showToast } from '../utils/toastUtils';
 
 const FeedbackManagement = () => {
   const [feedbacks, setFeedbacks] = useState([]);
@@ -19,6 +20,7 @@ const FeedbackManagement = () => {
       setFeedbacks(Array.isArray(res.data.data) ? res.data.data : []);
     } catch (err) {
       console.error('Lỗi tải nhận xét:', err);
+      showToast.error('Không thể tải danh sách nhận xét');
       setFeedbacks([]);
     }
   };
@@ -81,13 +83,19 @@ const FeedbackManagement = () => {
     Object.entries(formData).forEach(([k, v]) => fd.append(k, v));
     if (photoFile) fd.append('photo', photoFile);
     try {
-      if (editing) { await api.put(`/feedback/${editing._id}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }); }
-      else { await api.post('/feedback', fd, { headers: { 'Content-Type': 'multipart/form-data' } }); }
+      if (editing) {
+        await api.put(`/feedback/${editing._id}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        showToast.success('Đã cập nhật nhận xét thành công');
+      } else {
+        await api.post('/feedback', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        showToast.success('Đã thêm nhận xét mới thành công');
+      }
       setShowForm(false);
       fetchData();
     } catch (err) {
       console.error(err);
       const msg = err.response?.data?.message || 'Đã xảy ra lỗi. Vui lòng thử lại.';
+      showToast.error(msg);
       setErrors({ submit: msg });
     }
   };
@@ -96,9 +104,11 @@ const FeedbackManagement = () => {
     try {
       await api.delete(`/feedback/${deleteConfirm}`);
       setDeleteConfirm(null);
+      showToast.success('Đã xoá nhận xét thành công');
       fetchData();
     } catch (err) {
       console.error(err);
+      showToast.error('Xoá nhận xét thất bại. Vui lòng thử lại.');
     }
   };
 
