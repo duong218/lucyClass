@@ -111,24 +111,21 @@ Verification:
 - `cleanRestoreTmp.js:57` nhân `* 1000` → đúng vì suffix giờ là giây
 - Temp DB được xóa ngay, cron chỉ là safety net cho trường hợp drop thất bại
 
-### F3 - Medium - Forgot password cho staff đang tiết lộ trạng thái tài khoản nhiều hơn cần thiết
+### F3 - ~~Medium~~ Fixed - Forgot password cho staff đang tiết lộ trạng thái tài khoản nhiều hơn cần thiết
 
-Evidence:
+> **Fixed (2026-04-26):** Backend trả generic response, frontend bỏ gợi ý format username.
+
+Evidence (trước khi sửa):
 
 - nhánh `staff` trả lỗi riêng khi username/email không khớp: `backend/controllers/authController.js:314-330`
 - còn trả lỗi riêng khi staff chưa có email: `backend/controllers/authController.js:333-337`
 - trong khi nhánh `admin` đã dùng generic success để tránh enumeration: `backend/controllers/authController.js:345-353`
+- FE hiển thị placeholder `LC12345678` và helper text `LC + 8 số` → lộ format username
 
-Impact:
+Remediation applied:
 
-- ai biết format username nội bộ (`LC########`) có thể dò xem account nào tồn tại, account nào đã được gán email;
-- đây không phải auth bypass trực tiếp, nhưng giúp thu hẹp mục tiêu cho brute-force social engineering hoặc spear-phishing nội bộ.
-
-Recommendation:
-
-- thống nhất trả một thông điệp chung cho cả `admin` và `staff`;
-- vẫn log nội bộ nguyên nhân thật, nhưng không trả ra client;
-- nếu cần hỗ trợ staff chưa có email, đưa hướng dẫn chung kiểu "nếu thông tin hợp lệ, hệ thống sẽ xử lý hoặc vui lòng liên hệ admin".
+1. **Backend**: Staff forgot-password giờ trả cùng 1 message `"Nếu thông tin hợp lệ, link reset đã được gửi"` cho mọi trường hợp (không tìm thấy, sai email, chưa có email). Log nội bộ vẫn ghi nguyên nhân thật.
+2. **Frontend**: Placeholder đổi thành `"Nhập tên tài khoản"`, helper text đổi thành `"Tên đăng nhập do admin cung cấp"` — không lộ format.
 
 ### F4 - Medium - Teacher đang xem được PII phụ huynh rộng hơn nhu cầu điểm danh tối thiểu
 
@@ -220,7 +217,7 @@ Nếu sau này streak tăng giá trị kinh doanh, phải nâng cấp cơ chế 
 
 1. ~~Sửa attendance save theo hướng chống conflict + validate `studentId` thuộc đúng lớp.~~ → `studentId` validation đã fix. Conflict accepted risk (workflow loại trừ).
 2. ~~Sửa restore logging và cleanup temp restore DB.~~ → Fixed (2026-04-26).
-3. Làm generic response cho forgot-password staff.
+3. ~~Làm generic response cho forgot-password staff.~~ → Fixed (2026-04-26).
 4. Giảm dữ liệu PII trả cho teacher.
 5. Hardening streak theo mức độ giá trị kinh doanh thật.
 6. Bổ sung startup env validation.

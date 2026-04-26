@@ -216,13 +216,13 @@ const ForgotPassword = () => {
                       border: '2px solid',
                       borderColor: username ? '#1C695C' : '#e5e7eb',
                     }}
-                    placeholder="LC12345678"
+                    placeholder="Nhập tên tài khoản"
                     onFocus={e => (e.target.style.borderColor = '#1C695C')}
                     onBlur={e => (e.target.style.borderColor = username ? '#1C695C' : '#e5e7eb')}
                   />
                 </div>
                 <p className="text-xs text-gray-400 mt-1.5 ml-1 font-medium">
-                  Tên đăng nhập dạng LC + 8 số, do admin cung cấp
+                  Tên đăng nhập do admin cung cấp
                 </p>
               </div>
             )}

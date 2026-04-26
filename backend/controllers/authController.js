@@ -311,8 +311,12 @@ exports.forgotPassword = async (req, res) => {
 
     let user = null;
 
+    // 🔒 SECURITY: Generic success message — dùng chung cho mọi trường hợp
+    // để không tiết lộ tài khoản có tồn tại hay không (chống account enumeration)
+    const GENERIC_SUCCESS = { success: true, message: 'Nếu thông tin hợp lệ, link reset đã được gửi' };
+
     if (accountType === 'staff') {
-      // ── Staff flow: BẮT BUỘC có username, tìm đúng trong StaffAccount ──────────
+      // ── Staff flow: BẮT BUỘC có username + email ──────────────────────────────
       if (!safeUsername) {
         return res.status(400).json({ message: 'Vui lòng nhập tên đăng nhập' });
       }
@@ -323,18 +327,15 @@ exports.forgotPassword = async (req, res) => {
       user = await findStaffByUsernameAndEmail(safeUsername, safeEmail);
 
       if (!user) {
-        // Trả lỗi rõ ràng: username không tồn tại hoặc email không khớp
+        // Log nội bộ nguyên nhân thật, nhưng trả generic cho client
         console.warn(`[ForgotPassword] Staff not found: username=${safeUsername}, email=${safeEmail}`);
-        return res.status(400).json({
-          message: 'Tên đăng nhập hoặc email không đúng. Vui lòng kiểm tra lại hoặc liên hệ admin.'
-        });
+        return res.json(GENERIC_SUCCESS);
       }
 
-      // Tài khoản staff chưa được admin gán email
+      // Tài khoản staff chưa được admin gán email — trả generic, log nội bộ
       if (!user.email || user.email.trim() === '') {
-        return res.status(400).json({
-          message: 'Tài khoản chưa có email. Vui lòng liên hệ admin để được hỗ trợ.'
-        });
+        console.warn(`[ForgotPassword] Staff ${safeUsername} has no email`);
+        return res.json(GENERIC_SUCCESS);
       }
     } else {
       // ── Admin flow: CHỈ tìm trong Admin model, KHÔNG đụng StaffAccount ─────────
