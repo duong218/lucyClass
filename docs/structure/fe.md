@@ -47,6 +47,152 @@ frontend/
 └── vite.config.js
 ```
 
+## Thư mục `public`
+
+### `frontend/public/bg-announcement.png`
+- Ảnh nền tĩnh phục vụ một số biến thể giao diện khu vực thông báo/public.
+
+### `frontend/public/bg-login.png`
+- Ảnh nền cho màn hình đăng nhập nội bộ.
+
+### `frontend/public/kids.png`
+- Ảnh minh họa trong form đăng ký ở homepage.
+
+### `frontend/public/logo.jpeg`
+- Logo chính đang được dùng ở navbar, footer, login và layout nội bộ.
+
+### `frontend/public/logo.svg`
+- Bản logo dạng vector, phù hợp cho trường hợp cần hiển thị sắc nét hoặc thay thế định dạng raster.
+
+### `frontend/public/placeholder.jpg`
+- Ảnh fallback dùng khi avatar, ảnh khóa học, ảnh giáo viên hoặc ảnh thông báo tải lỗi.
+
+### `frontend/public/robot.txt`
+- Tệp khai báo hướng dẫn crawler cho phần public site.
+
+### `frontend/public/sitemap.xml`
+- Sitemap phục vụ SEO và lập chỉ mục các URL public.
+
+### `frontend/public/avatar-ranking/avatar-rank1.png`
+- Avatar trang trí cho thẻ xếp hạng ở section `WhyChooseUs`.
+
+### `frontend/public/avatar-ranking/avatar-rank2.png`
+- Avatar trang trí cho thẻ xếp hạng ở section `WhyChooseUs`.
+
+### `frontend/public/avatar-ranking/avatar-rank3.png`
+- Avatar trang trí cho thẻ xếp hạng ở section `WhyChooseUs`.
+
+### `frontend/public/avatar-ranking/avatar-rank4.png`
+- Avatar trang trí cho thẻ xếp hạng ở section `WhyChooseUs`.
+
+### `frontend/public/avatar-ranking/avatar-rank5.png`
+- Avatar trang trí cho thẻ xếp hạng ở section `WhyChooseUs`.
+
+### `frontend/public/decorate/moon.png`
+- Asset trang trí động cho section `WhyChooseUs`.
+
+### `frontend/public/decorate/music-note.png`
+- Asset nốt nhạc trang trí cho section `WhyChooseUs`.
+
+### `frontend/public/decorate/start-ranking.png`
+- Asset sao/ranking trang trí cho section `WhyChooseUs`.
+
+### `frontend/public/images/frame-albums.png`
+- Khung ảnh dùng trong popup chi tiết hoạt động.
+
+### `frontend/public/images/frame-phone.png`
+- Khung điện thoại giả lập dùng trong popup chi tiết hoạt động.
+
+### `frontend/public/images/activities/activity_buildingBlocks.png`
+- Ảnh minh họa hoạt động `buildingBlocks` ở section hoạt động.
+
+### `frontend/public/images/activities/activity_crafting.png`
+- Ảnh minh họa hoạt động `crafting` ở section hoạt động.
+
+### `frontend/public/images/activities/activity_creativeDrawing.png`
+- Ảnh minh họa hoạt động `creativeDrawing` ở section hoạt động.
+
+### `frontend/public/images/activities/activity_groupPlay.png`
+- Ảnh minh họa hoạt động `groupPlay` ở section hoạt động.
+
+### `frontend/public/images/activities/activity_musicTime.png`
+- Ảnh minh họa hoạt động `musicTime` ở section hoạt động.
+
+### `frontend/public/images/activities/activity_outdoorActivities.png`
+- Ảnh minh họa hoạt động `outdoorActivities` ở section hoạt động.
+
+### `frontend/public/images/activities/activity_singingKids.png`
+- Ảnh minh họa hoạt động `singingKids` ở section hoạt động.
+
+### `frontend/public/images/activities/activity_storytelling.png`
+- Ảnh minh họa hoạt động `storytelling` ở section hoạt động.
+
+### `frontend/public/images/activities/fallback-activity.png`
+- Ảnh dự phòng khi asset hoạt động chính tải lỗi.
+
+### `frontend/public/images/avatarCreator/PhamNgocDuong.jpg`
+- Ảnh đại diện hiển thị trong `CreatorPopup`.
+
+### `frontend/public/images/icon3d/blockABC.png`
+- Icon 3D trang trí cho section `LearningJourney`.
+
+### `frontend/public/images/icon3d/book.png`
+- Icon 3D trang trí cho section `LearningJourney`.
+
+### `frontend/public/images/icon3d/cloud.png`
+- Icon 3D trang trí cho section `LearningJourney`.
+
+### `frontend/public/images/icon3d/pencil.png`
+- Icon 3D trang trí cho section `LearningJourney`.
+
+### `frontend/public/images/icon3d/sun.png`
+- Icon 3D trang trí cho section `LearningJourney`.
+
+### `frontend/public/images/learningJourney/step1.png`
+- Ảnh minh họa bước 1 của section `LearningJourney`.
+
+### `frontend/public/images/learningJourney/step2.png`
+- Ảnh minh họa bước 2 của section `LearningJourney`.
+
+### `frontend/public/images/learningJourney/step3.png`
+- Ảnh minh họa bước 3 của section `LearningJourney`.
+
+### `frontend/public/model-transform/doraemon.png`
+- Nhân vật trang trí dùng trong khu vực thông báo và trải nghiệm tương tác.
+
+### `frontend/public/model-transform/GoiY.png`
+- Ảnh gợi ý dùng trong minigame của trang 404.
+
+### `frontend/public/model-transform/LucyCat.png`
+- Ảnh fallback của nhân vật Lucy trong trang 404.
+
+### `frontend/public/model-transform/shin.png`
+- Nhân vật trang trí dùng trong khu vực thông báo.
+
+### `frontend/public/ranking/cup.png`
+- Cúp minh họa cho section `WhyChooseUs`.
+
+### `frontend/public/ranking/oneChamp.png`
+- Ảnh top 1 dùng trong cụm ranking ở section `WhyChooseUs`.
+
+### `frontend/public/ranking/top2.png`
+- Ảnh top 2 dùng trong cụm ranking ở section `WhyChooseUs`.
+
+### `frontend/public/ranking/top3.png`
+- Ảnh top 3 dùng trong cụm ranking ở section `WhyChooseUs`.
+
+### `frontend/public/sounds/correct.mp3`
+- Âm thanh phát khi người dùng thao tác đúng trong minigame trang 404.
+
+### `frontend/public/sounds/hint.mp3`
+- Âm thanh phát khi hiển thị gợi ý trong minigame trang 404.
+
+### `frontend/public/sounds/near.mp3`
+- Âm thanh phát khi thao tác gần đúng trong minigame trang 404.
+
+### `frontend/public/sounds/wrong.mp3`
+- Âm thanh phát khi người dùng thao tác sai trong minigame trang 404.
+
 ## Thư mục `src/assets`
 
 ### `frontend/src/assets/404-9x16.png`
@@ -113,6 +259,10 @@ frontend/
 
 ### `frontend/src/components/AnnouncementSection.jsx`
 - Section thông báo trên homepage.
+
+### `frontend/src/components/AttendanceExportPanel.jsx`
+- Panel chọn kiểu xuất Excel chấm công theo ngày hoặc theo tháng.
+- Đóng gói UI chọn ngày/tháng/năm và gọi callback `onExport` từ màn hình quản lý chấm công.
 
 ### `frontend/src/components/CourseDetailModal.jsx`
 - Modal chi tiết khóa học.
