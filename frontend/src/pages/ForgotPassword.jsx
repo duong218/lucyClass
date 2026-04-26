@@ -2,11 +2,22 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import RecaptchaBox from '../components/RecaptchaBox';
+import {
+  ArrowLeft,
+  Mail,
+  User,
+  ShieldAlert,
+  Send,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Crown,
+  Users,
+} from 'lucide-react';
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
 
-  // 'admin' hoặc 'staff'
   const [accountType, setAccountType] = useState('admin');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -52,7 +63,6 @@ const ForgotPassword = () => {
     setError('');
 
     try {
-      // accountType phải luôn được gửi lên để backend phân biệt flow an toàn
       const payload = { email, accountType, recaptchaToken: captchaToken };
       if (accountType === 'staff') payload.username = username.trim();
 
@@ -72,80 +82,146 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-purple-50 to-pink-100 relative overflow-hidden font-display">
-      {/* Decorative — giữ nguyên style gốc */}
-      <div className="absolute top-10 left-10 text-5xl opacity-20 animate-float">📚</div>
-      <div className="absolute top-20 right-20 text-5xl opacity-20 animate-float" style={{ animationDelay: '1s' }}>🎨</div>
+    <div
+      className="min-h-screen flex items-center justify-center relative overflow-hidden p-4"
+      style={{ background: '#f0f7f5' }}
+    >
+      {/* Background decorative blobs */}
+      <div
+        className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(28,105,92,0.12), transparent 70%)' }}
+      />
+      <div
+        className="absolute -bottom-40 -right-40 w-[600px] h-[600px] rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(28,105,112,0.10), transparent 70%)' }}
+      />
+      {/* Grid pattern */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-[0.03]"
+        style={{
+          backgroundImage:
+            'linear-gradient(rgba(28,105,92,1) 1px, transparent 1px), linear-gradient(90deg, rgba(28,105,92,1) 1px, transparent 1px)',
+          backgroundSize: '40px 40px',
+        }}
+      />
 
-      <div className="w-full max-w-md animate-fadeInUp flex flex-col items-center">
+      <div className="w-full max-w-md relative z-10">
+
+        {/* Back button */}
         <button
           onClick={() => navigate('/admin/login')}
-          className="mb-6 text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors flex items-center gap-1 font-bold group"
+          className="flex items-center gap-2 mb-6 text-sm font-bold transition-opacity hover:opacity-70"
+          style={{ color: '#1C695C', fontFamily: "'Nunito', system-ui, sans-serif" }}
         >
-          <span className="group-hover:-translate-x-1 transition-transform">←</span> Quay lại đăng nhập
+          <ArrowLeft size={16} />
+          Quay lại đăng nhập
         </button>
 
-        <div className="bg-white rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.1)] p-10 w-full relative z-10 border border-white/50 backdrop-blur-sm">
-          <div className="text-center mb-6">
-            <div className="bg-blue-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-bounce">
-              <span className="text-3xl">🔑</span>
+        {/* Card */}
+        <div
+          className="bg-white rounded-3xl p-8 lg:p-10"
+          style={{ boxShadow: '0 20px 60px rgba(28,105,92,0.12), 0 4px 16px rgba(0,0,0,0.06)' }}
+        >
+
+          {/* Header */}
+          <div className="flex items-center gap-4 mb-8">
+            <div
+              className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 overflow-hidden"
+              style={{ background: 'linear-gradient(135deg, #1C695C, #1C6970)' }}
+            >
+              <img
+                src="/logo.jpeg"
+                alt="Lucy Class"
+                className="w-full h-full object-cover"
+                onError={e => {
+                  e.target.style.display = 'none';
+                  e.target.parentElement.innerHTML =
+                    '<span style="color:white;font-weight:900;font-size:1.1rem;font-family:Nunito,system-ui">LC</span>';
+                }}
+              />
             </div>
-            <h1 className="text-3xl font-black text-gray-800 mb-2 tracking-tight">Quên mật khẩu?</h1>
-            <p className="text-gray-500 text-sm leading-relaxed px-4">
-              Nhập thông tin tài khoản để nhận liên kết khôi phục.
-            </p>
+            <div>
+              <h1
+                className="text-2xl font-black text-gray-900 leading-tight"
+                style={{ fontFamily: "'Nunito', system-ui, sans-serif" }}
+              >
+                Quên mật khẩu?
+              </h1>
+              <p className="text-gray-400 text-sm font-medium mt-0.5">
+                Nhập thông tin để nhận liên kết khôi phục
+              </p>
+            </div>
           </div>
 
           {/* Tab chọn loại tài khoản */}
-          <div className="flex rounded-2xl overflow-hidden border-2 border-gray-100 mb-6 bg-gray-50 p-1 gap-1">
-            <button
-              type="button"
-              onClick={() => handleTabChange('admin')}
-              className={`flex-1 py-2.5 text-sm font-black transition-all rounded-xl ${
-                accountType === 'admin'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              👑 Admin
-            </button>
-            <button
-              type="button"
-              onClick={() => handleTabChange('staff')}
-              className={`flex-1 py-2.5 text-sm font-black transition-all rounded-xl ${
-                accountType === 'staff'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              👤 GV / Marketing
-            </button>
+          <div
+            className="flex rounded-2xl p-1 gap-1 mb-6"
+            style={{ background: '#f0f7f5' }}
+          >
+            {[
+              { key: 'admin', label: 'Admin', Icon: Crown },
+              { key: 'staff', label: 'GV / Marketing', Icon: Users },
+            ].map(({ key, label, Icon }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => handleTabChange(key)}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-black transition-all duration-200"
+                style={
+                  accountType === key
+                    ? {
+                        background: 'linear-gradient(135deg, #1C695C, #1C6970)',
+                        color: '#ffffff',
+                        boxShadow: '0 4px 12px rgba(28,105,92,0.3)',
+                        fontFamily: "'Nunito', system-ui",
+                      }
+                    : {
+                        color: '#6b7280',
+                        fontFamily: "'Nunito', system-ui",
+                      }
+                }
+              >
+                <Icon size={15} strokeWidth={2.5} />
+                {label}
+              </button>
+            ))}
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
 
             {/* Username — chỉ hiện cho staff */}
             {accountType === 'staff' && (
               <div>
-                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">
+                <label
+                  className="block text-sm font-bold text-gray-700 mb-2"
+                  style={{ fontFamily: "'Nunito', system-ui" }}
+                >
                   Tên đăng nhập
                 </label>
-                <div className="relative group">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                    </svg>
-                  </span>
+                <div className="relative">
+                  <div
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2"
+                    style={{ color: username ? '#1C695C' : '#9ca3af' }}
+                  >
+                    <User size={17} strokeWidth={2} />
+                  </div>
                   <input
                     type="text"
                     value={username}
                     onChange={e => setUsername(e.target.value)}
                     required={accountType === 'staff'}
-                    className="w-full pl-12 pr-4 py-4 rounded-2xl border-2 border-gray-100 bg-gray-50/50 focus:border-blue-400 focus:ring-4 focus:ring-blue-50 transition-all outline-none text-gray-700 font-medium"
+                    className="w-full pl-11 pr-4 py-3.5 rounded-2xl text-sm font-semibold text-gray-800 outline-none transition-all duration-200"
+                    style={{
+                      background: '#f8fafb',
+                      border: '2px solid',
+                      borderColor: username ? '#1C695C' : '#e5e7eb',
+                    }}
                     placeholder="LC12345678"
+                    onFocus={e => (e.target.style.borderColor = '#1C695C')}
+                    onBlur={e => (e.target.style.borderColor = username ? '#1C695C' : '#e5e7eb')}
                   />
                 </div>
-                <p className="text-xs text-gray-400 mt-1.5 ml-1">
+                <p className="text-xs text-gray-400 mt-1.5 ml-1 font-medium">
                   Tên đăng nhập dạng LC + 8 số, do admin cung cấp
                 </p>
               </div>
@@ -153,64 +229,112 @@ const ForgotPassword = () => {
 
             {/* Email */}
             <div>
-              <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">
-                {accountType === 'admin' ? 'Email Quản trị' : 'Email của bạn'}
+              <label
+                className="block text-sm font-bold text-gray-700 mb-2"
+                style={{ fontFamily: "'Nunito', system-ui" }}
+              >
+                {accountType === 'admin' ? 'Email quản trị' : 'Email của bạn'}
               </label>
-              <div className="relative group">
-                <span className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${error ? 'text-red-400' : 'text-gray-400 group-focus-within:text-blue-500'}`}>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"/>
-                  </svg>
-                </span>
+              <div className="relative">
+                <div
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2"
+                  style={{ color: email ? '#1C695C' : error ? '#C96A3D' : '#9ca3af' }}
+                >
+                  <Mail size={17} strokeWidth={2} />
+                </div>
                 <input
                   ref={emailRef}
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   required
-                  className={`w-full pl-12 pr-4 py-4 rounded-2xl border-2 transition-all outline-none text-gray-700 font-medium
-                    ${error
-                      ? 'border-red-200 bg-red-50/30 focus:border-red-400 focus:ring-4 focus:ring-red-100'
-                      : 'border-gray-100 bg-gray-50/50 focus:border-blue-400 focus:ring-4 focus:ring-blue-50'}`}
+                  className="w-full pl-11 pr-4 py-3.5 rounded-2xl text-sm font-semibold text-gray-800 outline-none transition-all duration-200"
+                  style={{
+                    background: error ? 'rgba(201,106,61,0.04)' : '#f8fafb',
+                    border: '2px solid',
+                    borderColor: error ? 'rgba(201,106,61,0.4)' : email ? '#1C695C' : '#e5e7eb',
+                  }}
                   placeholder={accountType === 'admin' ? 'admin@example.com' : 'email@example.com'}
+                  onFocus={e => (e.target.style.borderColor = '#1C695C')}
+                  onBlur={e =>
+                    (e.target.style.borderColor = error
+                      ? 'rgba(201,106,61,0.4)'
+                      : email
+                      ? '#1C695C'
+                      : '#e5e7eb')
+                  }
                 />
               </div>
               {accountType === 'staff' && (
-                <p className="text-xs text-amber-600 mt-1.5 ml-1 font-medium">
-                  ⚠️ Nếu chưa có email, liên hệ admin để được bổ sung
-                </p>
+                <div
+                  className="flex items-start gap-2 mt-1.5 ml-1 rounded-xl px-3 py-2"
+                  style={{ background: 'rgba(217,154,65,0.08)', border: '1px solid rgba(217,154,65,0.2)' }}
+                >
+                  <ShieldAlert size={13} className="shrink-0 mt-0.5" style={{ color: '#C96A3D' }} />
+                  <p className="text-xs font-semibold" style={{ color: '#C96A3D' }}>
+                    Nếu chưa có email, liên hệ admin để được bổ sung
+                  </p>
+                </div>
               )}
             </div>
 
             {/* reCAPTCHA */}
             <RecaptchaBox ref={recaptchaRef} onVerify={setCaptchaToken} />
 
+            {/* Submit */}
             <button
               type="submit"
               disabled={loading || !captchaToken}
-              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 rounded-2xl font-black text-lg hover:shadow-[0_10px_20px_rgba(37,99,235,0.3)] transition-all disabled:opacity-70 active:scale-95 shadow-lg flex items-center justify-center gap-3"
+              className="w-full py-3.5 rounded-2xl font-black text-white flex items-center justify-center gap-2.5 transition-all duration-200 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+              style={{
+                background: loading
+                  ? '#3FA48F'
+                  : 'linear-gradient(135deg, #1C695C 0%, #1C6970 100%)',
+                boxShadow: loading ? 'none' : '0 8px 24px rgba(28,105,92,0.35)',
+                fontFamily: "'Nunito', system-ui",
+                fontSize: '15px',
+              }}
             >
               {loading ? (
                 <>
-                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
-                  </svg>
-                  <span>Đang gửi yêu cầu...</span>
+                  <Loader2 size={18} className="animate-spin" />
+                  Đang gửi yêu cầu...
                 </>
-              ) : 'Gửi link khôi phục'}
+              ) : (
+                <>
+                  <Send size={17} />
+                  Gửi link khôi phục
+                </>
+              )}
             </button>
 
+            {/* Success */}
             {message && (
-              <div className="animate-fadeIn bg-green-50 p-4 rounded-2xl border border-green-200 flex items-start gap-3 shadow-sm">
-                <span className="text-xl">✅</span>
-                <p className="text-green-800 text-sm font-bold leading-tight mt-0.5">{message}</p>
+              <div
+                className="flex items-start gap-3 rounded-2xl px-4 py-3.5"
+                style={{
+                  background: 'rgba(28,105,92,0.07)',
+                  border: '1px solid rgba(28,105,92,0.25)',
+                }}
+              >
+                <CheckCircle2 size={17} className="shrink-0 mt-0.5" style={{ color: '#1C695C' }} />
+                <p className="text-sm font-semibold" style={{ color: '#1C695C' }}>
+                  {message}
+                </p>
               </div>
             )}
+
+            {/* Error */}
             {error && (
-              <div className="animate-fadeIn bg-red-50 p-4 rounded-2xl border border-red-200 flex items-start gap-3 shadow-sm">
-                <span className="text-xl">❌</span>
-                <p className="text-red-800 text-sm font-bold leading-tight mt-0.5">
+              <div
+                className="flex items-start gap-3 rounded-2xl px-4 py-3.5"
+                style={{
+                  background: 'rgba(201,106,61,0.07)',
+                  border: '1px solid rgba(201,106,61,0.25)',
+                }}
+              >
+                <XCircle size={17} className="shrink-0 mt-0.5" style={{ color: '#C96A3D' }} />
+                <p className="text-sm font-semibold" style={{ color: '#C96A3D' }}>
                   {error.includes('❌') ? error.replace('❌ ', '') : error}
                 </p>
               </div>

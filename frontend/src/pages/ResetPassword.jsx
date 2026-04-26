@@ -2,13 +2,25 @@ import { useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../services/api';
 import { setAccessToken } from '../services/api';
+import {
+  Lock,
+  Eye,
+  EyeOff,
+  ShieldCheck,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Check,
+  X,
+  KeyRound,
+} from 'lucide-react';
 
 // Kiểm tra từng tiêu chí — đồng bộ với regex backend
 const getPasswordChecks = (pw) => [
-  { label: 'Ít nhất 8 ký tự',      pass: pw.length >= 8 },
-  { label: 'Có chữ thường (a-z)',   pass: /[a-z]/.test(pw) },
-  { label: 'Có chữ hoa (A-Z)',      pass: /[A-Z]/.test(pw) },
-  { label: 'Có chữ số (0-9)',       pass: /\d/.test(pw) },
+  { label: 'Ít nhất 8 ký tự', pass: pw.length >= 8 },
+  { label: 'Có chữ thường (a-z)', pass: /[a-z]/.test(pw) },
+  { label: 'Có chữ hoa (A-Z)', pass: /[A-Z]/.test(pw) },
+  { label: 'Có chữ số (0-9)', pass: /\d/.test(pw) },
   { label: 'Có ký tự đặc biệt (!@#...)', pass: /[^A-Za-z\d]/.test(pw) },
 ];
 
@@ -17,12 +29,23 @@ const ResetPassword = () => {
   const { token } = useParams();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
   const checks = useMemo(() => getPasswordChecks(password), [password]);
   const allPassed = checks.every(c => c.pass);
+  const passedCount = checks.filter(c => c.pass).length;
+
+  const strengthColor = () => {
+    if (passedCount <= 1) return '#e5e7eb';
+    if (passedCount === 2) return '#C96A3D';
+    if (passedCount === 3) return '#d97706';
+    if (passedCount === 4) return '#3FA48F';
+    return '#1C695C';
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -43,7 +66,6 @@ const ResetPassword = () => {
     try {
       const res = await api.post(`/auth/reset-password/${token}`, { password });
       if (res.data.success) {
-        // Xoá toàn bộ session cũ ở client — backend đã xoá session server-side
         localStorage.removeItem('hasSession');
         setAccessToken(null);
 
@@ -58,82 +80,282 @@ const ResetPassword = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-purple-50 to-pink-100 relative overflow-hidden">
-      {/* Decorative — giữ nguyên style gốc */}
-      <div className="absolute top-10 left-10 text-5xl opacity-20 animate-float">🔑</div>
-      <div className="absolute bottom-20 left-20 text-5xl opacity-20 animate-float" style={{ animationDelay: '0.5s' }}>🛡️</div>
+    <div
+      className="min-h-screen flex items-center justify-center relative overflow-hidden p-4"
+      style={{ background: '#f0f7f5' }}
+    >
+      {/* Background decorative blobs */}
+      <div
+        className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(28,105,92,0.12), transparent 70%)' }}
+      />
+      <div
+        className="absolute -bottom-40 -right-40 w-[600px] h-[600px] rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(28,105,112,0.10), transparent 70%)' }}
+      />
+      {/* Grid pattern */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-[0.03]"
+        style={{
+          backgroundImage:
+            'linear-gradient(rgba(28,105,92,1) 1px, transparent 1px), linear-gradient(90deg, rgba(28,105,92,1) 1px, transparent 1px)',
+          backgroundSize: '40px 40px',
+        }}
+      />
 
-      <div className="w-full max-w-md animate-fadeInUp flex flex-col items-center">
-        <div className="bg-white rounded-3xl shadow-2xl p-10 w-full relative z-10">
-          <div className="text-center mb-6">
-            <div className="bg-blue-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <span className="text-3xl">🔐</span>
+      <div className="w-full max-w-md relative z-10">
+
+        {/* Card */}
+        <div
+          className="bg-white rounded-3xl p-8 lg:p-10"
+          style={{ boxShadow: '0 20px 60px rgba(28,105,92,0.12), 0 4px 16px rgba(0,0,0,0.06)' }}
+        >
+          {/* Header */}
+          <div className="flex items-center gap-4 mb-8">
+            <div
+              className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 overflow-hidden"
+              style={{ background: 'linear-gradient(135deg, #1C695C, #1C6970)' }}
+            >
+              <img
+                src="/logo.jpeg"
+                alt="Lucy Class"
+                className="w-full h-full object-cover"
+                onError={e => {
+                  e.target.style.display = 'none';
+                  e.target.parentElement.innerHTML =
+                    '<span style="color:white;font-weight:900;font-size:1.1rem;font-family:Nunito,system-ui">LC</span>';
+                }}
+              />
             </div>
-            <h1 className="text-2xl font-display text-gray-800 mb-1">Đặt lại mật khẩu</h1>
-            <p className="text-gray-500 text-sm">Nhập mật khẩu mới của bạn bên dưới</p>
+            <div>
+              <h1
+                className="text-2xl font-black text-gray-900 leading-tight"
+                style={{ fontFamily: "'Nunito', system-ui, sans-serif" }}
+              >
+                Đặt lại mật khẩu
+              </h1>
+              <p className="text-gray-400 text-sm font-medium mt-0.5">
+                Nhập mật khẩu mới cho tài khoản của bạn
+              </p>
+            </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Security notice */}
+          <div
+            className="flex items-start gap-3 rounded-2xl p-3.5 mb-6"
+            style={{ background: 'rgba(28,105,92,0.07)', border: '1px solid rgba(28,105,92,0.2)' }}
+          >
+            <ShieldCheck size={16} className="shrink-0 mt-0.5" style={{ color: '#1C695C' }} />
+            <p className="text-xs font-semibold leading-relaxed" style={{ color: '#1C695C' }}>
+              Mật khẩu mới sẽ áp dụng ngay lập tức — tất cả phiên đăng nhập cũ sẽ bị huỷ
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+
+            {/* New password */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Mật khẩu mới</label>
+              <label
+                className="block text-sm font-bold text-gray-700 mb-2"
+                style={{ fontFamily: "'Nunito', system-ui" }}
+              >
+                Mật khẩu mới
+              </label>
               <div className="relative">
-                <span className="absolute left-3 top-3 text-gray-400">🔒</span>
+                <div
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2"
+                  style={{ color: password ? '#1C695C' : '#9ca3af' }}
+                >
+                  <Lock size={17} strokeWidth={2} />
+                </div>
                 <input
-                  type="password" value={password} onChange={e => setPassword(e.target.value)} required
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
                   minLength={8}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
-                  placeholder="Ít nhất 8 ký tự, chữ hoa, số, ký tự đặc biệt"
+                  className="w-full pl-11 pr-12 py-3.5 rounded-2xl text-sm font-semibold text-gray-800 outline-none transition-all duration-200"
+                  style={{
+                    background: '#f8fafb',
+                    border: '2px solid',
+                    borderColor: password ? '#1C695C' : '#e5e7eb',
+                  }}
+                  placeholder="Tối thiểu 8 ký tự, chữ hoa, số, ký tự đặc biệt"
+                  onFocus={e => (e.target.style.borderColor = '#1C695C')}
+                  onBlur={e => (e.target.style.borderColor = password ? '#1C695C' : '#e5e7eb')}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 rounded-lg transition-colors hover:bg-gray-100"
+                  style={{ color: '#9ca3af' }}
+                >
+                  {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                </button>
               </div>
 
-              {/* Password strength checklist — chỉ hiện khi đang nhập */}
+              {/* Strength bar */}
               {password.length > 0 && (
-                <ul className="mt-2 space-y-1">
-                  {checks.map((c) => (
-                    <li key={c.label} className={`flex items-center gap-2 text-xs ${c.pass ? 'text-green-600' : 'text-red-400'}`}>
-                      <span>{c.pass ? '✅' : '❌'}</span>
-                      {c.label}
-                    </li>
-                  ))}
-                </ul>
+                <div className="mt-2.5">
+                  <div className="flex gap-1 mb-2.5">
+                    {[1, 2, 3, 4, 5].map(i => (
+                      <div
+                        key={i}
+                        className="flex-1 h-1.5 rounded-full transition-all duration-300"
+                        style={{
+                          background: i <= passedCount ? strengthColor() : '#e5e7eb',
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Checklist */}
+                  <div className="grid grid-cols-1 gap-1">
+                    {checks.map(c => (
+                      <div key={c.label} className="flex items-center gap-2">
+                        <div
+                          className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 transition-all duration-200"
+                          style={{
+                            background: c.pass ? 'rgba(28,105,92,0.15)' : 'rgba(201,106,61,0.12)',
+                          }}
+                        >
+                          {c.pass
+                            ? <Check size={10} strokeWidth={3} style={{ color: '#1C695C' }} />
+                            : <X size={10} strokeWidth={3} style={{ color: '#C96A3D' }} />}
+                        </div>
+                        <span
+                          className="text-xs font-semibold transition-colors duration-200"
+                          style={{ color: c.pass ? '#1C695C' : '#9ca3af' }}
+                        >
+                          {c.label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
 
+            {/* Confirm password */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Xác nhận mật khẩu mới</label>
+              <label
+                className="block text-sm font-bold text-gray-700 mb-2"
+                style={{ fontFamily: "'Nunito', system-ui" }}
+              >
+                Xác nhận mật khẩu
+              </label>
               <div className="relative">
-                <span className="absolute left-3 top-3 text-gray-400">✅</span>
+                <div
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2"
+                  style={{
+                    color:
+                      confirmPassword && confirmPassword === password
+                        ? '#1C695C'
+                        : confirmPassword && confirmPassword !== password
+                          ? '#C96A3D'
+                          : '#9ca3af',
+                  }}
+                >
+                  <KeyRound size={17} strokeWidth={2} />
+                </div>
                 <input
-                  type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                  type={showConfirm ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  required
+                  className="w-full pl-11 pr-12 py-3.5 rounded-2xl text-sm font-semibold text-gray-800 outline-none transition-all duration-200"
+                  style={{
+                    background: '#f8fafb',
+                    border: '2px solid',
+                    borderColor:
+                      confirmPassword && confirmPassword === password
+                        ? '#1C695C'
+                        : confirmPassword && confirmPassword !== password
+                          ? 'rgba(201,106,61,0.5)'
+                          : '#e5e7eb',
+                  }}
                   placeholder="Nhập lại mật khẩu"
+                  onFocus={e => (e.target.style.borderColor = '#1C695C')}
+                  onBlur={e => {
+                    if (confirmPassword && confirmPassword !== password)
+                      e.target.style.borderColor = 'rgba(201,106,61,0.5)';
+                    else if (confirmPassword === password)
+                      e.target.style.borderColor = '#1C695C';
+                    else e.target.style.borderColor = '#e5e7eb';
+                  }}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm(!showConfirm)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 rounded-lg transition-colors hover:bg-gray-100"
+                  style={{ color: '#9ca3af' }}
+                >
+                  {showConfirm ? <EyeOff size={17} /> : <Eye size={17} />}
+                </button>
               </div>
+              {confirmPassword && confirmPassword !== password && (
+                <p className="text-xs font-semibold mt-1.5 ml-1" style={{ color: '#C96A3D' }}>
+                  Mật khẩu xác nhận chưa khớp
+                </p>
+              )}
             </div>
 
+            {/* Submit */}
             <button
-              type="submit" disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 rounded-xl font-bold text-lg hover:shadow-lg transition-all disabled:opacity-50 active:scale-95 shadow-md"
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 rounded-2xl font-black text-white flex items-center justify-center gap-2.5 transition-all duration-200 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+              style={{
+                background: loading
+                  ? '#3FA48F'
+                  : 'linear-gradient(135deg, #1C695C 0%, #1C6970 100%)',
+                boxShadow: loading ? 'none' : '0 8px 24px rgba(28,105,92,0.35)',
+                fontFamily: "'Nunito', system-ui",
+                fontSize: '15px',
+              }}
             >
               {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                  </svg>
+                <>
+                  <Loader2 size={18} className="animate-spin" />
                   Đang cập nhật...
-                </span>
-              ) : 'Cập nhật mật khẩu'}
+                </>
+              ) : (
+                <>
+                  <ShieldCheck size={18} />
+                  Cập nhật mật khẩu
+                </>
+              )}
             </button>
 
+            {/* Success */}
             {message && (
-              <div className="bg-green-50 p-4 rounded-xl border border-green-100">
-                <p className="text-green-700 text-center text-sm font-semibold">✅ {message}</p>
+              <div
+                className="flex items-start gap-3 rounded-2xl px-4 py-3.5"
+                style={{
+                  background: 'rgba(28,105,92,0.07)',
+                  border: '1px solid rgba(28,105,92,0.25)',
+                }}
+              >
+                <CheckCircle2 size={17} className="shrink-0 mt-0.5" style={{ color: '#1C695C' }} />
+                <p className="text-sm font-semibold" style={{ color: '#1C695C' }}>
+                  {message}
+                </p>
               </div>
             )}
+
+            {/* Error */}
             {error && (
-              <div className="bg-red-50 p-4 rounded-xl border border-red-100">
-                <p className="text-red-600 text-center text-sm font-semibold">❌ {error}</p>
+              <div
+                className="flex items-start gap-3 rounded-2xl px-4 py-3.5"
+                style={{
+                  background: 'rgba(201,106,61,0.07)',
+                  border: '1px solid rgba(201,106,61,0.25)',
+                }}
+              >
+                <XCircle size={17} className="shrink-0 mt-0.5" style={{ color: '#C96A3D' }} />
+                <p className="text-sm font-semibold" style={{ color: '#C96A3D' }}>
+                  {error}
+                </p>
               </div>
             )}
           </form>
