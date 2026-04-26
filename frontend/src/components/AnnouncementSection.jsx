@@ -80,7 +80,7 @@ const AnnouncementSection = () => {
     <section 
       id="announcements"
       key={i18n.language}
-      className="relative py-24 px-6 overflow-hidden bg-white border-t border-primary-50 isolate z-0 font-sans"
+      className="relative py-12 lg:py-24 px-4 lg:px-6 overflow-hidden bg-white border-t border-primary-50 isolate z-0 font-sans"
     >
 
       {/* ═══════════════════════════════════════════════════════════════════
@@ -295,7 +295,7 @@ const AnnouncementSection = () => {
         ></div>
 
         {/* INNER WRAPPER (main content container) */}
-        <div className="relative rounded-[40px] bg-gradient-to-br from-blue-50/50 via-white to-purple-50/50 p-8 md:p-12 border border-white/50 shadow-card overflow-hidden">
+        <div className="relative rounded-[24px] lg:rounded-[40px] bg-gradient-to-br from-blue-50/50 via-white to-purple-50/50 p-4 md:p-8 lg:p-12 border border-white/50 shadow-card overflow-hidden">
           {/* Animated Characters (Desktop Only) */}
           <div className="hidden lg:block pointer-events-none">
             {/* Shin - Left Side */}
@@ -342,8 +342,8 @@ const AnnouncementSection = () => {
             <span className="absolute bottom-[25%] left-[40%] text-xl text-pink-400/60 animate-twinkle-slower [animation-delay:0.7s]">✦</span>
             <span className="absolute top-10 right-[40%] text-2xl text-purple-400/60 animate-twinkle-slower [animation-delay:2.2s]">✦</span>
           </div>
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-display font-black tracking-tight text-gray-800 drop-shadow-sm uppercase">
+          <div className="text-center mb-6 lg:mb-16">
+            <h2 className="text-2xl md:text-4xl lg:text-5xl font-display font-black tracking-tight text-gray-800 drop-shadow-sm uppercase">
               {t('announcements.title') || "What's New at Lucy English Center?"}
             </h2>
             <p className="mt-4 text-base md:text-lg text-gray-600 font-medium max-w-2xl mx-auto">
@@ -351,6 +351,120 @@ const AnnouncementSection = () => {
             </p>
             <div className="w-24 h-2 bg-primary-300 mx-auto mt-6 rounded-full shadow-inner"></div>
           </div>
+
+          {/* ── DECORATIVE STRIP ── */}
+          <div className="relative mb-6 lg:mb-10 pointer-events-none select-none">
+
+            {/* ── DESKTOP: wrap freely ── */}
+            <div className="hidden lg:flex items-center justify-center gap-2 flex-wrap px-4 mb-6">
+              {['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'].map((letter, i) => {
+                const colors = [
+                  { bg: '#DBEAFE', text: '#1D4ED8', border: '#BFDBFE', shadow: 'rgba(59,130,246,0.25)' },
+                  { bg: '#EDE9FE', text: '#6D28D9', border: '#DDD6FE', shadow: 'rgba(139,92,246,0.25)' },
+                  { bg: '#FCE7F3', text: '#BE185D', border: '#FBCFE8', shadow: 'rgba(236,72,153,0.25)' },
+                  { bg: '#D1FAE5', text: '#065F46', border: '#A7F3D0', shadow: 'rgba(16,185,129,0.25)' },
+                  { bg: '#FEF3C7', text: '#92400E', border: '#FDE68A', shadow: 'rgba(245,158,11,0.25)' },
+                  { bg: '#FFE4E6', text: '#9F1239', border: '#FECDD3', shadow: 'rgba(239,68,68,0.25)' },
+                ];
+                const c = colors[i % colors.length];
+                const sizes = ['w-9 h-9 text-sm','w-10 h-10 text-base','w-8 h-8 text-xs','w-11 h-11 text-base'];
+                const delays = [0,0.3,0.6,0.9,1.2,0.15,0.45,0.75,1.05,1.35];
+                return (
+                  <div key={letter}
+                    className={`${sizes[i%sizes.length]} rounded-full flex items-center justify-center font-black animate-float-around`}
+                    style={{ background:c.bg, color:c.text, boxShadow:`0 4px 12px ${c.shadow}`, border:`2px solid ${c.border}`, animationDelay:`${delays[i%delays.length]}s`, fontFamily:"'Nunito',system-ui,sans-serif" }}
+                  >{letter}</div>
+                );
+              })}
+            </div>
+
+            {/* ── MOBILE: auto-scrolling marquee phải → trái ── */}
+            <div className="lg:hidden relative mb-4 overflow-hidden">
+              {/* CSS keyframe inline */}
+              <style>{`
+                @keyframes marquee-letters {
+                  0%   { transform: translateX(0); }
+                  100% { transform: translateX(-50%); }
+                }
+                .marquee-letters-track {
+                  animation: marquee-letters 18s linear infinite;
+                  will-change: transform;
+                }
+                .marquee-letters-track:hover {
+                  animation-play-state: paused;
+                }
+              `}</style>
+              {/* fade edges */}
+              <div className="absolute left-0 top-0 bottom-0 w-8 z-10 pointer-events-none"
+                style={{ background: 'linear-gradient(to right, rgba(255,255,255,1), transparent)' }} />
+              <div className="absolute right-0 top-0 bottom-0 w-8 z-10 pointer-events-none"
+                style={{ background: 'linear-gradient(to left, rgba(255,255,255,1), transparent)' }} />
+              {/* track — tripled để loop mượt */}
+              <div className="marquee-letters-track flex gap-2" style={{ width: 'max-content' }}>
+                {[...Array(3)].flatMap((_, rep) =>
+                  'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map((letter, i) => {
+                    const colors = [
+                      { bg:'#DBEAFE', text:'#1D4ED8', border:'#BFDBFE' },
+                      { bg:'#EDE9FE', text:'#6D28D9', border:'#DDD6FE' },
+                      { bg:'#FCE7F3', text:'#BE185D', border:'#FBCFE8' },
+                      { bg:'#D1FAE5', text:'#065F46', border:'#A7F3D0' },
+                      { bg:'#FEF3C7', text:'#92400E', border:'#FDE68A' },
+                      { bg:'#FFE4E6', text:'#9F1239', border:'#FECDD3' },
+                    ];
+                    const c = colors[i % colors.length];
+                    return (
+                      <div key={`${rep}-${letter}`}
+                        className="w-9 h-9 rounded-full flex items-center justify-center font-black text-sm shrink-0"
+                        style={{ background:c.bg, color:c.text, border:`2px solid ${c.border}`, fontFamily:"'Nunito',system-ui,sans-serif" }}
+                      >{letter}</div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* ── DESKTOP stats: flex wrap ── */}
+            <div className="hidden lg:flex items-center justify-center gap-3 flex-wrap px-4">
+              {[
+                { emoji:'📚', labelKey:'announcements.stat_lessons',  value:'100+', color:'#1D4ED8', bg:'#DBEAFE' },
+                { emoji:'⭐', labelKey:'announcements.stat_students',  value:'100+', color:'#92400E', bg:'#FEF3C7' },
+                { emoji:'🎯', labelKey:'announcements.stat_courses',   value:'5+',  color:'#065F46', bg:'#D1FAE5' },
+                { emoji:'🏆', labelKey:'announcements.stat_teachers',  value:'5+',   color:'#6D28D9', bg:'#EDE9FE' },
+              ].map(({ emoji, labelKey, value, color, bg }) => (
+                <div key={labelKey} className="flex items-center gap-2 px-4 py-2 rounded-2xl"
+                  style={{ background:bg, border:`2px dashed ${color}30` }}>
+                  <span className="text-xl">{emoji}</span>
+                  <div>
+                    <p className="font-black text-base leading-none" style={{ color, fontFamily:"'Nunito',system-ui" }}>{value}</p>
+                    <p className="text-xs font-semibold text-gray-400 leading-none mt-0.5">{t(labelKey)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* ── MOBILE stats: 2×2 compact grid ── */}
+            <div className="lg:hidden grid grid-cols-2 gap-2 px-1">
+              {[
+                { emoji:'📚', labelKey:'announcements.stat_lessons',  value:'100+', color:'#1D4ED8', bg:'#DBEAFE', border:'#BFDBFE' },
+                { emoji:'⭐', labelKey:'announcements.stat_students',  value:'200+', color:'#92400E', bg:'#FEF3C7', border:'#FDE68A' },
+                { emoji:'🎯', labelKey:'announcements.stat_courses',   value:'10+',  color:'#065F46', bg:'#D1FAE5', border:'#A7F3D0' },
+                { emoji:'🏆', labelKey:'announcements.stat_teachers',  value:'5+',   color:'#6D28D9', bg:'#EDE9FE', border:'#DDD6FE' },
+              ].map(({ emoji, labelKey, value, color, bg, border }) => (
+                <div key={labelKey}
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-2xl"
+                  style={{ background:bg, border:`1.5px solid ${border}` }}
+                >
+                  <span className="text-2xl leading-none">{emoji}</span>
+                  <div className="min-w-0">
+                    <p className="font-black text-lg leading-none" style={{ color, fontFamily:"'Nunito',system-ui" }}>{value}</p>
+                    <p className="text-[11px] font-semibold text-gray-400 leading-tight mt-0.5 truncate">{t(labelKey)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+          </div>
+          {/* ── END DECORATIVE STRIP ── */}
 
           {/* UX Improvement: Back to Latest Button */}
           {activeIndex !== 0 && (
@@ -366,7 +480,7 @@ const AnnouncementSection = () => {
           )}
 
           {/* Fan Card Stack Layout Container */}
-          <div className="relative w-full max-w-md h-[420px] mx-auto">
+          <div className="relative w-full max-w-md h-[380px] lg:h-[420px] mx-auto">
             {visibleItems.map((announcement, index) => (
               <div
                 key={announcement._id}
@@ -430,7 +544,7 @@ const AnnouncementSection = () => {
           )}
 
           {/* View All Button */}
-          <div className="flex justify-center mt-12">
+          <div className="flex justify-center mt-6 lg:mt-12">
             <button 
               onClick={() => setOpenAll(true)}
               className="px-10 py-3 rounded-full bg-primary-400 text-white font-black uppercase tracking-widest hover:bg-primary-500 hover:scale-105 active:scale-95 transition-all duration-200 shadow-heavy"

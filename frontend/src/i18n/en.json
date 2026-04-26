@@ -311,7 +311,11 @@
     "others": "other announcements",
     "all": "All Announcements",
     "back_latest": "Back to Latest",
-    "newest": "Newest"
+    "newest": "Newest",
+    "stat_lessons": "Fun lessons",
+    "stat_students": "Students",
+    "stat_courses": "Courses",
+    "stat_teachers": "Teachers"
   },
   "game": {
     "title": "🔍 Find Lucy!",

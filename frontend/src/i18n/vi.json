@@ -311,7 +311,11 @@
     "others": "thông báo khác",
     "all": "Tất cả thông báo",
     "back_latest": "Quay lại thông báo mới nhất",
-    "newest": "Mới nhất"
+    "newest": "Mới nhất",
+    "stat_lessons": "Bài học vui",
+    "stat_students": "Học viên",
+    "stat_courses": "Khóa học",
+    "stat_teachers": "Giáo viên"
   },
   "game": {
     "title": "🔍 Tìm Lucy nào!",

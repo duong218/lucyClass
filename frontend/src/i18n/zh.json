@@ -311,7 +311,11 @@
     "others": "其他公告",
     "all": "全部公告",
     "back_latest": "返回最新",
-    "newest": "最新"
+    "newest": "最新",
+    "stat_lessons": "课程",
+    "stat_students": "学生",
+    "stat_courses": "课程",
+    "stat_teachers": "教师"
   },
   "game": {
     "title": "🔍 找到 Lucy！",
