@@ -61,51 +61,55 @@ Các kiểm soát sau đang được triển khai đúng hướng:
 
 ## 4. Findings
 
-### F1 - High - Điểm danh khóa học bị ghi đè lẫn nhau, chưa có đồng bộ an toàn giữa giáo viên chính và giáo viên phụ
+### F1 - ~~High~~ Low (Accepted Risk) - Điểm danh khóa học bị ghi đè lẫn nhau, chưa có đồng bộ an toàn giữa giáo viên chính và giáo viên phụ
+
+> **Reassessment (2026-04-26):** Downgraded từ High → Low (Accepted Risk) sau khi xác nhận workflow thực tế.
 
 Evidence:
 
 - `checkCourseAccess()` cho phép cả giáo viên chính và giáo viên phụ vào lớp: `backend/controllers/courseController.js:67-83`
-- `saveAttendance()` chỉ kiểm tra `studentId` là ObjectId và `status` là `present/absent`, sau đó ghi đè nguyên mảng `records`: `backend/controllers/courseController.js:130-167`
+- `saveAttendance()` kiểm tra `studentId` là ObjectId, `status` là `present/absent`, **và validate mọi studentId phải thuộc lớp đang thao tác** (đã fix): `backend/controllers/courseController.js:130-175`
 
-Impact:
+Impact ban đầu:
 
 - hai giáo viên mở cùng một buổi điểm danh rồi lưu lệch thời điểm sẽ ghi đè nhau;
-- một người có quyền hợp lệ vẫn có thể gửi request thủ công chứa `studentId` không thuộc lớp đó, vì backend chưa đối chiếu membership thật với `Registration`;
 - trạng thái hiện tại là "cùng truy cập được", chưa phải "cùng làm mà không mất dữ liệu".
 
-Business conclusion:
+Business context (accepted risk):
 
-- với bối cảnh trung tâm nhỏ, đây là rủi ro nghiệp vụ thực tế nhất cho phần attendance;
-- nếu dùng flow này để tránh mượn tài khoản, hiện tại vẫn có khả năng phát sinh tranh chấp dữ liệu và mất lịch sử thao tác.
+- **Workflow thực tế loại trừ xung đột**: trung tâm phân công rõ ràng ai hôm nay điểm danh — tại 1 thời điểm chỉ có 1 giáo viên điểm danh;
+- sau khi lưu, các giáo viên khác cùng khóa thấy kết quả sau ~5 giây;
+- trường hợp 2 giáo viên cùng bấm lưu cùng lúc gần như không xảy ra trong thực tế;
+- `takenBy` đã track ai điểm danh gần nhất → đủ audit trail;
+- `studentId` validation đã chặn inject ID không thuộc lớp;
+- thêm optimistic locking sẽ tạo phức tạp không cần thiết cho quy mô nhỏ.
 
-Recommendation:
+Conclusion:
 
-- thêm server-side validation: mọi `studentId` trong `records` phải thuộc `courseId` đang thao tác;
-- chuyển từ overwrite toàn bộ sang patch theo từng học sinh hoặc optimistic locking bằng `version` / `updatedAt`;
-- lưu thêm `updatedBy`, `updatedAt` theo từng record hoặc ít nhất giữ audit trail cho mỗi lần save;
-- FE nên gửi `baseVersion` và BE phải từ chối save nếu dữ liệu đã bị người khác sửa trước đó.
+- rủi ro nghiệp vụ **thấp** với quy trình hiện tại của trung tâm;
+- nếu sau này mở rộng quy mô hoặc cho phép điểm danh đồng thời, cần xem xét lại.
 
-### F2 - High - Restore có thể làm lộ `MONGO_URI` vào log và giữ lại database tạm chứa dữ liệu thật
+### F2 - ~~High~~ Fixed - Restore có thể làm lộ `MONGO_URI` vào log và giữ lại database tạm chứa dữ liệu thật
 
-Evidence:
+> **Fixed (2026-04-26):** 3 sub-issues đã được sửa trong `backend/services/restore.service.js`.
 
-- log mongorestore đang in nguyên command, bao gồm `--uri=${MONGO_URI}`: `backend/services/restore.service.js:190-191`, `255-270`
+Evidence (trước khi sửa):
+
+- log mongorestore đang in nguyên command, bao gồm `--uri=${MONGO_URI}`: `backend/services/restore.service.js:190-191`
 - tên database tạm dùng `Date.now()` mili-giây: `backend/services/restore.service.js:252-253`
-- cron cleanup lại parse suffix như giây rồi nhân `* 1000`: `backend/config/cron.js:143-149`
+- cron cleanup parse suffix rồi nhân `* 1000` → timestamp bị x1000, cron không bao giờ xóa được temp DB
 
-Impact:
+Remediation applied:
 
-- log restore có thể làm lộ username/password MongoDB vào log files, terminal history, APM, hoặc hệ thống giám sát;
-- database tạm của bước validate restore có thể không bị xóa đúng vòng đời, dẫn tới tồn đọng thêm một bản sao dữ liệu thật;
-- đây là rủi ro nghiêm trọng vì backup/restore thường chứa toàn bộ PII của trung tâm.
+1. **Mask URI trong log**: thay `args.join(' ')` bằng `safeArgs` với `--uri=<REDACTED>`
+2. **Chuẩn hóa timestamp**: đổi `Date.now()` sang `Math.floor(Date.now() / 1000)` (giây) → khớp với `cron.js` và `cleanRestoreTmp.js` parser
+3. **Drop temp DB ngay**: sau validate thành công, drop temp DB lập tức thay vì chờ cron dọn rác
 
-Recommendation:
+Verification:
 
-- tuyệt đối không log command chứa URI bí mật; log nhãn tác vụ thay vì log command đầy đủ;
-- chuẩn hóa timestamp tạm: hoặc dùng ms ở cả chỗ tạo và chỗ cleanup, hoặc dùng giây ở cả hai nơi;
-- sau restore thành công, xóa luôn temp DB vừa tạo thay vì chỉ trông chờ cron dọn rác;
-- rà thêm các log lỗi Drive/SendGrid/restore để tránh dump response object có token/secret.
+- `cron.js:146` nhân `* 1000` → đúng vì suffix giờ là giây
+- `cleanRestoreTmp.js:57` nhân `* 1000` → đúng vì suffix giờ là giây
+- Temp DB được xóa ngay, cron chỉ là safety net cho trường hợp drop thất bại
 
 ### F3 - Medium - Forgot password cho staff đang tiết lộ trạng thái tài khoản nhiều hơn cần thiết
 
@@ -214,8 +218,8 @@ Nếu sau này streak tăng giá trị kinh doanh, phải nâng cấp cơ chế 
 
 ## 6. Priority fix order
 
-1. Sửa attendance save theo hướng chống conflict + validate `studentId` thuộc đúng lớp.
-2. Sửa restore logging và cleanup temp restore DB.
+1. ~~Sửa attendance save theo hướng chống conflict + validate `studentId` thuộc đúng lớp.~~ → `studentId` validation đã fix. Conflict accepted risk (workflow loại trừ).
+2. ~~Sửa restore logging và cleanup temp restore DB.~~ → Fixed (2026-04-26).
 3. Làm generic response cho forgot-password staff.
 4. Giảm dữ liệu PII trả cho teacher.
 5. Hardening streak theo mức độ giá trị kinh doanh thật.

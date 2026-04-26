@@ -154,6 +154,26 @@ exports.saveAttendance = async (req, res, next) => {
       }
     }
 
+    // Verify mọi studentId gửi lên phải là học viên đang active của lớp này
+    const Registration = require('../models/Registration');
+    const validRegistrations = await Registration.find({
+      courseId: id,
+      status: 'registered',
+      isActive: true,
+    }).select('_id').lean();
+
+    const validIdSet = new Set(validRegistrations.map(r => r._id.toString()));
+    const invalidIds = records
+      .map(r => r.studentId.toString())
+      .filter(sid => !validIdSet.has(sid));
+
+    if (invalidIds.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `studentId không thuộc lớp học này: ${invalidIds.join(', ')}`,
+      });
+    }
+
     const targetDate = date ? new Date(date) : new Date();
     targetDate.setUTCHours(0, 0, 0, 0);
 

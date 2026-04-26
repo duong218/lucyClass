@@ -188,7 +188,9 @@ exports.performRestore = async (zipFilePath) => {
     restoreProgress = 45; // Estimated 45%
 
     const runMongorestore = async (args, label) => {
-      console.log(`[RESTORE] ${label}: mongorestore ${args.join(' ')}`);
+      // 🔒 SECURITY: Never log args containing secrets (--uri=...)
+      const safeArgs = args.map(a => a.startsWith('--uri=') ? '--uri=<REDACTED>' : a);
+      console.log(`[RESTORE] ${label}: mongorestore ${safeArgs.join(' ')}`);
       return await new Promise((resolve, reject) => {
         const mongorestore = spawn(mongorestoreBin, args, { stdio: ['ignore', 'pipe', 'pipe'] });
 
@@ -250,7 +252,8 @@ exports.performRestore = async (zipFilePath) => {
     // 5. Phase (Advanced Safety): Restore into a temporary DB first (validation run)
     // This prevents touching the current DB unless the backup can be restored successfully.
     const sourceDbName = path.basename(dumpPath);
-    const tempDbName = `${sourceDbName}_restore_tmp_${Date.now()}`;
+    // Suffix = Unix seconds (NOT ms) — phải khớp với cron.js & cleanRestoreTmp.js parser
+    const tempDbName = `${sourceDbName}_restore_tmp_${Math.floor(Date.now() / 1000)}`;
     console.log(`[RESTORE:SAFE] Validating backup by restoring into temp DB: ${tempDbName}`);
     await runMongorestore(
       [
@@ -261,7 +264,18 @@ exports.performRestore = async (zipFilePath) => {
       ],
       'Temp restore (non-destructive)'
     );
-    console.log('[RESTORE:SAFE] Temp restore completed. Proceeding to destructive restore...');
+    console.log('[RESTORE:SAFE] Temp restore completed. Dropping temp DB before main restore...');
+
+    // 🔒 SECURITY: Drop temp DB immediately — don't leave a full data copy waiting for cron
+    try {
+      const tmpConn = await require('mongoose').createConnection(MONGO_URI).asPromise();
+      await tmpConn.useDb(tempDbName).dropDatabase();
+      await tmpConn.close();
+      console.log(`[RESTORE:SAFE] Dropped temp DB: ${tempDbName}`);
+    } catch (dropErr) {
+      // Non-fatal: cron will clean it up later, but log the warning
+      console.error(`[RESTORE:WARN] Failed to drop temp DB ${tempDbName}:`, dropErr.message);
+    }
 
     // 6. Phase: Mongorestore execution (destructive to main DB)
     console.warn("[RESTORE:DANGER] Executing 'mongorestore --drop'. Current collections will be replaced.");
