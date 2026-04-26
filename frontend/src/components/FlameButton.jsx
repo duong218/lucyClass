@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import flameImg from '../assets/flame.png';
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import Fireworks from './Fireworks';
+import MilestonePopup from './MilestonePopup';
 import { openModal, closeModal } from '../utils/modalScrollLock';
 import {
   startStreak,
@@ -12,6 +13,38 @@ import {
 import { useDraggableStreak } from '../utils/draggableStreak';
 import { useLocation } from 'react-router-dom';
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   Lottie Fire Component
+   Loads Fire.lottie from /model-transform/ in public folder
+   Supports speed & filter overrides for milestone theming
+───────────────────────────────────────────────────────────────────────────── */
+const LottieFire = ({ style = {}, speed = 1, hueRotate = 'hue-rotate(0deg)', size = 'default' }) => {
+  const sizes = {
+    default: { width: 'clamp(70px, 12vw, 120px)', height: 'clamp(82px, 14vw, 140px)' },
+    mini: { width: 48, height: 56 },
+    tiny: { width: 32, height: 38 },
+  };
+  const s = sizes[size] || sizes.default;
+
+  return (
+    <div style={{
+      width: s.width,
+      height: s.height,
+      filter: hueRotate !== 'hue-rotate(0deg)' ? hueRotate : undefined,
+      ...style,
+    }}>
+      <DotLottieReact
+        src="/model-transform/Fire.lottie"
+        loop
+        autoplay
+        speed={speed}
+        style={{ width: '100%', height: '100%' }}
+      />
+    </div>
+  );
+};
+
+/* ── Helpers ─────────────────────────────────────────────────────────────── */
 const getVNDate = (offset = 0) => {
   const date = new Date();
   const vnDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
@@ -24,99 +57,267 @@ const getVNDate = (offset = 0) => {
 
 const FIREWORK_MILESTONES = [1, 3, 7, 30, 100];
 
-// Progress ring SVG helper
-const StreakRing = ({ count, color }) => {
-  const r = 28;
+/* ── Milestone config ────────────────────────────────────────────────────── */
+const getMilestoneConfig = (count) => {
+  if (count >= 100) return {
+    ringColor: '#FFD700',
+    badge: '👑', label: 'VUA GIỮ LỬA', labelColor: 'text-yellow-600',
+    fabColor: 'from-yellow-400 to-orange-500',
+    btnGradient: 'linear-gradient(135deg, #F59E0B, #EF4444)',
+    hueRotate: 'hue-rotate(260deg) saturate(1.5)',
+    glowColor: 'rgba(255,215,0,0.6)',
+    progressFrom: '#FFD700', progressTo: '#FF4081',
+    lottieSpeed: 2.2,
+  };
+  if (count >= 30) return {
+    ringColor: '#A855F7',
+    badge: '🌟', label: 'SIÊU SAO', labelColor: 'text-purple-500',
+    fabColor: 'from-purple-400 to-violet-600',
+    btnGradient: 'linear-gradient(135deg, #9C27B0, #E040FB)',
+    hueRotate: 'hue-rotate(270deg)',
+    glowColor: 'rgba(168,85,247,0.6)',
+    progressFrom: '#9C27B0', progressTo: '#E040FB',
+    lottieSpeed: 1.8,
+  };
+  if (count >= 7) return {
+    ringColor: '#3B82F6',
+    badge: '🥈', label: 'ĐỈNH CAO', labelColor: 'text-blue-500',
+    fabColor: 'from-blue-400 to-cyan-400',
+    btnGradient: 'linear-gradient(135deg, #2196F3, #00BCD4)',
+    hueRotate: 'hue-rotate(200deg)',
+    glowColor: 'rgba(59,130,246,0.55)',
+    progressFrom: '#2196F3', progressTo: '#00BCD4',
+    lottieSpeed: 1.5,
+  };
+  if (count >= 3) return {
+    ringColor: '#F59E0B',
+    badge: '⭐', label: 'ĐÃ VÀO NHỊP', labelColor: 'text-amber-500',
+    fabColor: 'from-amber-400 to-orange-400',
+    btnGradient: 'linear-gradient(135deg, #F59E0B, #EF9F27)',
+    hueRotate: 'hue-rotate(30deg)',
+    glowColor: 'rgba(245,158,11,0.55)',
+    progressFrom: '#F59E0B', progressTo: '#FFD700',
+    lottieSpeed: 1.2,
+  };
+  return {
+    ringColor: '#EF4444',
+    badge: '🌱', label: '', labelColor: '',
+    fabColor: 'from-red-400 to-orange-400',
+    btnGradient: 'linear-gradient(135deg, #EF4444, #FF6B35)',
+    hueRotate: 'hue-rotate(0deg)',
+    glowColor: 'rgba(239,68,68,0.5)',
+    progressFrom: '#EF4444', progressTo: '#FF6B35',
+    lottieSpeed: 1,
+  };
+};
+
+/* ── Progress ring ───────────────────────────────────────────────────────── */
+const StreakRing = ({ count, color, progressFrom, progressTo }) => {
+  const r = 30;
   const circ = 2 * Math.PI * r;
-  // next milestone thresholds
   const milestones = [3, 7, 30, 100];
   const next = milestones.find(m => m > count) || 100;
   const prev = milestones[milestones.indexOf(next) - 1] || 0;
   const progress = Math.min((count - prev) / (next - prev), 1);
   const offset = circ * (1 - progress);
+  const uid = `ring_${count}_${progressFrom.replace('#','')}`;
   return (
-    <svg width="64" height="64" viewBox="0 0 64 64" className="absolute top-0 left-0">
-      <circle cx="32" cy="32" r={r} fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="3" />
-      <circle
-        cx="32" cy="32" r={r}
-        fill="none"
-        stroke={color}
-        strokeWidth="3"
+    <svg width="72" height="72" viewBox="0 0 72 72" style={{ position: 'absolute', top: 0, left: 0 }}>
+      <defs>
+        <linearGradient id={uid} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor={progressFrom} />
+          <stop offset="100%" stopColor={progressTo} />
+        </linearGradient>
+      </defs>
+      <circle cx="36" cy="36" r={r} fill="none" stroke="rgba(0,0,0,0.07)" strokeWidth="4" />
+      <circle cx="36" cy="36" r={r} fill="none"
+        stroke={`url(#${uid})`}
+        strokeWidth="4"
         strokeDasharray={circ}
         strokeDashoffset={offset}
         strokeLinecap="round"
-        transform="rotate(-90 32 32)"
-        style={{ transition: 'stroke-dashoffset 0.6s ease' }}
+        transform="rotate(-90 36 36)"
+        style={{ transition: 'stroke-dashoffset 0.7s cubic-bezier(.36,1.6,.64,1)' }}
       />
     </svg>
   );
 };
 
-const getMilestoneConfig = (count) => {
-  if (count >= 100) return {
-    ringColor: '#7F77DD',
-    badge: '👑',
-    label: 'VUA GIỮ LỬA',
-    labelColor: 'text-purple-600',
-    fabColor: 'from-purple-500 to-pink-500',
-    btnColor: 'bg-gradient-to-r from-purple-500 to-pink-500',
-    hueRotate: 'hue-rotate(260deg) saturate(1.5)',
-    hint: null,
+/* ── Checkin button ──────────────────────────────────────────────────────── */
+const CheckinButton = ({ onClick, disabled, loading, hasCheckedInToday, cfg, t, userName }) => {
+  const [pressing, setPressing] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  const handleClick = async () => {
+    if (disabled || loading || hasCheckedInToday) return;
+    setPressing(true);
+    setTimeout(() => setPressing(false), 320);
+    await onClick();
+    setSuccess(true);
+    setTimeout(() => setSuccess(false), 1800);
   };
-  if (count >= 30) return {
-    ringColor: '#7F77DD',
-    badge: '🌟',
-    label: 'SIÊU SAO',
-    labelColor: 'text-purple-500',
-    fabColor: 'from-purple-400 to-purple-600',
-    btnColor: 'bg-gradient-to-r from-purple-400 to-purple-600',
-    hueRotate: 'hue-rotate(270deg)',
-    hint: null,
-  };
-  if (count >= 7) return {
-    ringColor: '#378ADD',
-    badge: '🥈',
-    label: 'ĐỈNH CAO',
-    labelColor: 'text-blue-500',
-    fabColor: 'from-blue-400 to-cyan-500',
-    btnColor: 'bg-gradient-to-r from-blue-500 to-cyan-500',
-    hueRotate: 'hue-rotate(200deg)',
-    hint: null,
-  };
-  if (count >= 3) return {
-    ringColor: '#EF9F27',
-    badge: '⭐',
-    label: 'ĐÃ VÀO NHỊP',
-    labelColor: 'text-orange-500',
-    fabColor: 'from-orange-400 to-yellow-400',
-    btnColor: 'bg-gradient-to-r from-orange-400 to-yellow-400',
-    hueRotate: 'hue-rotate(30deg)',
-    hint: null,
-  };
-  return {
-    ringColor: '#E24B4A',
-    badge: '🌱',
-    label: '',
-    labelColor: '',
-    fabColor: 'from-red-400 to-pink-400',
-    btnColor: 'bg-gradient-to-r from-red-400 to-pink-400',
-    hueRotate: 'hue-rotate(0deg)',
-    hint: null,
-  };
+
+  if (hasCheckedInToday) {
+    return (
+      <button disabled style={{
+        width: '100%',
+        background: 'linear-gradient(135deg, #D1FAE5, #A7F3D0)',
+        color: '#059669',
+        border: '2px solid #6EE7B7',
+        cursor: 'not-allowed',
+        fontWeight: 900,
+        padding: '16px 0',
+        borderRadius: 18,
+        fontSize: 14,
+        fontFamily: "'Baloo 2', sans-serif",
+        letterSpacing: 0.3,
+      }}>
+        ✅ {t('streak.already_checked_in', { name: userName || '' })}
+      </button>
+    );
+  }
+
+  return (
+    <>
+      <style>{`
+        @keyframes btnWobble {
+          0%, 100% { transform: scale(1) rotate(0deg); }
+          20% { transform: scale(0.93) rotate(-1.5deg); }
+          40% { transform: scale(1.07) rotate(1.5deg); }
+          60% { transform: scale(0.97) rotate(-0.5deg); }
+          80% { transform: scale(1.02) rotate(0.5deg); }
+        }
+        @keyframes btnShimmer {
+          0% { background-position: -200% center; }
+          100% { background-position: 200% center; }
+        }
+        @keyframes btnGlow {
+          0%, 100% { box-shadow: 0 6px 30px rgba(255,107,53,0.45), 0 2px 8px rgba(0,0,0,0.12); }
+          50% { box-shadow: 0 6px 45px rgba(255,107,53,0.7), 0 2px 8px rgba(0,0,0,0.12); }
+        }
+        @keyframes successBounce {
+          0% { transform: scale(1); }
+          35% { transform: scale(1.1); }
+          65% { transform: scale(0.96); }
+          100% { transform: scale(1); }
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes rippleOut {
+          0% { transform: translate(-50%,-50%) scale(0); opacity: 0.5; }
+          100% { transform: translate(-50%,-50%) scale(5); opacity: 0; }
+        }
+      `}</style>
+      <button
+        onClick={handleClick}
+        disabled={disabled || loading}
+        style={{
+          width: '100%',
+          background: success
+            ? 'linear-gradient(135deg, #10B981, #34D399)'
+            : cfg.btnGradient,
+          color: '#fff',
+          border: 'none',
+          fontWeight: 900,
+          padding: '16px 0',
+          borderRadius: 18,
+          fontSize: 14.5,
+          cursor: 'pointer',
+          fontFamily: "'Baloo 2', 'Nunito', sans-serif",
+          letterSpacing: 0.5,
+          position: 'relative',
+          overflow: 'hidden',
+          transition: 'background 0.3s, opacity 0.2s',
+          opacity: loading ? 0.65 : 1,
+          animation: pressing
+            ? 'btnWobble 0.35s ease'
+            : success
+            ? 'successBounce 0.45s ease'
+            : 'btnGlow 2.5s ease-in-out infinite',
+        }}
+      >
+        {!loading && !success && (
+          <span style={{
+            position: 'absolute', inset: 0,
+            background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.3) 50%, transparent 60%)',
+            backgroundSize: '200% auto',
+            animation: 'btnShimmer 2.5s linear infinite',
+            borderRadius: 'inherit',
+            pointerEvents: 'none',
+          }} />
+        )}
+        <span style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          {loading ? (
+            <>
+              <span style={{ width: 17, height: 17, border: '2.5px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+              {t('streak.loading')}
+            </>
+          ) : success ? (
+            <>✨ Check-in thành công!</>
+          ) : (
+            t('streak.check_in_btn')
+          )}
+        </span>
+      </button>
+    </>
+  );
 };
 
+/* ── Start button ────────────────────────────────────────────────────────── */
+const StartButton = ({ onClick, loading, t }) => {
+  const [ripple, setRipple] = useState(null);
+  const handleClick = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setRipple({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    setTimeout(() => setRipple(null), 700);
+    onClick();
+  };
+  return (
+    <button onClick={handleClick} disabled={loading} style={{
+      width: '100%',
+      background: 'linear-gradient(135deg, #F97316, #EC4899)',
+      color: '#fff', border: 'none',
+      fontWeight: 900, padding: '16px 0', borderRadius: 18, fontSize: 14.5,
+      cursor: 'pointer', position: 'relative', overflow: 'hidden',
+      fontFamily: "'Baloo 2', 'Nunito', sans-serif",
+      letterSpacing: 0.5,
+      boxShadow: '0 6px 28px rgba(249,115,22,0.45)',
+      opacity: loading ? 0.7 : 1,
+      transition: 'opacity 0.2s, transform 0.1s',
+    }}>
+      {ripple && (
+        <span style={{
+          position: 'absolute', left: ripple.x, top: ripple.y,
+          width: 20, height: 20, borderRadius: '50%',
+          background: 'rgba(255,255,255,0.45)',
+          animation: 'rippleOut 0.7s ease-out forwards',
+          pointerEvents: 'none',
+        }} />
+      )}
+      <span style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+        {loading ? (
+          <><span style={{ width: 17, height: 17, border: '2.5px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />{t('streak.loading')}</>
+        ) : t('streak.start_btn')}
+      </span>
+    </button>
+  );
+};
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   MAIN FlameButton Component
+───────────────────────────────────────────────────────────────────────────── */
 const FlameButton = () => {
   const { t } = useTranslation();
   const { elementRef, hasMoved } = useDraggableStreak();
   const location = useLocation();
 
   const [isOpen, setIsOpen] = useState(false);
-  const [isBouncing, setIsBouncing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [showFireworks, setShowFireworks] = useState(false);
-  const prevStreakRef = useRef(null);
+  const [milestonePopup, setMilestonePopup] = useState(null);
+  const [checkInAnim, setCheckInAnim] = useState(false);
 
+  const prevStreakRef = useRef(null);
   const [isExistingUser, setIsExistingUser] = useState(false);
   const [loadingUser, setLoadingUser] = useState(false);
   const lookupRequestIdRef = useRef(0);
@@ -124,21 +325,26 @@ const FlameButton = () => {
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-
   const [savedPhone, setSavedPhone] = useState(localStorage.getItem('streak_phone') || '');
   const [userData, setUserData] = useState(null);
+  const [isReviveConfirmOpen, setIsReviveConfirmOpen] = useState(false);
 
-  // ── Modal helpers ────────────────────────────────────────────────────────────
   const handleOpen = () => { openModal(); setIsOpen(true); };
   const handleClose = () => { closeModal(); setIsOpen(false); };
 
-  // ── Fireworks on milestone ───────────────────────────────────────────────────
   useEffect(() => {
     if (userData?.streakCount !== undefined) {
       const current = userData.streakCount;
       const prev = prevStreakRef.current;
-      if (prev !== null && prev !== current && FIREWORK_MILESTONES.includes(current)) {
-        setShowFireworks(true);
+      if (prev !== null && prev !== current) {
+        setCheckInAnim(true);
+        setTimeout(() => setCheckInAnim(false), 1200);
+        if (FIREWORK_MILESTONES.includes(current)) {
+          setShowFireworks(true);
+          setTimeout(() => setMilestonePopup(current), 350);
+        } else {
+          setTimeout(() => setMilestonePopup(current), 350);
+        }
       }
       prevStreakRef.current = current;
     }
@@ -160,39 +366,26 @@ const FlameButton = () => {
           setEmail(res.data.email || '');
           setIsExistingUser(true);
         } else {
-          setUserData(null);
-          setIsExistingUser(false);
-          setName('');
-          setEmail('');
+          setUserData(null); setIsExistingUser(false); setName(''); setEmail('');
         }
       }
     } catch (_err) {
-      if (requestId === lookupRequestIdRef.current) {
-        setUserData(null);
-        setIsExistingUser(false);
-      }
+      if (requestId === lookupRequestIdRef.current) { setUserData(null); setIsExistingUser(false); }
     } finally {
       if (requestId === lookupRequestIdRef.current) setLoadingUser(false);
     }
   }, []);
 
-  // Clear session if new day
   useEffect(() => {
     const today = getVNDate(0);
     const lastLogin = localStorage.getItem('streak_last_login_date');
     if (savedPhone && lastLogin !== today) {
       localStorage.removeItem('streak_phone');
-      setSavedPhone('');
-      setUserData(null);
-      setPhone('');
-      setName('');
-      setEmail('');
+      setSavedPhone(''); setUserData(null); setPhone(''); setName(''); setEmail('');
     }
   }, [savedPhone]);
 
-  useEffect(() => {
-    if (savedPhone) loadUser(savedPhone);
-  }, [savedPhone, loadUser]);
+  useEffect(() => { if (savedPhone) loadUser(savedPhone); }, [savedPhone, loadUser]);
 
   useEffect(() => {
     if (!savedPhone && isValidPhone(phone)) {
@@ -201,82 +394,47 @@ const FlameButton = () => {
     }
   }, [phone, savedPhone, loadUser]);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setIsBouncing(true);
-      setTimeout(() => setIsBouncing(false), 300);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // ── Actions ──────────────────────────────────────────────────────────────────
   const handleStart = async () => {
     if (loading) return;
     if (!phone || !isValidPhone(phone)) { setErrorMsg(t('streak.error_phone')); return; }
     if (!name) { setErrorMsg(t('streak.error_name')); return; }
-    setLoading(true);
-    setErrorMsg('');
+    setLoading(true); setErrorMsg('');
     const res = await startStreak({ phone, name, email });
     if (res.success) {
       const today = getVNDate(0);
       localStorage.setItem('streak_phone', res.data.phone);
       localStorage.setItem('streak_last_login_date', today);
-      setSavedPhone(res.data.phone);
-      setUserData(res.data);
-    } else {
-      setErrorMsg(res.message || t('streak.unknown_error'));
-    }
+      setSavedPhone(res.data.phone); setUserData(res.data);
+    } else { setErrorMsg(res.message || t('streak.unknown_error')); }
     setLoading(false);
   };
 
   const handleCheckIn = async (forceReset = false) => {
     if (loading) return;
-    setLoading(true);
-    setErrorMsg('');
+    setLoading(true); setErrorMsg('');
     const res = await checkinStreak(savedPhone, forceReset);
     if (res.success) {
-      if (res.needRevive) {
-        // needRevive is handled inline now — no separate modal
-        setUserData(res.data);
-      } else {
-        setUserData(res.data);
-        setIsReviveConfirmOpen(false);
-      }
-    } else {
-      setErrorMsg(res.message || t('streak.unknown_error'));
-    }
+      if (res.needRevive) { setUserData(res.data); }
+      else { setUserData(res.data); setIsReviveConfirmOpen(false); }
+    } else { setErrorMsg(res.message || t('streak.unknown_error')); }
     setLoading(false);
   };
 
   const handleRevive = async () => {
     if (loading) return;
-    setLoading(true);
-    setErrorMsg('');
+    setLoading(true); setErrorMsg('');
     const res = await reviveStreak(savedPhone);
-    if (res.success) {
-      setUserData(res.data);
-      setIsReviveConfirmOpen(false);
-    } else {
-      setErrorMsg(res.message || t('streak.unknown_error'));
-    }
+    if (res.success) { setUserData(res.data); setIsReviveConfirmOpen(false); }
+    else { setErrorMsg(res.message || t('streak.unknown_error')); }
     setLoading(false);
   };
 
   const handleSwitchUser = () => {
     localStorage.removeItem('streak_phone');
-    setSavedPhone('');
-    setUserData(null);
-    setPhone('');
-    setName('');
-    setEmail('');
-    setErrorMsg('');
-    setIsReviveConfirmOpen(false);
+    setSavedPhone(''); setUserData(null); setPhone(''); setName(''); setEmail('');
+    setErrorMsg(''); setIsReviveConfirmOpen(false);
   };
 
-  // Inline revive confirm state (replaces separate modal)
-  const [isReviveConfirmOpen, setIsReviveConfirmOpen] = useState(false);
-
-  // ── Derived state ────────────────────────────────────────────────────────────
   const today = getVNDate(0);
   const hasCheckedInToday = userData?.lastCheckin === today;
 
@@ -296,11 +454,9 @@ const FlameButton = () => {
   const cfg = getMilestoneConfig(userData?.streakCount || 0);
   const isMilestone = FIREWORK_MILESTONES.includes(userData?.streakCount);
 
-  // Build timeline days for revive window
   const buildTimeline = () => {
     if (!userData?.lastCheckin) return [];
     const days = [];
-    // Show last 3 days before today + today
     for (let i = 3; i >= 0; i--) {
       const d = getVNDate(-i);
       const diff = calcDiffDays(d);
@@ -316,461 +472,672 @@ const FlameButton = () => {
     return days;
   };
 
+  const getProgressPct = () => {
+    const ms = [3, 7, 30, 100];
+    const next = ms.find(m => m > (userData?.streakCount || 0)) || 100;
+    const prev = ms[ms.indexOf(next) - 1] || 0;
+    return Math.min(((( userData?.streakCount || 0) - prev) / (next - prev)) * 100, 100);
+  };
+
   if (location.pathname !== '/') return null;
 
   return (
     <>
-      {showFireworks && <Fireworks onComplete={() => setShowFireworks(false)} />}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;700;800;900&family=Nunito:wght@700;800;900&display=swap');
 
-      {/* ── Floating flame button ────────────────────────────────────────────── */}
+        /* ── FAB animations ── */
+        @keyframes fabFloat {
+          0%, 100% { transform: translateY(0) rotate(-1deg); }
+          50% { transform: translateY(-10px) rotate(1deg); }
+        }
+        @keyframes fabGlowPulse {
+          0%, 100% { opacity: 0.4; transform: scale(1.2); filter: blur(22px); }
+          50% { opacity: 0.75; transform: scale(1.65); filter: blur(30px); }
+        }
+        @keyframes badgePop {
+          0%, 100% { transform: translateX(-50%) scale(1) translateY(0); }
+          50% { transform: translateX(-50%) scale(1.13) translateY(-2px); }
+        }
+        @keyframes checkInBurst {
+          0% { transform: scale(1); }
+          30% { transform: scale(1.3); }
+          55% { transform: scale(0.88); }
+          75% { transform: scale(1.1); }
+          100% { transform: scale(1); }
+        }
+
+        /* ── Modal animations ── */
+        @keyframes modalSlideUp {
+          from { opacity: 0; transform: translateY(48px) scale(0.98); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes modalFadeCenter {
+          from { opacity: 0; transform: scale(0.94) translateY(10px); }
+          to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes streakNumUpdate {
+          0% { transform: scale(1); }
+          40% { transform: scale(1.45); color: #FF6B35; }
+          100% { transform: scale(1); }
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes rippleOut {
+          0% { transform: translate(-50%,-50%) scale(0); opacity: 0.5; }
+          100% { transform: translate(-50%,-50%) scale(5); opacity: 0; }
+        }
+        @keyframes shimmerBtn {
+          0% { background-position: -200% center; }
+          100% { background-position: 200% center; }
+        }
+        @keyframes btnGlow {
+          0%, 100% { box-shadow: 0 6px 30px rgba(255,107,53,0.45), 0 2px 8px rgba(0,0,0,0.12); }
+          50% { box-shadow: 0 6px 45px rgba(255,107,53,0.7), 0 2px 8px rgba(0,0,0,0.12); }
+        }
+        @keyframes fabCountIn {
+          0% { transform: translateX(-50%) scale(0) rotate(-20deg); opacity: 0; }
+          65% { transform: translateX(-50%) scale(1.3) rotate(6deg); }
+          100% { transform: translateX(-50%) scale(1) rotate(0); opacity: 1; }
+        }
+        @keyframes heroFireFloat {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-4px); }
+        }
+
+        /* ── Desktop center modal ── */
+        @media (min-width: 768px) {
+          .streak-modal-inner {
+            border-radius: 28px !important;
+            margin-bottom: 0 !important;
+            animation: modalFadeCenter 0.32s cubic-bezier(.25,1.4,.5,1) !important;
+            box-shadow: 0 32px 80px rgba(0,0,0,0.28), 0 0 0 1px rgba(255,255,255,0.08) !important;
+          }
+        }
+
+        /* ── FAB lottie container animation ── */
+        .fab-lottie-wrap {
+          animation: fabFloat 3.4s ease-in-out infinite;
+          transform-origin: bottom center;
+          will-change: transform;
+        }
+        .fab-lottie-wrap.burst {
+          animation: checkInBurst 0.75s cubic-bezier(.36,1.6,.64,1) !important;
+        }
+
+        /* ── Scrollbar thin ── */
+        .streak-body::-webkit-scrollbar { width: 4px; }
+        .streak-body::-webkit-scrollbar-track { background: transparent; }
+        .streak-body::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 99px; }
+      `}</style>
+
+      {showFireworks && <Fireworks onComplete={() => setShowFireworks(false)} />}
+      {milestonePopup !== null && (
+        <MilestonePopup streakCount={milestonePopup} onClose={() => setMilestonePopup(null)} userName={userData?.name} />
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          FAB — Floating Action Button with Lottie Fire
+      ═════════════════════════════════════════════════════════════════════ */}
       <div
         ref={elementRef}
-        className="fixed bottom-[20px] right-[16px] sm:bottom-[24px] sm:right-[20px] md:bottom-[28px] md:right-[28px] lg:bottom-[36px] lg:right-[36px] z-[40] group select-none touch-none"
-        style={{ touchAction: 'none' }}
+        className="fixed bottom-[14px] right-[12px] sm:bottom-[22px] sm:right-[18px] md:bottom-[28px] md:right-[28px] lg:bottom-[36px] lg:right-[36px] z-[40] select-none touch-none"
+        style={{ touchAction: 'none', cursor: 'pointer' }}
         onClick={(e) => {
           if (!hasMoved) handleOpen();
           else { e.preventDefault(); e.stopPropagation(); }
         }}
       >
-        <div className="absolute inset-0 bg-orange-400/20 blur-3xl rounded-full scale-150 animate-pulse" />
-        <img
-          src={flameImg}
-          alt="Flame"
-          draggable={false}
-          className={`
-            w-[120px] h-[140px] sm:w-[140px] sm:h-[160px]
-            md:w-[160px] md:h-[180px] lg:w-[190px] lg:h-[210px]
-            object-contain origin-bottom transition-transform
-            group-hover:scale-110 md:group-hover:scale-125
-            drop-shadow-[0_10px_10px_rgba(255,165,0,0.4)]
-            animate-float ${isBouncing ? 'animate-bounce' : ''}
-          `}
-          style={{ filter: cfg.hueRotate }}
-        />
+        {/* Glow halo — dynamic color per milestone */}
+        <div style={{
+          position: 'absolute',
+          inset: '10px',
+          background: cfg.glowColor,
+          borderRadius: '50%',
+          animation: 'fabGlowPulse 3s ease-in-out infinite',
+          pointerEvents: 'none',
+          zIndex: 0,
+        }} />
+
+        {/* Lottie fire — replaces flame.png */}
+        <div className={`fab-lottie-wrap${checkInAnim ? ' burst' : ''}`} style={{ position: 'relative', zIndex: 1 }}>
+          <LottieFire
+            hueRotate={cfg.hueRotate}
+            speed={cfg.lottieSpeed}
+            size="default"
+          />
+        </div>
+
+        {/* Streak count badge */}
         {userData?.streakCount > 0 && (
-          <div className="absolute top-1 right-1">
-            <div
-              key={userData.streakCount}
-              className={`
-                bg-gradient-to-r ${cfg.fabColor} text-white font-black
-                px-3 py-1 rounded-full text-[14px] sm:text-[16px] md:text-[18px]
-                border-2 border-white/40 shadow-lg flex items-center gap-1
-                animate-bounce-subtle
-              `}
-            >
+          <div style={{
+            position: 'absolute',
+            bottom: -4,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            animation: 'badgePop 2.4s ease-in-out infinite',
+            zIndex: 2,
+          }}>
+            <div style={{
+              background: cfg.btnGradient,
+              color: '#fff',
+              fontWeight: 900,
+              fontSize: 'clamp(10px, 2.4vw, 14px)',
+              padding: '2px 9px',
+              borderRadius: 999,
+              border: '2px solid rgba(255,255,255,0.55)',
+              boxShadow: `0 3px 14px ${cfg.glowColor}, 0 1px 4px rgba(0,0,0,0.15)`,
+              display: 'flex', alignItems: 'center', gap: 3,
+              fontFamily: "'Baloo 2', 'Nunito', sans-serif",
+              whiteSpace: 'nowrap',
+              backdropFilter: 'blur(4px)',
+            }}>
               <span>{userData.streakCount}</span>
-              <span>🔥</span>
+              <span style={{ fontSize: '0.78em' }}>🔥</span>
             </div>
           </div>
         )}
       </div>
 
-      {/* ── Main Modal ───────────────────────────────────────────────────────── */}
+      {/* ═══════════════════════════════════════════════════════════════════
+          MODAL
+      ═════════════════════════════════════════════════════════════════════ */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-[60] flex items-end md:items-center justify-center max-md:p-0 p-4 animate-in fade-in duration-300"
-          style={{ background: 'rgba(15,20,30,0.6)', backdropFilter: 'blur(14px)', overscrollBehavior: 'contain', touchAction: 'pan-y' }}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 60,
+            display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+            background: 'rgba(8,12,24,0.7)',
+            backdropFilter: 'blur(18px)',
+            WebkitBackdropFilter: 'blur(18px)',
+            overscrollBehavior: 'contain', touchAction: 'pan-y',
+          }}
           onClick={(e) => e.target === e.currentTarget && handleClose()}
         >
-          <div className="
-            relative bg-white w-full
-            max-md:rounded-t-3xl max-md:rounded-b-none rounded-3xl
-            max-w-full sm:max-w-md
-            max-h-[88dvh] overflow-hidden flex flex-col
-            shadow-2xl
-          ">
-            {/* Handle */}
-            <div className="md:hidden w-8 h-1 bg-gray-200 rounded-full mx-auto mt-3 mb-0 flex-shrink-0" />
+          {/* Desktop: vertically centered */}
+          <style>{`
+            @media (min-width: 768px) {
+              .streak-overlay-inner {
+                align-items: center !important;
+              }
+            }
+          `}</style>
 
-            {/* ── HERO: streak number + user info ── */}
+          <div className="streak-modal-inner" style={{
+            position: 'relative',
+            background: '#FEFCFA',
+            width: '100%', maxWidth: 440,
+            borderRadius: '28px 28px 0 0',
+            maxHeight: '92dvh',
+            overflow: 'hidden',
+            display: 'flex', flexDirection: 'column',
+            boxShadow: '0 -8px 60px rgba(0,0,0,0.22), 0 0 0 1px rgba(255,255,255,0.06)',
+            animation: 'modalSlideUp 0.38s cubic-bezier(.36,1.6,.64,1)',
+            fontFamily: "'Baloo 2', 'Nunito', sans-serif",
+          }}>
+            {/* Drag handle */}
+            <div style={{
+              width: 36, height: 4, background: '#D1D5DB', borderRadius: 99,
+              margin: '10px auto 0', flexShrink: 0,
+              transition: 'background 0.2s',
+            }} />
+
+            {/* ── HERO ─────────────────────────────────────────────────── */}
             {savedPhone && userData ? (
-              <div className="flex items-center gap-4 px-5 pt-4 pb-4 border-b border-gray-100 flex-shrink-0">
-                {/* Ring */}
-                <div className="relative w-16 h-16 flex-shrink-0 flex items-center justify-center flex-col">
-                  <StreakRing count={userData.streakCount || 0} color={isStreakExpired ? '#D3D1C7' : cfg.ringColor} />
-                  <span className={`text-2xl font-black leading-none relative z-10 ${isStreakExpired ? 'text-gray-400' : 'text-gray-800'}`}>
-                    {isStreakExpired ? 0 : userData.streakCount}
-                  </span>
-                  <span className="text-[9px] text-gray-400 relative z-10 mt-0.5 font-semibold tracking-wide">
-                    {t('streak.days')}
-                  </span>
+              /* Logged in hero */
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 14,
+                padding: '14px 20px 14px',
+                borderBottom: '1px solid #F3F4F6',
+                flexShrink: 0,
+                background: 'linear-gradient(135deg, #FFFBF5 0%, #FFF6EC 100%)',
+                position: 'relative',
+                overflow: 'hidden',
+              }}>
+                {/* Subtle bg decoration */}
+                <div style={{
+                  position: 'absolute', right: -20, top: -20,
+                  width: 120, height: 120,
+                  background: cfg.glowColor,
+                  filter: 'blur(40px)',
+                  opacity: 0.25,
+                  pointerEvents: 'none',
+                  borderRadius: '50%',
+                }} />
+
+                {/* Mini Lottie + ring */}
+                <div style={{ position: 'relative', width: 72, height: 72, flexShrink: 0 }}>
+                  <StreakRing
+                    count={userData.streakCount || 0}
+                    color={isStreakExpired ? '#D1D5DB' : cfg.ringColor}
+                    progressFrom={isStreakExpired ? '#D1D5DB' : cfg.progressFrom}
+                    progressTo={isStreakExpired ? '#9CA3AF' : cfg.progressTo}
+                  />
+                  {/* Center: small lottie instead of plain count */}
+                  <div style={{
+                    position: 'absolute', inset: 0,
+                    display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center',
+                    gap: 0,
+                  }}>
+                    <span style={{
+                      fontSize: 21, fontWeight: 900, lineHeight: 1.1,
+                      color: isStreakExpired ? '#9CA3AF' : '#1F1F2E',
+                      fontFamily: "'Baloo 2', sans-serif",
+                      animation: checkInAnim ? 'streakNumUpdate 0.5s ease' : 'none',
+                    }}>
+                      {isStreakExpired ? 0 : userData.streakCount}
+                    </span>
+                    <span style={{ fontSize: 8.5, color: '#9CA3AF', fontWeight: 700, letterSpacing: 0.4 }}>
+                      {t('streak.days')}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-gray-800 text-sm truncate">
-                    {userData.name}
-                  </p>
-
-                  {/* Status pill */}
-                  {hasCheckedInToday && (
-                    <div className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full bg-green-50 border border-green-200 text-green-700 text-[11px] font-semibold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
-                      Đã check-in hôm nay
+                {/* User info */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    {/* Tiny lottie accent next to name */}
+                    <div style={{ flexShrink: 0, animation: 'heroFireFloat 3s ease-in-out infinite' }}>
+                      <LottieFire hueRotate={cfg.hueRotate} speed={cfg.lottieSpeed} size="tiny" />
                     </div>
+                    <p style={{
+                      fontWeight: 800, color: '#1F1F2E', fontSize: 14.5,
+                      margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>
+                      {t('streak.greeting_back', { name: userData.name })}
+                    </p>
+                  </div>
+
+                  {/* Status badge */}
+                  {hasCheckedInToday && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#D1FAE5', color: '#065F46', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 99, border: '1.5px solid #A7F3D0' }}>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981', display: 'inline-block' }} />
+                      Đã check-in hôm nay
+                    </span>
                   )}
                   {!hasCheckedInToday && !isInReviveWindow && !isStreakExpired && userData.lastCheckin && (
-                    <div className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full bg-orange-50 border border-orange-200 text-orange-700 text-[11px] font-semibold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-orange-400 inline-block animate-pulse" />
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#FFF7ED', color: '#92400E', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 99, border: '1.5px solid #FED7AA' }}>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#F97316', display: 'inline-block', animation: 'btnGlow 1.5s ease-in-out infinite' }} />
                       Chưa check-in hôm nay
-                    </div>
+                    </span>
                   )}
                   {canRevive && (
-                    <div className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[11px] font-semibold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block animate-pulse" />
-                      Có thể khôi phục
-                    </div>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#FFFBEB', color: '#92400E', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 99, border: '1.5px solid #FDE68A' }}>
+                      ✨ Có thể khôi phục
+                    </span>
                   )}
                   {reviveAlreadyUsed && (
-                    <div className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-600 text-[11px] font-semibold">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#FFFBEB', color: '#B45309', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 99, border: '1.5px solid #FDE68A' }}>
                       🎟️ Đã dùng lượt khôi phục
-                    </div>
+                    </span>
                   )}
                   {isStreakExpired && (
-                    <div className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-600 text-[11px] font-semibold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" />
-                      Chuỗi đã mất
-                    </div>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#FEF2F2', color: '#991B1B', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 99, border: '1.5px solid #FECACA' }}>
+                      💔 Chuỗi đã mất
+                    </span>
                   )}
 
+                  {/* Milestone label */}
                   {isMilestone && cfg.label && (
-                    <div className={`inline-block mt-1 ml-2 px-2 py-0.5 rounded-full bg-white border text-[10px] font-black tracking-widest ${cfg.labelColor}`}>
-                      {cfg.badge} {cfg.label}
+                    <div style={{ marginTop: 5 }}>
+                      <span style={{
+                        display: 'inline-block', padding: '2px 10px', borderRadius: 99,
+                        background: cfg.btnGradient, color: '#fff',
+                        fontSize: 10, fontWeight: 900, letterSpacing: 0.8,
+                      }}>
+                        {cfg.badge} {cfg.label}
+                      </span>
                     </div>
                   )}
 
-                  {/* Mini next-milestone progress */}
-                  {!isStreakExpired && userData.streakCount < 100 && (
-                    <div className="mt-2 flex items-center gap-2">
-                      <div className="flex-1 h-1 rounded-full bg-gray-100 overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all duration-700"
-                          style={{
-                            background: cfg.ringColor,
-                            width: (() => {
-                              const ms = [3, 7, 30, 100];
-                              const next = ms.find(m => m > userData.streakCount) || 100;
-                              const prev = ms[ms.indexOf(next) - 1] || 0;
-                              return `${Math.min(((userData.streakCount - prev) / (next - prev)) * 100, 100)}%`;
-                            })()
-                          }}
-                        />
+                  {/* Progress bar */}
+                  {!isStreakExpired && (userData?.streakCount || 0) < 100 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 7 }}>
+                      <div style={{ flex: 1, height: 5, borderRadius: 99, background: '#F3F4F6', overflow: 'hidden' }}>
+                        <div style={{
+                          height: '100%', borderRadius: 99,
+                          background: `linear-gradient(90deg, ${cfg.progressFrom}, ${cfg.progressTo})`,
+                          width: `${getProgressPct()}%`,
+                          transition: 'width 0.8s cubic-bezier(.36,1.6,.64,1)',
+                        }} />
                       </div>
-                      <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap">
-                        Mốc {[3, 7, 30, 100].find(m => m > userData.streakCount) || 100} ngày
+                      <span style={{ fontSize: 10, color: '#9CA3AF', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                        Mốc {[3, 7, 30, 100].find(m => m > (userData?.streakCount || 0)) || 100} ngày
                       </span>
                     </div>
                   )}
                 </div>
               </div>
+
             ) : !savedPhone ? (
-              /* New user header */
-              <div className="px-5 pt-5 pb-4 text-center border-b border-gray-100 flex-shrink-0">
-                <div className="text-3xl mb-2">🔥</div>
-                <h2 className="text-base font-black text-gray-800">{t('streak.title_fun')}</h2>
-                <p className="text-xs text-gray-400 mt-1 leading-relaxed">Mỗi ngày check-in để giữ chuỗi. Tích lũy càng dài, huy hiệu càng xịn.</p>
+              /* Not logged in hero — centered Lottie fire + title */
+              <div style={{
+                padding: '24px 20px 18px',
+                textAlign: 'center',
+                borderBottom: '1px solid #F3F4F6',
+                flexShrink: 0,
+                background: 'linear-gradient(160deg, #FFF7F0 0%, #FFF2E6 100%)',
+                position: 'relative',
+                overflow: 'hidden',
+              }}>
+                {/* bg glow */}
+                <div style={{
+                  position: 'absolute', top: -30, left: '50%', transform: 'translateX(-50%)',
+                  width: 200, height: 200,
+                  background: 'radial-gradient(circle, rgba(249,115,22,0.18) 0%, transparent 70%)',
+                  pointerEvents: 'none',
+                }} />
+
+                {/* Centered Lottie */}
+                <div style={{
+                  display: 'flex', justifyContent: 'center', marginBottom: 6,
+                  animation: 'heroFireFloat 3.5s ease-in-out infinite',
+                }}>
+                  <LottieFire size="mini" speed={1} />
+                </div>
+
+                <h2 style={{
+                  fontSize: 18, fontWeight: 900, color: '#1F1F2E',
+                  margin: '0 0 5px', fontFamily: "'Baloo 2', sans-serif",
+                  letterSpacing: -0.3,
+                }}>
+                  {t('streak.title_fun')}
+                </h2>
+                <p style={{ fontSize: 12, color: '#9CA3AF', margin: 0, lineHeight: 1.6 }}>
+                  Mỗi ngày check-in để giữ chuỗi. Tích lũy càng dài, huy hiệu càng xịn!
+                </p>
               </div>
+
             ) : (
-              /* Loading header */
-              <div className="px-5 pt-5 pb-4 border-b border-gray-100 flex-shrink-0 flex items-center gap-3">
-                <div className="w-16 h-16 rounded-full bg-gray-100 animate-pulse flex-shrink-0" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-3 bg-gray-100 rounded animate-pulse w-24" />
-                  <div className="h-2 bg-gray-100 rounded animate-pulse w-16" />
+              /* Loading skeleton */
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 14,
+                padding: '18px 20px', borderBottom: '1px solid #F3F4F6', flexShrink: 0,
+              }}>
+                <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#F3F4F6', animation: 'btnGlow 1.2s ease-in-out infinite', flexShrink: 0 }} />
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ height: 12, background: '#F3F4F6', borderRadius: 6, width: '60%' }} />
+                  <div style={{ height: 8, background: '#F3F4F6', borderRadius: 6, width: '40%' }} />
                 </div>
               </div>
             )}
 
-            {/* ── BODY ── */}
-            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3" style={{ WebkitOverflowScrolling: 'touch' }}>
+            {/* ── BODY ─────────────────────────────────────────────────── */}
+            <div className="streak-body" style={{
+              flex: 1, overflowY: 'auto', padding: '16px 20px',
+              display: 'flex', flexDirection: 'column', gap: 12,
+              WebkitOverflowScrolling: 'touch',
+            }}>
 
-              {/* Error */}
               {errorMsg && (
-                <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-red-500 text-sm font-semibold text-center leading-relaxed">
+                <div style={{
+                  background: '#FEF2F2', border: '1.5px solid #FECACA',
+                  borderRadius: 14, padding: '12px 16px',
+                  color: '#DC2626', fontSize: 13, fontWeight: 700, textAlign: 'center',
+                }}>
                   {errorMsg}
                 </div>
               )}
 
               {savedPhone && userData ? (
                 <>
-                  {/* ── STATE: Expired (>= 6 days) ── */}
+                  {/* STATE: Expired */}
                   {isStreakExpired && (
                     <>
-                      {/* What was lost */}
-                      <div className="bg-red-50 border border-red-100 rounded-2xl px-4 py-3">
-                        <p className="text-red-700 font-bold text-sm">
-                          Chuỗi {userData.streakCount} ngày đã kết thúc
-                        </p>
-                        <p className="text-red-400 text-xs mt-1 leading-relaxed">
-                          Bỏ lỡ {diffDays} ngày — vượt quá giới hạn khôi phục 5 ngày. Chuỗi cũ không lấy lại được nữa.
-                        </p>
+                      <div style={{ background: '#FEF2F2', border: '1.5px solid #FECACA', borderRadius: 16, padding: '14px 16px' }}>
+                        <p style={{ fontWeight: 800, color: '#DC2626', fontSize: 14, margin: '0 0 4px' }}>Chuỗi {userData.streakCount} ngày đã kết thúc</p>
+                        <p style={{ color: '#F87171', fontSize: 12, margin: 0, lineHeight: 1.5 }}>Bỏ lỡ {diffDays} ngày — vượt quá giới hạn khôi phục. Chuỗi cũ không lấy lại được nữa.</p>
                       </div>
-
-                      {/* Positive reframe */}
-                      <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3">
-                        <p className="text-blue-700 font-bold text-sm">Bắt đầu lại ngay hôm nay</p>
-                        <p className="text-blue-400 text-xs mt-1 leading-relaxed">
-                          Thói quen bạn xây được vẫn còn đó. Check-in hôm nay để khởi động chuỗi mới.
-                        </p>
+                      <div style={{ background: '#EFF6FF', border: '1.5px solid #BFDBFE', borderRadius: 16, padding: '14px 16px' }}>
+                        <p style={{ fontWeight: 800, color: '#1D4ED8', fontSize: 14, margin: '0 0 4px' }}>Bắt đầu lại ngay hôm nay</p>
+                        <p style={{ color: '#60A5FA', fontSize: 12, margin: 0, lineHeight: 1.5 }}>Thói quen bạn xây được vẫn còn đó. Check-in hôm nay để khởi động chuỗi mới!</p>
                       </div>
-
-                      {/* Record vs next goal */}
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5 text-center">
-                          <p className="text-2xl font-black text-gray-500">{userData.streakCount}</p>
-                          <p className="text-[10px] text-gray-400 mt-0.5">Kỷ lục của bạn</p>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                        <div style={{ background: '#F9FAFB', border: '1.5px solid #F3F4F6', borderRadius: 14, padding: '12px', textAlign: 'center' }}>
+                          <p style={{ fontSize: 28, fontWeight: 900, color: '#6B7280', margin: '0 0 2px', fontFamily: "'Baloo 2', sans-serif" }}>{userData.streakCount}</p>
+                          <p style={{ fontSize: 10, color: '#9CA3AF', margin: 0, fontWeight: 600 }}>Kỷ lục của bạn</p>
                         </div>
-                        <div className="bg-blue-50 border border-blue-100 rounded-xl px-3 py-2.5 text-center">
-                          <p className="text-2xl font-black text-blue-400">
-                            {[3, 7, 30, 100].find(m => m > userData.streakCount) ?? '100+'}
-                          </p>
-                          <p className="text-[10px] text-blue-400 mt-0.5">Mục tiêu tiếp theo</p>
+                        <div style={{ background: '#EFF6FF', border: '1.5px solid #BFDBFE', borderRadius: 14, padding: '12px', textAlign: 'center' }}>
+                          <p style={{ fontSize: 28, fontWeight: 900, color: '#3B82F6', margin: '0 0 2px', fontFamily: "'Baloo 2', sans-serif" }}>{[3, 7, 30, 100].find(m => m > userData.streakCount) ?? '100+'}</p>
+                          <p style={{ fontSize: 10, color: '#60A5FA', margin: 0, fontWeight: 600 }}>Mục tiêu tiếp theo</p>
                         </div>
                       </div>
-
-                      <button
-                        onClick={() => handleCheckIn(true)}
-                        disabled={loading}
-                        className={`w-full ${cfg.btnColor} text-white font-black py-4 rounded-2xl transition-all shadow-lg hover:scale-[1.02] active:scale-95 text-sm ${loading ? 'opacity-60' : ''}`}
-                      >
+                      <button onClick={() => handleCheckIn(true)} disabled={loading} style={{
+                        width: '100%', background: cfg.btnGradient, color: '#fff',
+                        border: 'none', fontWeight: 900, padding: '16px 0', borderRadius: 18,
+                        fontSize: 14.5, cursor: 'pointer', fontFamily: "'Baloo 2', sans-serif",
+                        opacity: loading ? 0.6 : 1,
+                      }}>
                         {loading ? t('streak.loading') : '🔥 Check-in hôm nay — bắt đầu chuỗi mới'}
                       </button>
                     </>
                   )}
 
-                  {/* ── STATE: Revive window (2–5 days missed) ── */}
+                  {/* STATE: Revive window */}
                   {isInReviveWindow && !isReviveConfirmOpen && (
                     <>
-                      <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3">
-                        <p className="text-amber-700 font-bold text-sm">Chuỗi sắp mất!</p>
-                        <p className="text-amber-500 text-xs mt-1 leading-relaxed">
+                      <div style={{ background: '#FFFBEB', border: '1.5px solid #FDE68A', borderRadius: 16, padding: '14px 16px' }}>
+                        <p style={{ fontWeight: 800, color: '#B45309', fontSize: 14, margin: '0 0 4px' }}>Chuỗi sắp mất! ⚠️</p>
+                        <p style={{ color: '#D97706', fontSize: 12, margin: 0, lineHeight: 1.5 }}>
                           Bạn bỏ lỡ {diffDays - 1} ngày.{' '}
-                          {canRevive
-                            ? 'Còn 1 lượt khôi phục miễn phí cho chuỗi này.'
-                            : 'Đã dùng lượt khôi phục rồi — chỉ có thể check-in và reset.'}
+                          {canRevive ? 'Còn 1 lượt khôi phục miễn phí cho chuỗi này.' : 'Đã dùng lượt khôi phục rồi.'}
                         </p>
                       </div>
-
                       {/* Timeline */}
                       <div>
-                        <p className="text-[11px] text-gray-400 font-semibold mb-2">Lịch sử gần đây</p>
-                        <div className="flex items-center gap-0">
-                          {buildTimeline().map((day, idx, arr) => (
-                            <React.Fragment key={day.date}>
-                              <div className={`
-                                w-10 h-10 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0
-                                ${day.type === 'checked' ? 'bg-green-100 text-green-700 border border-green-200' : ''}
-                                ${day.type === 'missed' ? 'bg-red-100 text-red-500 border border-dashed border-red-300' : ''}
-                                ${day.type === 'today' ? 'bg-blue-100 text-blue-700 border border-blue-300' : ''}
-                                ${day.type === 'future' ? 'bg-gray-50 text-gray-300 border border-gray-100' : ''}
-                              `}>
-                                {day.type === 'today' ? 'Hôm nay' : day.label}
-                              </div>
-                              {idx < arr.length - 1 && (
-                                <div className={`flex-1 h-0.5 ${day.type === 'checked' ? 'bg-green-200' : 'bg-red-200'}`} />
-                              )}
-                            </React.Fragment>
-                          ))}
-                        </div>
-                        <div className="flex gap-3 mt-2">
-                          {[['bg-green-200', 'Đã check-in'], ['bg-red-200', 'Bỏ lỡ'], ['bg-blue-200', 'Hôm nay']].map(([bg, label]) => (
-                            <div key={label} className="flex items-center gap-1">
-                              <div className={`w-2 h-2 rounded-full ${bg}`} />
-                              <span className="text-[10px] text-gray-400">{label}</span>
-                            </div>
-                          ))}
+                        <p style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 700, marginBottom: 8 }}>Lịch sử gần đây</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+                          {buildTimeline().map((day, idx, arr) => {
+                            const colors = {
+                              checked: ['#D1FAE5', '#065F46', '#A7F3D0'],
+                              missed: ['#FEE2E2', '#DC2626', '#FECACA'],
+                              today: ['#DBEAFE', '#1D4ED8', '#BFDBFE'],
+                              future: ['#F3F4F6', '#D1D5DB', '#E5E7EB']
+                            };
+                            const [bg, text, border] = colors[day.type] || colors.future;
+                            return (
+                              <React.Fragment key={day.date}>
+                                <div style={{
+                                  width: 44, height: 44, borderRadius: '50%',
+                                  background: bg, color: text,
+                                  border: `1.5px solid ${border}`,
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  fontSize: 10, fontWeight: 800, flexShrink: 0,
+                                }}>
+                                  {day.type === 'today' ? 'Hôm nay' : day.label}
+                                </div>
+                                {idx < arr.length - 1 && (
+                                  <div style={{ flex: 1, height: 2.5, background: day.type === 'checked' ? '#A7F3D0' : '#FECACA', borderRadius: 99 }} />
+                                )}
+                              </React.Fragment>
+                            );
+                          })}
                         </div>
                       </div>
-
                       {canRevive ? (
                         <>
-                          <button
-                            onClick={() => setIsReviveConfirmOpen(true)}
-                            disabled={loading}
-                            className="w-full bg-gradient-to-r from-amber-400 to-orange-400 text-white font-black py-4 rounded-2xl transition-all shadow-lg hover:scale-[1.02] active:scale-95 text-sm flex items-center justify-center gap-2"
-                          >
+                          <button onClick={() => setIsReviveConfirmOpen(true)} disabled={loading} style={{
+                            width: '100%', background: 'linear-gradient(135deg, #F59E0B, #F97316)',
+                            color: '#fff', border: 'none', fontWeight: 900, padding: '16px 0',
+                            borderRadius: 18, fontSize: 14.5, cursor: 'pointer', fontFamily: "'Baloo 2', sans-serif",
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                          }}>
                             <span>✨</span>
                             <span>Dùng lượt khôi phục — giữ chuỗi {userData.streakCount} ngày</span>
                           </button>
-                          <button
-                            onClick={() => handleCheckIn(true)}
-                            disabled={loading}
-                            className="w-full bg-gray-50 border border-gray-200 text-gray-500 font-bold py-3 rounded-2xl transition-all text-xs hover:bg-gray-100"
-                          >
+                          <button onClick={() => handleCheckIn(true)} disabled={loading} style={{
+                            width: '100%', background: '#F9FAFB', border: '1.5px solid #E5E7EB',
+                            color: '#6B7280', fontWeight: 700, padding: '12px 0', borderRadius: 16,
+                            fontSize: 12, cursor: 'pointer', fontFamily: "'Baloo 2', sans-serif",
+                          }}>
                             {loading ? t('streak.loading') : 'Bỏ qua — reset về 1 ngày'}
                           </button>
                         </>
                       ) : (
-                        /* reviveAlreadyUsed */
-                        <button
-                          onClick={() => handleCheckIn(true)}
-                          disabled={loading}
-                          className={`w-full ${cfg.btnColor} text-white font-black py-4 rounded-2xl transition-all shadow-lg hover:scale-[1.02] active:scale-95 text-sm ${loading ? 'opacity-60' : ''}`}
-                        >
+                        <button onClick={() => handleCheckIn(true)} disabled={loading} style={{
+                          width: '100%', background: cfg.btnGradient, color: '#fff',
+                          border: 'none', fontWeight: 900, padding: '16px 0', borderRadius: 18,
+                          fontSize: 14.5, cursor: 'pointer', fontFamily: "'Baloo 2', sans-serif",
+                          opacity: loading ? 0.6 : 1,
+                        }}>
                           {loading ? t('streak.loading') : '🔥 Check-in — bắt đầu chuỗi mới'}
                         </button>
                       )}
                     </>
                   )}
 
-                  {/* ── Revive inline confirm ── */}
+                  {/* Revive confirm */}
                   {isReviveConfirmOpen && (
-                    <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4 space-y-3">
-                      <div className="text-center">
-                        <div className="text-4xl mb-2">🍭</div>
-                        <p className="font-black text-gray-800 text-sm">{t('streak.revive_title')}</p>
-                        <p className="text-gray-500 text-xs mt-1 leading-relaxed">
-                          {t('streak.revive_desc', { count: diffDays - 1 })}
+                    <div style={{ background: '#FFFBEB', border: '2px solid #FDE68A', borderRadius: 20, padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: 44, marginBottom: 8 }}>🍭</div>
+                        <p style={{ fontWeight: 900, color: '#1F1F2E', fontSize: 15, margin: '0 0 6px' }}>{t('streak.revive_title')}</p>
+                        <p style={{ color: '#6B7280', fontSize: 12, margin: 0, lineHeight: 1.55 }}>
+                          {t('streak.revive_desc', { count: diffDays - 1, name: userData?.name || '' })}
                         </p>
                       </div>
-                      <button
-                        onClick={handleRevive}
-                        disabled={loading}
-                        className="w-full bg-gradient-to-r from-amber-400 to-orange-400 text-white font-black py-4 rounded-2xl transition-all hover:scale-[1.02] active:scale-95 text-sm flex items-center justify-center gap-2"
-                      >
+                      <button onClick={handleRevive} disabled={loading} style={{
+                        width: '100%', background: 'linear-gradient(135deg, #F59E0B, #F97316)',
+                        color: '#fff', border: 'none', fontWeight: 900, padding: '16px 0',
+                        borderRadius: 18, fontSize: 14.5, cursor: 'pointer', fontFamily: "'Baloo 2', sans-serif",
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      }}>
                         <span>🔥</span>
                         <span>{loading ? t('streak.loading') : t('streak.revive_confirm')}</span>
                       </button>
-                      <button
-                        onClick={() => setIsReviveConfirmOpen(false)}
-                        className="w-full bg-white border border-gray-200 text-gray-400 font-bold py-2.5 rounded-xl text-xs"
-                      >
+                      <button onClick={() => setIsReviveConfirmOpen(false)} style={{
+                        width: '100%', background: '#fff', border: '1.5px solid #E5E7EB',
+                        color: '#9CA3AF', fontWeight: 700, padding: '10px 0', borderRadius: 14,
+                        fontSize: 12, cursor: 'pointer', fontFamily: "'Baloo 2', sans-serif",
+                      }}>
                         Quay lại
                       </button>
                     </div>
                   )}
 
-                  {/* ── STATE: Normal / checked in today ── */}
+                  {/* STATE: Normal */}
                   {!isInReviveWindow && !isStreakExpired && !isReviveConfirmOpen && (
                     <>
                       {hasCheckedInToday ? (
-                        <div className="bg-green-50 border border-green-100 rounded-2xl px-4 py-3">
-                          <p className="text-green-700 font-bold text-sm">Tuyệt vời!</p>
-                          <p className="text-green-500 text-xs mt-1">
-                            {t('streak.already_checked_in', { name: userData.name || savedPhone })} Quay lại vào ngày mai nhé.
+                        <div style={{ background: 'linear-gradient(135deg, #ECFDF5, #D1FAE5)', border: '1.5px solid #A7F3D0', borderRadius: 16, padding: '14px 16px' }}>
+                          <p style={{ fontWeight: 800, color: '#065F46', fontSize: 14, margin: '0 0 4px' }}>Tuyệt vời! 🎉</p>
+                          <p style={{ color: '#10B981', fontSize: 12, margin: 0, lineHeight: 1.5 }}>
+                            {t('streak.already_checked_in', { name: userData.name || savedPhone })} Quay lại vào ngày mai nhé!
                           </p>
                         </div>
                       ) : (
-                        <div className="bg-orange-50 border border-orange-100 rounded-2xl px-4 py-3">
-                          <p className="text-orange-700 font-bold text-sm">Đừng quên check-in hôm nay!</p>
-                          <p className="text-orange-400 text-xs mt-1">Giữ lửa mỗi ngày để chuỗi không bị ngắt.</p>
+                        <div style={{ background: 'linear-gradient(135deg, #FFF7ED, #FFEDD5)', border: '1.5px solid #FED7AA', borderRadius: 16, padding: '14px 16px' }}>
+                          <p style={{ fontWeight: 800, color: '#C2410C', fontSize: 14, margin: '0 0 4px' }}>Đừng quên check-in hôm nay! 🔥</p>
+                          <p style={{ color: '#F97316', fontSize: 12, margin: 0, lineHeight: 1.5 }}>Giữ lửa mỗi ngày để chuỗi không bị ngắt.</p>
                         </div>
                       )}
-
-                      <button
-                        onClick={() => handleCheckIn()}
+                      <CheckinButton
+                        onClick={handleCheckIn}
                         disabled={loading || hasCheckedInToday}
-                        className={`
-                          w-full font-black py-4 rounded-2xl transition-all text-sm
-                          ${hasCheckedInToday
-                            ? 'bg-green-50 text-green-500 border-2 border-green-100 cursor-not-allowed'
-                            : `${cfg.btnColor} text-white shadow-lg hover:scale-[1.02] active:scale-95 ${loading ? 'opacity-60' : ''}`
-                          }
-                        `}
-                      >
-                        {hasCheckedInToday
-                          ? `✅ ${t('streak.already_checked_in', { name: userData.name || savedPhone })}`
-                          : loading ? t('streak.loading') : t('streak.check_in_btn')}
-                      </button>
+                        loading={loading}
+                        hasCheckedInToday={hasCheckedInToday}
+                        cfg={cfg}
+                        t={t}
+                        userName={userData?.name}
+                      />
                     </>
                   )}
 
                   {!isReviveConfirmOpen && (
-                    <button
-                      onClick={handleSwitchUser}
-                      className="w-full bg-gray-50 border border-gray-200 text-gray-500 font-bold py-3 rounded-xl transition-all text-xs hover:bg-gray-100 flex items-center justify-center gap-1.5"
-                    >
+                    <button onClick={handleSwitchUser} style={{
+                      width: '100%', background: '#F9FAFB', border: '1.5px solid #E5E7EB',
+                      color: '#6B7280', fontWeight: 700, padding: '12px 0', borderRadius: 14,
+                      fontSize: 12, cursor: 'pointer', fontFamily: "'Baloo 2', sans-serif",
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    }}>
                       {t('streak.switch_user')}
                     </button>
                   )}
                 </>
               ) : (
-                /* ── Register / login form ── */
-                <div className="space-y-3">
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                      📱 {t('streak.input_phone_label')}
-                    </label>
-                    <input
-                      type="tel"
-                      placeholder={t('streak.placeholder_phone')}
-                      value={phone}
-                      onChange={(e) => {
+                /* Register form */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {[
+                    {
+                      label: `📱 ${t('streak.input_phone_label')}`, type: 'tel',
+                      placeholder: t('streak.placeholder_phone'), value: phone,
+                      onChange: (e) => {
                         const val = e.target.value.replace(/\D/g, '').slice(0, 10);
                         setPhone(val);
                         if (!isValidPhone(val)) {
                           lookupRequestIdRef.current++;
-                          setIsExistingUser(false);
-                          setLoadingUser(false);
-                          setName('');
-                          setEmail('');
+                          setIsExistingUser(false); setLoadingUser(false); setName(''); setEmail('');
                         }
-                      }}
-                      className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-base rounded-2xl px-4 py-3 focus:outline-none focus:border-orange-300 focus:bg-white transition-all font-semibold placeholder:text-gray-300"
-                      style={{ fontSize: 16 }}
-                    />
-                  </div>
+                      }
+                    },
+                  ].map((field, i) => (
+                    <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <label style={{ fontSize: 11, fontWeight: 800, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 1 }}>{field.label}</label>
+                      <input
+                        type={field.type} placeholder={field.placeholder} value={field.value} onChange={field.onChange}
+                        style={{ width: '100%', background: '#F9FAFB', border: '1.5px solid #E5E7EB', color: '#1F1F2E', fontSize: 16, borderRadius: 14, padding: '12px 16px', outline: 'none', fontFamily: "'Baloo 2', sans-serif", fontWeight: 700, boxSizing: 'border-box', transition: 'border-color 0.2s' }}
+                        onFocus={e => e.target.style.borderColor = '#F97316'}
+                        onBlur={e => e.target.style.borderColor = '#E5E7EB'}
+                      />
+                    </div>
+                  ))}
 
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                      🍭 {t('streak.input_name_label')}
-                    </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <label style={{ fontSize: 11, fontWeight: 800, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 1 }}>🍭 {t('streak.input_name_label')}</label>
                     {loadingUser ? (
-                      <div className="w-full bg-gray-50 text-gray-400 rounded-2xl px-4 py-3 italic text-sm animate-pulse flex items-center gap-2 border border-dashed border-gray-200">
-                        <span className="w-4 h-4 border-2 border-orange-200 border-t-orange-400 rounded-full animate-spin flex-shrink-0" />
+                      <div style={{ background: '#F9FAFB', border: '1.5px dashed #E5E7EB', borderRadius: 14, padding: '12px 16px', color: '#9CA3AF', fontSize: 13, fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ width: 16, height: 16, border: '2px solid #FED7AA', borderTopColor: '#F97316', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
                         {t('streak.checking_user')}
                       </div>
                     ) : isExistingUser ? (
-                      <div className="w-full bg-orange-50 border border-orange-100 text-gray-800 rounded-2xl px-4 py-3 flex flex-col">
-                        <span className="font-black text-lg text-orange-500">{name}</span>
-                        <span className="text-[10px] text-orange-300 font-bold uppercase tracking-wider mt-0.5">
-                          {t('streak.name_locked_hint')}
-                        </span>
+                      <div style={{ background: '#FFF7ED', border: '1.5px solid #FED7AA', borderRadius: 14, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <span style={{ fontWeight: 900, fontSize: 18, color: '#F97316' }}>{name}</span>
+                        <span style={{ fontSize: 10, color: '#FDBA74', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8 }}>{t('streak.name_locked_hint')}</span>
                       </div>
                     ) : (
                       <input
-                        type="text"
-                        placeholder={t('streak.placeholder_name')}
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-base rounded-2xl px-4 py-3 focus:outline-none focus:border-pink-300 focus:bg-white transition-all font-semibold placeholder:text-gray-300"
-                        style={{ fontSize: 16 }}
+                        type="text" placeholder={t('streak.placeholder_name')} value={name} onChange={(e) => setName(e.target.value)}
+                        style={{ width: '100%', background: '#F9FAFB', border: '1.5px solid #E5E7EB', color: '#1F1F2E', fontSize: 16, borderRadius: 14, padding: '12px 16px', outline: 'none', fontFamily: "'Baloo 2', sans-serif", fontWeight: 700, boxSizing: 'border-box' }}
+                        onFocus={e => e.target.style.borderColor = '#EC4899'}
+                        onBlur={e => e.target.style.borderColor = '#E5E7EB'}
                       />
                     )}
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                      ✉️ {t('streak.input_email_label')}
-                    </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <label style={{ fontSize: 11, fontWeight: 800, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 1 }}>✉️ {t('streak.input_email_label')}</label>
                     <input
-                      type="email"
-                      placeholder={t('streak.placeholder_email')}
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-base rounded-2xl px-4 py-3 focus:outline-none focus:border-purple-300 focus:bg-white transition-all font-semibold placeholder:text-gray-300"
-                      style={{ fontSize: 16 }}
+                      type="email" placeholder={t('streak.placeholder_email')} value={email} onChange={(e) => setEmail(e.target.value)}
+                      style={{ width: '100%', background: '#F9FAFB', border: '1.5px solid #E5E7EB', color: '#1F1F2E', fontSize: 16, borderRadius: 14, padding: '12px 16px', outline: 'none', fontFamily: "'Baloo 2', sans-serif", fontWeight: 700, boxSizing: 'border-box' }}
+                      onFocus={e => e.target.style.borderColor = '#A855F7'}
+                      onBlur={e => e.target.style.borderColor = '#E5E7EB'}
                     />
                   </div>
 
-                  <button
-                    onClick={handleStart}
-                    disabled={loading}
-                    className={`w-full bg-gradient-to-r from-orange-400 to-pink-500 text-white font-black py-4 rounded-2xl transition-all shadow-xl hover:scale-[1.02] active:scale-95 text-sm uppercase tracking-widest ${loading ? 'opacity-70' : ''}`}
-                  >
-                    {loading ? t('streak.loading') : t('streak.start_btn')}
-                  </button>
+                  <StartButton onClick={handleStart} loading={loading} t={t} />
                 </div>
               )}
             </div>
 
-            {/* ── Footer close ── */}
-            <div
-              className="flex-shrink-0 px-5 pb-5 pt-2 bg-white border-t border-gray-50"
-              style={{ paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom))' }}
-            >
+            {/* ── FOOTER ───────────────────────────────────────────────── */}
+            <div style={{
+              flexShrink: 0,
+              padding: '12px 20px',
+              paddingBottom: 'calc(12px + env(safe-area-inset-bottom))',
+              background: '#FAFAFA',
+              borderTop: '1px solid #F3F4F6',
+            }}>
               <button
                 onClick={handleClose}
-                className="w-full bg-gray-50 hover:bg-gray-100 text-gray-400 hover:text-gray-600 font-bold py-3 rounded-xl transition-all text-xs uppercase tracking-widest border border-gray-100"
+                style={{
+                  width: '100%', background: '#F3F4F6', color: '#9CA3AF',
+                  border: 'none', fontWeight: 800, padding: '12px 0', borderRadius: 14,
+                  fontSize: 11, cursor: 'pointer', letterSpacing: 1.5, textTransform: 'uppercase',
+                  fontFamily: "'Baloo 2', sans-serif",
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = '#E5E7EB'}
+                onMouseLeave={e => e.currentTarget.style.background = '#F3F4F6'}
               >
                 {t('streak.close_hint')}
               </button>
