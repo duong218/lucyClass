@@ -55,9 +55,18 @@ const TeacherDashboard = () => {
       {/* ── Thông tin cá nhân ──────────────────────────────────────── */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="bg-gradient-to-r from-emerald-50 to-teal-50 p-6 flex items-center gap-4">
-          <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center text-white text-2xl font-bold shrink-0">
-            {(profile?.displayName || profile?.username || 'T').charAt(0).toUpperCase()}
-          </div>
+          {/* Avatar: dùng ảnh thật nếu có, fallback chữ cái */}
+          {profile?.avatar ? (
+            <img
+              src={profile.avatar}
+              alt={profile.displayName || profile.username}
+              className="w-16 h-16 rounded-full object-cover shrink-0 border-2 border-emerald-200"
+            />
+          ) : (
+            <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center text-white text-2xl font-bold shrink-0">
+              {(profile?.displayName || profile?.username || 'T').charAt(0).toUpperCase()}
+            </div>
+          )}
           <div>
             <h2 className="text-lg font-bold text-gray-800">
               {profile?.displayName || profile?.username}

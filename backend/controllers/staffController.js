@@ -292,7 +292,7 @@ exports.getMyProfile = async (req, res) => {
         }));
       }
 
-      return res.json({ success: true, data: { ...staff, courseIds: courses } });
+      return res.json({ success: true, data: { ...staff, courseIds: courses, avatar: teacherDoc?.avatar || null } });
     }
 
     // Marketing hoac role khac

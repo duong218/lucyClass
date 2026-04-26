@@ -3,6 +3,26 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import NotificationBell from '../components/NotificationBell';
+import {
+  LayoutDashboard,
+  ClipboardList,
+  BookOpen,
+  GraduationCap,
+  MessageSquare,
+  BarChart2,
+  Users,
+  Megaphone,
+  CalendarDays,
+  Clock,
+  UserCog,
+  ScrollText,
+  Settings,
+  X,
+  Menu,
+  User,
+  AlertTriangle,
+  LogOut,
+} from 'lucide-react';
 
 const AdminLayout = () => {
   const { t } = useTranslation();
@@ -15,18 +35,18 @@ const AdminLayout = () => {
   };
 
   const menuItems = [
-    { path: '/admin/dashboard', label: t('dashboard'), icon: '📊' },
-    { path: '/admin/registrations', label: t('registrations'), icon: '📋' },
-    { path: '/admin/courses', label: t('courses'), icon: '📚' },
-    { path: '/admin/teachers', label: t('teachers'), icon: '👩‍🏫' },
-    { path: '/admin/feedback', label: t('feedback'), icon: '💬' },
-    { path: '/admin/statistics', label: t('statistics'), icon: '📈' },
-    { path: '/admin/students', label: t('student_management'), icon: '👨‍🎓' },
-    { path: '/admin/announcements', label: t('announcements.manage_title'), icon: '📢' },
-    { path: '/admin/timetable', label: t('admin.timetable'), icon: '🗓️' },
-    { path: '/admin/attendance', label: 'Chấm công', icon: '🕐' },
-    { path: '/admin/accounts', label: t('admin.accounts_management'), icon: '👥' },
-    { path: '/admin/history', label: t('history.title'), icon: '📜' },
+    { path: '/admin/dashboard',    label: t('dashboard'),                    icon: LayoutDashboard },
+    { path: '/admin/registrations',label: t('registrations'),                icon: ClipboardList },
+    { path: '/admin/courses',      label: t('courses'),                      icon: BookOpen },
+    { path: '/admin/teachers',     label: t('teachers'),                     icon: GraduationCap },
+    { path: '/admin/feedback',     label: t('feedback'),                     icon: MessageSquare },
+    { path: '/admin/statistics',   label: t('statistics'),                   icon: BarChart2 },
+    { path: '/admin/students',     label: t('student_management'),           icon: Users },
+    { path: '/admin/announcements',label: t('announcements.manage_title'),   icon: Megaphone },
+    { path: '/admin/timetable',    label: t('admin.timetable'),              icon: CalendarDays },
+    { path: '/admin/attendance',   label: 'Chấm công',                       icon: Clock },
+    { path: '/admin/accounts',     label: t('admin.accounts_management'),    icon: UserCog },
+    { path: '/admin/history',      label: t('history.title'),                icon: ScrollText },
   ];
 
   const BRAND = {
@@ -54,7 +74,6 @@ const AdminLayout = () => {
           <div className="flex items-center justify-between">
             {/* Brand Logo */}
             <div className="flex items-center gap-3 group cursor-pointer">
-              {/* Logo circle */}
               <div
                 className="relative flex-shrink-0 rounded-full overflow-hidden transition-all duration-300 group-hover:scale-105 group-hover:shadow-xl"
                 style={{
@@ -73,7 +92,6 @@ const AdminLayout = () => {
                 />
               </div>
 
-              {/* Brand text */}
               <div className="flex flex-col leading-none select-none">
                 <div className="flex items-baseline gap-0">
                   <span
@@ -107,7 +125,6 @@ const AdminLayout = () => {
                     CLASS
                   </span>
                 </div>
-                {/* Role badge */}
                 <span
                   className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest"
                   style={{
@@ -117,7 +134,7 @@ const AdminLayout = () => {
                     backdropFilter: 'blur(4px)',
                   }}
                 >
-                  <span style={{ fontSize: '8px' }}>⚙️</span>
+                  <Settings size={9} />
                   {t("admin_panel")}
                 </span>
               </div>
@@ -127,29 +144,32 @@ const AdminLayout = () => {
               className="md:hidden text-white/60 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-all"
               onClick={() => setIsSidebarOpen(false)}
             >
-              ✕
+              <X size={18} />
             </button>
           </div>
         </div>
 
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          {menuItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              onClick={() => setIsSidebarOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-                  isActive
-                    ? 'bg-white/20 text-white font-semibold shadow-sm'
-                    : 'text-white/90 hover:bg-white/10 hover:text-white'
-                }`
-              }
-            >
-              <span className="text-xl">{item.icon}</span>
-              <span className="text-sm">{item.label}</span>
-            </NavLink>
-          ))}
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                onClick={() => setIsSidebarOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 ${
+                    isActive
+                      ? 'bg-white/20 text-white font-semibold shadow-sm'
+                      : 'text-white/80 hover:bg-white/10 hover:text-white'
+                  }`
+                }
+              >
+                <Icon size={17} strokeWidth={1.75} className="shrink-0" />
+                <span className="text-sm">{item.label}</span>
+              </NavLink>
+            );
+          })}
         </nav>
       </aside>
 
@@ -159,10 +179,10 @@ const AdminLayout = () => {
         <header className="bg-white shadow-sm h-16 flex items-center justify-between px-6 sticky top-0 z-30 border-b border-gray-100">
           <div className="flex items-center gap-4">
             <button
-              className="md:hidden text-2xl text-gray-600"
+              className="md:hidden text-gray-600 hover:text-gray-800 transition-colors"
               onClick={() => setIsSidebarOpen(true)}
             >
-              ☰
+              <Menu size={22} />
             </button>
             <h2 className="text-lg font-bold text-gray-700 hidden sm:block">
               {menuItems.find(item => window.location.pathname.startsWith(item.path))?.label || 'Dashboard'}
@@ -170,25 +190,26 @@ const AdminLayout = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* ✅ Notification Bell */}
-            <NotificationBell
-              enabled={!!user}
-              accentColor={BRAND.primary}
-            />
+            <NotificationBell enabled={!!user} accentColor={BRAND.primary} />
 
             <div className="flex flex-col items-end">
               <div className="bg-yellow-50 border border-yellow-200 px-3 py-1 rounded-lg mb-1 animate-pulse shadow-sm">
-                <p className="text-[10px] text-yellow-800 font-bold">
-                  ⚠️ {t("logout_reminder")}
-                </p>
+                <div className="flex items-center gap-1.5">
+                  <AlertTriangle size={10} className="text-yellow-700 shrink-0" />
+                  <p className="text-[10px] text-yellow-800 font-bold">{t("logout_reminder")}</p>
+                </div>
               </div>
-              <span className="text-xs font-bold text-gray-700">👤 {user?.username}</span>
+              <div className="flex items-center gap-1.5">
+                <User size={12} className="text-gray-500" />
+                <span className="text-xs font-bold text-gray-700">{user?.username}</span>
+              </div>
             </div>
 
             <button
               onClick={handleLogout}
-              className="bg-red-50 text-red-600 px-3 py-2 rounded-xl text-sm font-black hover:bg-red-100 hover:scale-105 active:scale-95 transition-all shadow-sm"
+              className="flex items-center gap-1.5 bg-red-50 text-red-600 px-3 py-2 rounded-xl text-sm font-black hover:bg-red-100 hover:scale-105 active:scale-95 transition-all shadow-sm"
             >
+              <LogOut size={14} />
               Logout
             </button>
           </div>
