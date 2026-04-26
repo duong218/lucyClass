@@ -20,6 +20,13 @@ export const AuthProvider = ({ children }) => {
   const [sessionConflict, setSessionConflict] = useState(false);
   const initRef = useRef(false);
   const conflictHandledRef = useRef(false);
+  // ✅ FIX: dùng ref để track user mới nhất, tránh stale closure trong event listener
+  const userRef = useRef(null);
+
+  // Sync userRef mỗi khi user thay đổi
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   // =========================
   // 🚪 LOGOUT
@@ -101,13 +108,14 @@ export const AuthProvider = ({ children }) => {
 
     const handleSessionConflict = () => {
       if (conflictHandledRef.current) return;
-      if (user) {
-        conflictHandledRef.current = true;
-        setSessionConflict(true);
-      } else {
-        localStorage.removeItem('hasSession');
-        setUser(null);
-      }
+      conflictHandledRef.current = true;
+
+      // ✅ FIX: dùng userRef.current thay vì user (tránh stale closure)
+      // Không cần check user có tồn tại hay không —
+      // nếu có session conflict thì luôn show modal và clear session
+      localStorage.removeItem('hasSession');
+      setUser(null);
+      setSessionConflict(true);
     };
 
     window.addEventListener('auth:logout', handleLogoutEvent);
@@ -126,6 +134,10 @@ export const AuthProvider = ({ children }) => {
         await api.get('/auth/check-session');
       } catch (err) {
         if (err?.code === 'SESSION_CONFLICT' || err?.response?.data?.code === 'SESSION_CONFLICT') {
+          if (conflictHandledRef.current) return;
+          conflictHandledRef.current = true;
+          localStorage.removeItem('hasSession');
+          setUser(null);
           setSessionConflict(true);
         }
       }
@@ -157,20 +169,17 @@ export const AuthProvider = ({ children }) => {
   // 🚪 LOGOUT (public)
   // =========================
   const logout = async () => {
-    const role = user?.role;
     await performLogout(false);
-    // Redirect về login dùng chung
     window.location.href = '/admin/login';
   };
 
   // =========================
-  // 🔒 SESSION CONFLICT
+  // 🔒 SESSION CONFLICT DISMISS
   // =========================
   const handleConflictDismiss = () => {
     setSessionConflict(false);
     conflictHandledRef.current = false;
-    localStorage.removeItem('hasSession');
-    setUser(null);
+    // Redirect về trang login chung (admin/login phục vụ tất cả roles)
     window.location.href = '/admin/login';
   };
 
