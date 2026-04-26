@@ -87,7 +87,7 @@ const Footer = () => {
             <li><a href="#courses" className="hover:text-blue-600 transition-colors">{t('nav.courses')}</a></li>
             <li><a href="#teachers" className="hover:text-blue-600 transition-colors">{t('nav.teachers')}</a></li>
             <li><a href="#activities" className="hover:text-blue-600 transition-colors">{t('nav.activities')}</a></li>
-            <li><a href="/admin/login" className="hover:text-blue-600 transition-colors">{t('nav.admin')} Login</a></li>
+            <li><a href="/admin/login" className="hover:text-blue-600 transition-colors">{t('nav.admin')}</a></li>
             <li>
               <a
                 onClick={(e) => {

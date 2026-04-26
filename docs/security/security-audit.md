@@ -1,454 +1,232 @@
-# Kiểm kê bảo mật hiện có
-
-## Phạm vi
-- Tài liệu này mô tả các cơ chế bảo mật **đang tồn tại trong code hiện tại** của hệ thống `backend` và `frontend`.
-- Mục tiêu là phản ánh đầy đủ lớp bảo vệ hiện có, không chỉ liệt kê các phần mới sửa.
-- Phạm vi đọc chính:
-  - `backend/server.js`
-  - `backend/controllers/authController.js`
-  - `backend/controllers/registrationController.js`
-  - `backend/controllers/teacherController.js`
-  - `backend/controllers/auditController.js`
-  - `backend/middlewares/*`
-  - `backend/models/*`
-  - `backend/services/backup.service.js`
-  - `backend/services/restore.service.js`
-  - `backend/utils/*`
-  - `frontend/src/contexts/AuthContext.jsx`
-  - `frontend/src/services/api.js`
-  - `frontend/src/components/RecaptchaProvider.jsx`
-  - `frontend/src/components/RecaptchaBox.jsx`
-  - `frontend/src/components/RegistrationForm.jsx`
-
-## Tóm tắt ngắn
-- Hệ thống hiện đã có các lớp bảo vệ chính:
-  - xác thực JWT + refresh token + session conflict,
-  - phân quyền theo role,
-  - CORS allowlist,
-  - CSRF bằng `Origin` + `X-Requested-With`,
-  - Helmet/CSP/HSTS,
-  - rate limit nhiều tầng,
-  - sanitize input và chống NoSQL/XSS,
-  - upload ảnh nhiều lớp,
-  - giới hạn lộ dữ liệu nội bộ,
-  - backup/restore có mã hóa và kiểm tra an toàn,
-  - audit log cho thao tác quản trị.
-
-## 1. Kiểm tra cấu hình và khởi động an toàn
-
-### Kiểm tra biến môi trường bắt buộc
-- `backend/server.js` dừng tiến trình nếu thiếu các biến quan trọng như:
-  - `MONGO_URI`
-  - `BACKUP_PATH`
-  - thông tin Cloudinary
-  - `BACKUP_ENCRYPTION_KEY`
-  - `RECAPTCHA_SECRET_KEY`
-
-### Graceful shutdown
-- `backend/server.js` đóng có thứ tự:
-  - HTTP server,
-  - MongoDB connection,
-  - Redis client.
-- Có handler cho:
-  - `uncaughtException`
-  - `unhandledRejection`
-  - `SIGINT`
-  - `SIGTERM`
-
-## 2. Bảo vệ lớp mạng và header HTTP
-
-### CORS allowlist
-- `backend/server.js` parse danh sách origin hợp lệ từ:
-  - `CORS_ORIGINS`
-  - `CLIENT_URL`
-  - `FRONTEND_URL`
-- Request có `origin` ngoài allowlist sẽ bị chặn bởi CORS.
-
-### Helmet
-- `backend/server.js` dùng `helmet()` cho toàn bộ response.
-- Có cấu hình:
-  - `contentSecurityPolicy`
-  - `img-src` giới hạn ảnh từ `self`, `data`, `res.cloudinary.com`
-  - `script-src` chỉ cho script nội bộ và Google reCAPTCHA
-  - `frame-src` cho reCAPTCHA
-  - `connect-src` cho backend, Cloudinary, reCAPTCHA
-  - `hsts` trong production
-
-### Trust proxy
-- `app.set('trust proxy', 1)` được bật để limiter hoạt động đúng khi chạy sau reverse proxy.
-
-## 3. CSRF protection
-
-### Cơ chế chính
-- `backend/middlewares/securityMiddleware.js` kiểm tra CSRF dựa trên:
-  - `Origin`
-  - header `X-Requested-With`
-- Chỉ áp dụng cho request thay đổi dữ liệu.
-- Bỏ qua:
-  - `GET`
-  - `HEAD`
-  - `OPTIONS`
-
-### Whitelist giới hạn
-- Một số route public được whitelist để không bị cản sai luồng public form.
-- Login không còn nằm trong whitelist, giúp tránh Login CSRF.
-
-### Phối hợp frontend
-- `frontend/src/services/api.js` luôn gắn `X-Requested-With: XMLHttpRequest`.
-- `frontend/src/services/streakService.js` cũng tự gắn header này cho các request `fetch`.
-
-## 4. Xác thực, session và token
-
-### Access token + refresh token
-- `backend/controllers/authController.js` sinh:
-  - `accessToken` dùng JWT `HS256`,
-  - `refreshToken` JWT riêng.
-- Frontend lưu access token trong memory, không ghi bền xuống localStorage.
-
-### Cookie bảo mật
-- `refreshToken` và `sessionId` được set bằng cookie:
-  - `httpOnly: true`
-  - `secure` trong production
-  - `sameSite: none` ở production, `lax` ở dev
-  - `domain` theo `COOKIE_DOMAIN` nếu có
-
-### Session conflict
-- Backend dùng `activeSessionId` để đảm bảo một phiên đang hiệu lực.
-- `auth.js` và `refreshToken()` đều so sánh cookie `sessionId` với dữ liệu DB.
-- Nếu lệch:
-  - backend trả `SESSION_CONFLICT`,
-  - frontend hiện modal buộc đăng nhập lại.
-
-### Refresh token rotation
-- Khi refresh thành công:
-  - token cũ bị loại,
-  - token mới được thêm vào danh sách hợp lệ,
-  - cookie được cập nhật.
-- Điều này giúp giảm rủi ro replay token.
-
-### Logout an toàn
-- `logout()` dùng `jwt.verify()` thay vì `decode()` để tránh tin vào token đã bị chỉnh sửa.
-- Khi logout:
-  - xóa refresh token khỏi DB,
-  - unset `activeSessionId`,
-  - clear cookie.
-
-### Bảo vệ tài khoản
-- `loginAttempts` và `lockUntil` có trên `Admin` và `StaffAccount`.
-- Sau nhiều lần đăng nhập sai, tài khoản bị khóa tạm.
-
-## 5. Phân quyền
-
-### Middleware phân quyền
-- `backend/middlewares/auth.js` xác thực user.
-- `backend/middlewares/isAdmin.js` chỉ cho admin đi tiếp.
-- `backend/middlewares/authorizeRoles.js` kiểm tra role theo danh sách.
-
-### Phân quyền theo vai trò
-- Hệ thống hiện dùng các role:
-  - `admin`
-  - `teacher`
-  - `marketing`
-
-### Phân quyền theo phạm vi dữ liệu
-- Giáo viên không chỉ bị chặn theo role mà còn bị kiểm tra phạm vi lớp.
-- `courseController.checkCourseAccess()` và các luồng liên quan chỉ cho teacher truy cập lớp mình phụ trách qua:
-  - `course.teacher`
-  - `course.additionalTeachers`
-
-## 6. Rate limit và chống spam
-
-### Limiter HTTP nhiều tầng
-- `backend/middlewares/rateLimiter.js` có:
-  - `apiLimiter`
-  - `loginLimiter`
-  - `registerLimiter`
-  - `statsLimiter`
-  - `publicLimiter`
-  - `forgotPasswordLimiter`
-  - `resetPasswordLimiter`
-  - `streakLimiter`
-  - `heavyOpLimiter`
-  - `toggleAttendanceLimiter`
-
-### Chống spam form đăng ký
-- `backend/middlewares/validateRegistration.js` có:
-  - honeypot `website`,
-  - cooldown theo IP,
-  - validate tên/số điện thoại/email/nhóm tuổi.
-
-### Chống spam streak theo IP/số điện thoại
-- `backend/middlewares/phoneLimiter.js` dùng Redis để:
-  - giới hạn số phone khác nhau từ cùng 1 IP trong ngày,
-  - chặn 1 phone spam liên tục,
-  - chặn 1 IP đổi số quá nhiều lần trong ngày.
-
-### Chống đăng ký lặp
-- `registrationController.create()` còn có thêm:
-  - kiểm tra số lần đăng ký trong ngày theo số điện thoại,
-  - giới hạn số khóa đang active cho cùng một số,
-  - kiểm tra duplicate nhiều mức,
-  - kiểm tra sức chứa lớp trong transaction.
-
-## 7. Làm sạch dữ liệu đầu vào
-
-### Sanitize toàn cục
-- `backend/server.js` dùng:
-  - `express-mongo-sanitize`
-  - `xss-clean`
-
-### Sanitize thủ công theo nghiệp vụ
-- `backend/utils/sanitize.js` có:
-  - `cleanInput()`
-  - `cleanObject()`
-- Tính năng:
-  - loại toàn bộ HTML tag/attribute,
-  - normalize Unicode NFC,
-  - giới hạn độ dài payload,
-  - lọc key nguy hiểm như `__proto__`, `prototype`, `constructor`,
-  - sanitize đệ quy object/array.
-
-### Whitelist khi cập nhật
-- `registrationController.update()` chỉ cho cập nhật các field nằm trong danh sách `ALLOWED`.
-- Điều này giảm rủi ro mass assignment.
-
-### Whitelist khi tạo teacher
-- `teacherController.js` chỉ pick các field mong muốn từ request body qua `pickTeacherInput()`.
-
-## 8. Giới hạn body và payload
-
-### Giới hạn body parser
-- `backend/server.js` giới hạn JSON và URL encoded ở mức `6mb`.
-
-### Giới hạn input theo field
-- Nhiều controller kiểm tra độ dài và kiểu dữ liệu trước khi ghi DB.
-- Ví dụ:
-  - teacher name/specialization/feedback/rating,
-  - registration parent/child/email/phone/message,
-  - reset password độ mạnh mật khẩu.
-
-## 9. Bảo mật upload ảnh
-
-### Điều kiện file đầu vào
-- `backend/middlewares/upload.js` chỉ nhận:
-  - `.jpeg`
-  - `.jpg`
-  - `.png`
-  - `.webp`
-
-### Nhiều lớp kiểm tra
-- Kiểm tra đồng thời:
-  - extension,
-  - MIME type,
-  - magic bytes thực tế của file.
-
-### Chống tên file nguy hiểm
-- Tên file được sanitize để chỉ còn ký tự an toàn.
-
-### Chống pixel bomb và payload ẩn
-- Dùng `sharp` với:
-  - `limitInputPixels`,
-  - giới hạn kích thước tối đa,
-  - re-encode ảnh,
-  - loại metadata EXIF.
-
-### Giới hạn request upload
-- Chỉ cho:
-  - 1 file/request,
-  - giới hạn `fileSize`,
-  - giới hạn số field/part.
-
-## 10. Kiểm soát lộ dữ liệu
-
-### Ẩn field nội bộ của giáo viên
-- `backend/models/Teacher.js` loại khỏi JSON:
-  - `staffAccountId`
-  - `avatarPublicId`
-  - `isDeleted`
-  - `deletedAt`
-
-### Controller teacher cũng loại field nội bộ
-- `teacherController.js` dùng `select(EXCLUDED_FIELDS)` để chặn lộ dữ liệu từ tầng query.
-
-### Ẩn field nhạy cảm của staff/admin
-- `staffController.js` loại bỏ:
-  - `password`
-  - `refreshTokens`
-  - `activeSessionId`
-  - `resetPasswordToken`
-  - `resetPasswordExpire`
-
-### Public endpoint chỉ trả field trình bày
-- Các API public như course/teacher/announcement/feedback được thiết kế để chỉ trả dữ liệu phục vụ hiển thị.
-
-## 11. Bảo vệ đăng nhập và quên mật khẩu
-
-### reCAPTCHA
-- `authController.login()` và `forgotPassword()` đều gọi Google reCAPTCHA verify trước khi xử lý sâu.
-
-### Chống username enumeration một phần
-- Ở login, reCAPTCHA được kiểm tra trước khi truy vấn DB.
-- Message sai tài khoản/mật khẩu được gom chung thay vì phân biệt rõ.
-
-### Quên mật khẩu có tách luồng
-- Admin và staff dùng luồng riêng.
-- Staff bắt buộc có `accountType`, `username`, `email` khớp.
-
-### Reset password
-- Token reset được hash bằng `sha256` trước khi lưu DB.
-- Token có thời hạn.
-- Khi reset thành công:
-  - xóa reset token,
-  - reset loginAttempts,
-  - xóa toàn bộ refresh token,
-  - hủy session cũ.
-
-### Độ mạnh mật khẩu
-- `resetPassword()` yêu cầu mật khẩu:
-  - từ 8 đến 64 ký tự,
-  - có chữ hoa,
-  - chữ thường,
-  - số,
-  - ký tự đặc biệt.
-
-## 12. An toàn dữ liệu nghiệp vụ
-
-### Transaction trong đăng ký
-- `registrationController.create()` dùng `mongoose.startSession()` + transaction.
-- Mục tiêu:
-  - duplicate check,
-  - capacity check,
-  - lưu registration
-  được thực hiện atomically.
-
-### Capacity check khi cập nhật trạng thái
-- Khi chuyển đăng ký sang `registered`, hệ thống kiểm tra sức chứa lớp trong transaction.
-
-### Chuyển lớp an toàn
-- `transferStudent()` kiểm tra:
-  - course đích hợp lệ,
-  - học viên active,
-  - không chuyển vào chính lớp cũ,
-  - lớp đích chưa đầy.
-
-## 13. Audit log và theo dõi
-
-### Audit log admin
-- `backend/utils/logAdminAction.js` ghi thao tác quản trị vào `AuditLog`.
-- Áp dụng ở nhiều nghiệp vụ:
-  - tạo/sửa/xóa giáo viên,
-  - tạo/sửa/xóa/reset staff,
-  - loại học sinh,
-  - chuyển lớp,
-  - thao tác quản trị khác.
-
-### System logger
-- `systemLogger` dùng ghi:
-  - CSRF block,
-  - rate limit,
-  - lỗi nghiêm trọng,
-  - startup/shutdown issue.
-
-### CSV export an toàn
-- `auditController.exportCSV()` sanitize từng cell trước khi ghi CSV.
-- Ngăn Excel hiểu dữ liệu thành công thức nếu bắt đầu bằng `=`, `+`, `-`, `@`, tab, CR.
-
-## 14. Cache và Redis
-
-### Redis cache
-- `cacheMiddleware.js` cache response GET theo URL.
-- Có clear cache theo prefix khi dữ liệu thay đổi.
-
-### Xóa cache sau restore
-- `restore.service.js` gọi `clearAllCache()` sau khi khôi phục DB để tránh trả dữ liệu stale từ Redis.
-
-### Redis lỗi không làm sập luồng chính
-- Nhiều chỗ có fallback: Redis lỗi thì bỏ qua cache/limiter thay vì làm hệ thống ngừng xử lý hoàn toàn.
-
-## 15. Backup và restore an toàn
-
-### Backup
-- `backup.service.js`:
-  - chạy `mongodump` bằng `spawn` thay vì shell command ghép chuỗi,
-  - zip dữ liệu,
-  - mã hóa file bằng `AES-256-GCM`,
-  - upload file `.enc` lên Google Drive,
-  - giữ file `.uploading` để retry khi upload dở dang.
-
-### Mã hóa backup
-- `backend/utils/encryptionUtils.js` dùng:
-  - `AES-256-GCM`
-  - IV ngẫu nhiên
-  - auth tag
-
-### Restore
-- `restore.service.js` chỉ cho restore từ file `.enc`.
-- Các lớp bảo vệ hiện có:
-  - kiểm tra file tồn tại và không rỗng,
-  - bắt buộc có `BACKUP_ENCRYPTION_KEY`,
-  - giải mã trước khi dùng,
-  - tạo safety backup trước khi đụng DB hiện tại,
-  - chống Zip Slip khi giải nén,
-  - restore thử vào DB tạm trước,
-  - mới restore thật với `mongorestore --drop`,
-  - giữ collection `admins` bằng `--nsExclude=*.admins`,
-  - xóa cache Redis sau cùng,
-  - cleanup file tạm ở `finally`.
-
-## 16. Bảo mật phía frontend
-
-### Access token chỉ ở memory
-- `frontend/src/services/api.js` giữ access token trong biến module `_accessToken`.
-- `AuthContext.jsx` chỉ dùng `localStorage.hasSession` như cờ gợi ý có phiên, không lưu access token.
-
-### Tự refresh an toàn
-- `services/api.js` có queue `failedQueue` để tránh nhiều request cùng refresh chồng chéo.
-
-### Logout/session conflict event-driven
-- Khi refresh thất bại hoặc có session conflict:
-  - frontend phát event,
-  - đồng bộ trạng thái toàn app,
-  - chuyển người dùng về login.
-
-### ProtectedRoute
-- `frontend/src/components/ProtectedRoute.jsx` kiểm soát truy cập theo role ở phía client.
-- Đây là lớp UX bổ sung; quyền thực vẫn do backend quyết định.
-
-### reCAPTCHA phía client
-- `RecaptchaProvider.jsx` nạp script an toàn và kiểm tra trạng thái sẵn sàng.
-- `RecaptchaBox.jsx` xử lý reset/render lại để tránh lỗi widget reuse.
-
-## 17. Giới hạn hiện trạng cần lưu ý
-
-### Một số lớp bảo vệ phụ thuộc cấu hình deploy
-- Hiệu lực thực tế của:
-  - `secure cookie`,
-  - `COOKIE_DOMAIN`,
-  - allowlist CORS,
-  - HSTS,
-  - Google Drive backup
-  phụ thuộc môi trường deploy đúng biến môi trường.
-
-### Client-side guard không thay thế server-side auth
-- `ProtectedRoute` chỉ hỗ trợ UX.
-- Mọi quyền thật vẫn phải đi qua `auth`, `isAdmin`, `authorizeRoles` và kiểm tra phạm vi dữ liệu ở backend.
-
-### Một số route public vẫn cần review khi mở rộng schema
-- Nếu tương lai thêm field mới vào `Teacher`, `Course`, `Announcement`, `Feedback`, cần kiểm tra lại khả năng lộ dữ liệu nội bộ.
-
-## 18. Kết luận
-- Ở trạng thái hiện tại, hệ thống đã có nền bảo mật tương đối đầy đủ cho một ứng dụng quản trị web gồm:
-  - xác thực và quản lý phiên,
-  - phân quyền,
-  - chống CSRF/XSS/NoSQL injection,
-  - rate limit/chống spam,
-  - upload an toàn,
-  - backup/restore có mã hóa,
-  - audit log.
-- Phần `security` hiện hành không chỉ nằm ở một file mới sửa mà đang trải dài ở:
-  - `server.js`,
-  - `authController.js`,
-  - `middlewares`,
-  - `services backup/restore`,
-  - `models`,
-  - `frontend api/auth flow`.
+# Security Audit
+
+- Audit date: 2026-04-26
+- Auditor scope: `backend`, `frontend`, `docs`
+- Constraint followed: did not open `.env`, `.env.production`, or secret key files. Only `backend/.env.example` and `frontend/.env.example` were used to infer deployment/security intent.
+
+## 1. Executive summary
+
+Hệ thống hiện có nền bảo mật cơ bản khá ổn cho một web nội bộ quy mô nhỏ:
+
+- JWT access token trong memory, refresh token qua `httpOnly` cookie
+- phân quyền `admin` / `teacher` / `marketing`
+- CSP / Helmet / CORS / CSRF / rate-limit
+- upload ảnh có kiểm tra magic number và re-encode
+- backup/restore có mã hóa
+
+Tuy vậy, lần scan này cho thấy 3 nhóm rủi ro đáng ưu tiên hơn phần còn lại:
+
+1. luồng điểm danh khóa học đã cho giáo viên phụ truy cập đúng, nhưng cơ chế lưu hiện tại là `last-write-wins`, chưa đạt mức "đồng bộ an toàn" khi nhiều giáo viên cùng thao tác;
+2. luồng restore đang có khả năng làm lộ `MONGO_URI` vào log và giữ lại database tạm chứa dữ liệu thật lâu hơn dự kiến;
+3. một số API đang lộ dữ liệu hoặc trạng thái nhiều hơn mức cần thiết, nhất là forgot-password cho staff, danh sách học sinh cho teacher, và streak theo số điện thoại.
+
+Đánh giá tổng thể:
+
+- Mức phù hợp hiện tại: dùng nội bộ được, nhưng chưa nên xem là đã "hardened".
+- Mức ưu tiên xử lý: `attendance integrity` và `restore hygiene` phải lên trước.
+
+## 2. Context nghiệp vụ được kiểm tra
+
+### Teacher / course / attendance
+
+Code hiện tại đã bám đúng ý nghiệp vụ ở mức quyền truy cập:
+
+- mỗi khóa có `teacher` chính và `additionalTeachers`
+- tối đa 4 giáo viên phụ được chặn ở `backend/controllers/courseController.js:194-210`
+- giáo viên chính và giáo viên phụ đều được quyền truy cập/điểm danh lớp qua `checkCourseAccess()` ở `backend/controllers/courseController.js:67-83`
+
+Kết luận:
+
+- yêu cầu "giáo viên phụ vẫn điểm danh được" đã được mở đúng quyền;
+- nhưng yêu cầu "đồng bộ hóa để không bất tiện mượn tài khoản" mới chỉ đúng ở mức chia sẻ quyền, chưa đúng ở mức chống ghi đè/xung đột dữ liệu.
+
+### Streak mini-game
+
+Streak đang được thiết kế như một luồng riêng, không gắn với tài khoản admin/teacher/marketing.
+
+Điều này phù hợp với ý anh/chị mô tả: đây là mini-game marketing, không phải luồng bảo mật lõi. Tuy nhiên chính vì vậy, nó phải được xem là "low assurance feature": không nên tin cậy streak như một danh tính thật hoặc một bằng chứng sở hữu số điện thoại.
+
+## 3. Điểm mạnh đang có
+
+Các kiểm soát sau đang được triển khai đúng hướng:
+
+- `backend/server.js`: Helmet + CSP + HSTS + CORS allowlist
+- `backend/middlewares/securityMiddleware.js`: CSRF theo `Origin` + `X-Requested-With`
+- `backend/middlewares/auth.js`: JWT verify + session conflict theo `activeSessionId`
+- `backend/middlewares/upload.js`: extension + MIME + magic number + `sharp` re-encode + strip metadata
+- `backend/controllers/registrationController.js`: transaction cho đăng ký + capacity check + duplicate check
+- `backend/services/backup.service.js` và `backend/services/restore.service.js`: backup mã hóa, restore có safety backup và chặn zip-slip
+
+Đây là nền tốt. Vấn đề chính nằm ở integrity, privacy minimization, và operational hygiene.
+
+## 4. Findings
+
+### F1 - High - Điểm danh khóa học bị ghi đè lẫn nhau, chưa có đồng bộ an toàn giữa giáo viên chính và giáo viên phụ
+
+Evidence:
+
+- `checkCourseAccess()` cho phép cả giáo viên chính và giáo viên phụ vào lớp: `backend/controllers/courseController.js:67-83`
+- `saveAttendance()` chỉ kiểm tra `studentId` là ObjectId và `status` là `present/absent`, sau đó ghi đè nguyên mảng `records`: `backend/controllers/courseController.js:130-167`
+
+Impact:
+
+- hai giáo viên mở cùng một buổi điểm danh rồi lưu lệch thời điểm sẽ ghi đè nhau;
+- một người có quyền hợp lệ vẫn có thể gửi request thủ công chứa `studentId` không thuộc lớp đó, vì backend chưa đối chiếu membership thật với `Registration`;
+- trạng thái hiện tại là "cùng truy cập được", chưa phải "cùng làm mà không mất dữ liệu".
+
+Business conclusion:
+
+- với bối cảnh trung tâm nhỏ, đây là rủi ro nghiệp vụ thực tế nhất cho phần attendance;
+- nếu dùng flow này để tránh mượn tài khoản, hiện tại vẫn có khả năng phát sinh tranh chấp dữ liệu và mất lịch sử thao tác.
+
+Recommendation:
+
+- thêm server-side validation: mọi `studentId` trong `records` phải thuộc `courseId` đang thao tác;
+- chuyển từ overwrite toàn bộ sang patch theo từng học sinh hoặc optimistic locking bằng `version` / `updatedAt`;
+- lưu thêm `updatedBy`, `updatedAt` theo từng record hoặc ít nhất giữ audit trail cho mỗi lần save;
+- FE nên gửi `baseVersion` và BE phải từ chối save nếu dữ liệu đã bị người khác sửa trước đó.
+
+### F2 - High - Restore có thể làm lộ `MONGO_URI` vào log và giữ lại database tạm chứa dữ liệu thật
+
+Evidence:
+
+- log mongorestore đang in nguyên command, bao gồm `--uri=${MONGO_URI}`: `backend/services/restore.service.js:190-191`, `255-270`
+- tên database tạm dùng `Date.now()` mili-giây: `backend/services/restore.service.js:252-253`
+- cron cleanup lại parse suffix như giây rồi nhân `* 1000`: `backend/config/cron.js:143-149`
+
+Impact:
+
+- log restore có thể làm lộ username/password MongoDB vào log files, terminal history, APM, hoặc hệ thống giám sát;
+- database tạm của bước validate restore có thể không bị xóa đúng vòng đời, dẫn tới tồn đọng thêm một bản sao dữ liệu thật;
+- đây là rủi ro nghiêm trọng vì backup/restore thường chứa toàn bộ PII của trung tâm.
+
+Recommendation:
+
+- tuyệt đối không log command chứa URI bí mật; log nhãn tác vụ thay vì log command đầy đủ;
+- chuẩn hóa timestamp tạm: hoặc dùng ms ở cả chỗ tạo và chỗ cleanup, hoặc dùng giây ở cả hai nơi;
+- sau restore thành công, xóa luôn temp DB vừa tạo thay vì chỉ trông chờ cron dọn rác;
+- rà thêm các log lỗi Drive/SendGrid/restore để tránh dump response object có token/secret.
+
+### F3 - Medium - Forgot password cho staff đang tiết lộ trạng thái tài khoản nhiều hơn cần thiết
+
+Evidence:
+
+- nhánh `staff` trả lỗi riêng khi username/email không khớp: `backend/controllers/authController.js:314-330`
+- còn trả lỗi riêng khi staff chưa có email: `backend/controllers/authController.js:333-337`
+- trong khi nhánh `admin` đã dùng generic success để tránh enumeration: `backend/controllers/authController.js:345-353`
+
+Impact:
+
+- ai biết format username nội bộ (`LC########`) có thể dò xem account nào tồn tại, account nào đã được gán email;
+- đây không phải auth bypass trực tiếp, nhưng giúp thu hẹp mục tiêu cho brute-force social engineering hoặc spear-phishing nội bộ.
+
+Recommendation:
+
+- thống nhất trả một thông điệp chung cho cả `admin` và `staff`;
+- vẫn log nội bộ nguyên nhân thật, nhưng không trả ra client;
+- nếu cần hỗ trợ staff chưa có email, đưa hướng dẫn chung kiểu "nếu thông tin hợp lệ, hệ thống sẽ xử lý hoặc vui lòng liên hệ admin".
+
+### F4 - Medium - Teacher đang xem được PII phụ huynh rộng hơn nhu cầu điểm danh tối thiểu
+
+Evidence:
+
+- API học sinh theo lớp trả luôn `parentName`, `phone`, `email`: `backend/controllers/registrationController.js:443-449`
+- route teacher dùng chung màn hình đó: `frontend/src/App.jsx:96-99`
+- màn hình teacher thực tế hiển thị cột phụ huynh và số điện thoại: `frontend/src/pages/CourseStudentList.jsx:803-842`
+
+Impact:
+
+- mọi giáo viên được gán vào lớp, kể cả giáo viên phụ, đều xem được dữ liệu liên hệ phụ huynh;
+- nếu mục tiêu chính của route teacher là điểm danh, đây là overexposure so với nguyên tắc least privilege;
+- rủi ro này tăng lên khi dùng nhiều giáo viên phụ để thay giáo viên chính.
+
+Recommendation:
+
+- tách payload teacher-facing và admin-facing;
+- với teacher, mặc định chỉ trả `childName`, `childAge`, `isActive`, attendance state, và chỉ mở contact info khi có nhu cầu nghiệp vụ rõ;
+- cân nhắc mask phone (`***`) cho giáo viên phụ nếu không cần liên lạc trực tiếp.
+
+### F5 - Medium - Streak là identity-by-phone không xác thực chủ sở hữu, nên chỉ được xem là rủi ro kinh doanh chấp nhận được, không phải bảo mật mạnh
+
+Evidence:
+
+- route streak không dùng auth token riêng, chỉ rate-limit + validate input: `backend/routes/streakRoutes.js:19-57`
+- API lấy streak theo số điện thoại trả cả `phone`, `name`, `streakCount`, `lastCheckin`, `reviveUsed`: `backend/controllers/streakController.js:58-65`, `169-195`
+- check-in và revive cũng chỉ dựa vào `phone`: `backend/controllers/streakController.js:206-344`
+- FE còn lưu `streak_phone` ở localStorage để dùng lại: `frontend/src/components/FlameButton.jsx:266-270`
+
+Impact:
+
+- ai biết số điện thoại đều có thể xem trạng thái streak và thao tác hộ;
+- limit hiện tại giúp giảm spam nhưng không chứng minh quyền sở hữu số điện thoại;
+- vì có lưu `name` và `phone`, đây là rủi ro riêng tư/marketing hơn là rủi ro chiếm quyền hệ thống.
+
+Business conclusion:
+
+- nếu chủ đích là "cho check chuỗi hộ của nhau" thì đây là accepted risk;
+- nhưng streak phải tiếp tục bị cô lập hoàn toàn khỏi auth lõi, dữ liệu học viên, và mọi quyết định quan trọng.
+
+Recommendation:
+
+- giữ streak tách biệt với tài khoản nội bộ như hiện nay;
+- không mở rộng streak sang reward thật, voucher, hay thao tác có giá trị nếu chưa thêm OTP/signed token;
+- tối thiểu hóa dữ liệu trả về: có thể bỏ `name` khỏi `GET /streak/me` nếu không cần;
+- nếu vẫn dùng phone cho marketing, cần xem đây là luồng PII và có chính sách retention/xóa dữ liệu rõ ràng.
+
+### F6 - Low - Startup env validation chưa chặn thiếu một số secret quan trọng
+
+Evidence:
+
+- danh sách env bắt buộc hiện chưa gồm `JWT_SECRET`, `REFRESH_TOKEN_SECRET`, `COOKIE_SECRET`, `EMAIL_FROM`, `CORS_ORIGINS`: `backend/server.js:55-60`
+
+Impact:
+
+- app có thể khởi động trong trạng thái cấu hình sai hoặc nửa an toàn;
+- lỗi sẽ phát nổ muộn ở runtime thay vì fail fast ngay từ lúc boot.
+
+Recommendation:
+
+- thêm các secret và biến bảo mật lõi vào `requiredEnvs`;
+- fail startup ngay nếu thiếu secret xác thực hoặc cookie signing.
+
+## 5. Kết luận riêng theo yêu cầu nghiệp vụ
+
+### Attendance nhiều giáo viên phụ
+
+Phần quyền đang đúng hướng:
+
+- có 1 giáo viên chính;
+- tối đa 4 giáo viên phụ;
+- giáo viên phụ đã có thể điểm danh lớp.
+
+Nhưng phần "đồng bộ hóa để không cần mượn tài khoản" hiện chưa hoàn tất về mặt an toàn dữ liệu. Nếu muốn dùng nghiêm túc trong vận hành hằng ngày, cần sửa F1 trước.
+
+### Streak mini-game
+
+Với mục tiêu marketing và mức quan trọng thấp, mô hình hiện tại có thể chấp nhận nếu:
+
+- streak không ảnh hưởng tới auth lõi;
+- không gắn với quyền lợi thật;
+- chấp nhận rõ đây là tính năng low-trust;
+- kiểm soát retention của `phone`, `name`, `email`.
+
+Nếu sau này streak tăng giá trị kinh doanh, phải nâng cấp cơ chế xác thực ngay.
+
+## 6. Priority fix order
+
+1. Sửa attendance save theo hướng chống conflict + validate `studentId` thuộc đúng lớp.
+2. Sửa restore logging và cleanup temp restore DB.
+3. Làm generic response cho forgot-password staff.
+4. Giảm dữ liệu PII trả cho teacher.
+5. Hardening streak theo mức độ giá trị kinh doanh thật.
+6. Bổ sung startup env validation.
+
+## 7. Final assessment
+
+Đây không phải codebase "mất kiểm soát"; nền bảo mật đã có ý thức khá rõ. Vấn đề chính là vài điểm rủi ro còn nằm ở chỗ rất thực tế:
+
+- integrity khi nhiều người cùng thao tác,
+- dữ liệu dư thừa cho role không cần thiết,
+- và hygiene của backup/restore.
+
+Nếu xử lý xong F1 và F2 trước, mức an toàn thực tế của hệ thống nội bộ này sẽ tăng rõ rệt.
