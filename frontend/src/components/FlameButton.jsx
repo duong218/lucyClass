@@ -9,25 +9,101 @@ import {
   checkinStreak,
   reviveStreak
 } from '../services/streakService';
-import { useDraggableStreak } from "../utils/draggableStreak";
+import { useDraggableStreak } from '../utils/draggableStreak';
 import { useLocation } from 'react-router-dom';
 
-/**
- * Gets date in YYYY-MM-DD format (Vietnam timezone)
- */
 const getVNDate = (offset = 0) => {
   const date = new Date();
   const vnDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
   vnDate.setDate(vnDate.getDate() + offset);
-
   const y = vnDate.getFullYear();
   const m = String(vnDate.getMonth() + 1).padStart(2, '0');
   const d = String(vnDate.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 };
 
-/** Milestones that trigger fireworks */
 const FIREWORK_MILESTONES = [1, 3, 7, 30, 100];
+
+// Progress ring SVG helper
+const StreakRing = ({ count, color }) => {
+  const r = 28;
+  const circ = 2 * Math.PI * r;
+  // next milestone thresholds
+  const milestones = [3, 7, 30, 100];
+  const next = milestones.find(m => m > count) || 100;
+  const prev = milestones[milestones.indexOf(next) - 1] || 0;
+  const progress = Math.min((count - prev) / (next - prev), 1);
+  const offset = circ * (1 - progress);
+  return (
+    <svg width="64" height="64" viewBox="0 0 64 64" className="absolute top-0 left-0">
+      <circle cx="32" cy="32" r={r} fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="3" />
+      <circle
+        cx="32" cy="32" r={r}
+        fill="none"
+        stroke={color}
+        strokeWidth="3"
+        strokeDasharray={circ}
+        strokeDashoffset={offset}
+        strokeLinecap="round"
+        transform="rotate(-90 32 32)"
+        style={{ transition: 'stroke-dashoffset 0.6s ease' }}
+      />
+    </svg>
+  );
+};
+
+const getMilestoneConfig = (count) => {
+  if (count >= 100) return {
+    ringColor: '#7F77DD',
+    badge: '👑',
+    label: 'VUA GIỮ LỬA',
+    labelColor: 'text-purple-600',
+    fabColor: 'from-purple-500 to-pink-500',
+    btnColor: 'bg-gradient-to-r from-purple-500 to-pink-500',
+    hueRotate: 'hue-rotate(260deg) saturate(1.5)',
+    hint: null,
+  };
+  if (count >= 30) return {
+    ringColor: '#7F77DD',
+    badge: '🌟',
+    label: 'SIÊU SAO',
+    labelColor: 'text-purple-500',
+    fabColor: 'from-purple-400 to-purple-600',
+    btnColor: 'bg-gradient-to-r from-purple-400 to-purple-600',
+    hueRotate: 'hue-rotate(270deg)',
+    hint: null,
+  };
+  if (count >= 7) return {
+    ringColor: '#378ADD',
+    badge: '🥈',
+    label: 'ĐỈNH CAO',
+    labelColor: 'text-blue-500',
+    fabColor: 'from-blue-400 to-cyan-500',
+    btnColor: 'bg-gradient-to-r from-blue-500 to-cyan-500',
+    hueRotate: 'hue-rotate(200deg)',
+    hint: null,
+  };
+  if (count >= 3) return {
+    ringColor: '#EF9F27',
+    badge: '⭐',
+    label: 'ĐÃ VÀO NHỊP',
+    labelColor: 'text-orange-500',
+    fabColor: 'from-orange-400 to-yellow-400',
+    btnColor: 'bg-gradient-to-r from-orange-400 to-yellow-400',
+    hueRotate: 'hue-rotate(30deg)',
+    hint: null,
+  };
+  return {
+    ringColor: '#E24B4A',
+    badge: '🌱',
+    label: '',
+    labelColor: '',
+    fabColor: 'from-red-400 to-pink-400',
+    btnColor: 'bg-gradient-to-r from-red-400 to-pink-400',
+    hueRotate: 'hue-rotate(0deg)',
+    hint: null,
+  };
+};
 
 const FlameButton = () => {
   const { t } = useTranslation();
@@ -41,51 +117,26 @@ const FlameButton = () => {
   const [showFireworks, setShowFireworks] = useState(false);
   const prevStreakRef = useRef(null);
 
-  // User Lookup Stability
   const [isExistingUser, setIsExistingUser] = useState(false);
   const [loadingUser, setLoadingUser] = useState(false);
   const lookupRequestIdRef = useRef(0);
 
-  // Revive Modal
-  const [isReviveModalOpen, setIsReviveModalOpen] = useState(false);
-  const [reviveMissedDays, setReviveMissedDays] = useState(0);
-
-  // Form states
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
 
-  // User state
   const [savedPhone, setSavedPhone] = useState(localStorage.getItem('streak_phone') || '');
   const [userData, setUserData] = useState(null);
 
-  // ─── Modal open/close with scroll lock ───────────────────────────────────────
-  const handleOpen = () => {
-    openModal();
-    setIsOpen(true);
-  };
+  // ── Modal helpers ────────────────────────────────────────────────────────────
+  const handleOpen = () => { openModal(); setIsOpen(true); };
+  const handleClose = () => { closeModal(); setIsOpen(false); };
 
-  const handleClose = () => {
-    closeModal();
-    setIsOpen(false);
-  };
-
-  const handleReviveModalOpen = () => {
-    openModal();
-    setIsReviveModalOpen(true);
-  };
-
-  const handleReviveModalClose = () => {
-    closeModal();
-    setIsReviveModalOpen(false);
-  };
-
-  // ─── Fireworks trigger on milestone ──────────────────────────────────────────
+  // ── Fireworks on milestone ───────────────────────────────────────────────────
   useEffect(() => {
     if (userData?.streakCount !== undefined) {
       const current = userData.streakCount;
       const prev = prevStreakRef.current;
-
       if (prev !== null && prev !== current && FIREWORK_MILESTONES.includes(current)) {
         setShowFireworks(true);
       }
@@ -93,98 +144,13 @@ const FlameButton = () => {
     }
   }, [userData?.streakCount]);
 
-  /**
-   * UI Milestone logic for Kids' Theme
-   */
-  const getMilestoneStyles = (count) => {
-    if (count >= 100) return {
-      textStrong: 'text-transparent bg-clip-text bg-gradient-to-br from-purple-300 via-pink-400 to-indigo-400',
-      color: 'text-white',
-      bg: 'bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500',
-      bgLight: 'bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50',
-      border: 'border-purple-300',
-      btn: 'bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500',
-      shadow: 'shadow-purple-300',
-      sparkle: true,
-      galaxy: true,
-      hint: t('streak.milestone_100'),
-      icon: '🔥',
-      badge: '🌌',
-      milestoneLabel: '🏆 HUYỀN THOẠI',
-      milestoneColor: 'text-purple-500',
-    };
-
-    if (count >= 30) return {
-      textStrong: 'text-purple-600',
-      color: 'text-purple-600',
-      bg: 'bg-purple-50',
-      bgLight: 'bg-purple-50',
-      border: 'border-purple-200',
-      btn: 'bg-gradient-to-r from-purple-400 to-purple-600',
-      shadow: 'shadow-purple-200',
-      hint: t('streak.milestone_30'),
-      icon: '🔥',
-      badge: '💜',
-      milestoneLabel: '🌟 SIÊU SAO',
-      milestoneColor: 'text-purple-500',
-    };
-
-    if (count >= 7) return {
-      textStrong: 'text-blue-600',
-      color: 'text-blue-600',
-      bg: 'bg-blue-50',
-      bgLight: 'bg-blue-50',
-      border: 'border-blue-200',
-      btn: 'bg-gradient-to-r from-blue-400 to-cyan-500',
-      shadow: 'shadow-blue-200',
-      hint: t('streak.milestone_7'),
-      icon: '🔥',
-      badge: '🥈',
-      milestoneLabel: '🔥 ĐỈNH CAO',
-      milestoneColor: 'text-blue-500',
-    };
-
-    if (count >= 3) return {
-      textStrong: 'text-orange-500',
-      color: 'text-orange-500',
-      bg: 'bg-orange-50',
-      bgLight: 'bg-orange-50',
-      border: 'border-orange-200',
-      btn: 'bg-gradient-to-r from-orange-400 to-yellow-400',
-      shadow: 'shadow-orange-200',
-      hint: t('streak.milestone_3'),
-      icon: '🔥',
-      badge: '⭐',
-      milestoneLabel: '✨ ĐÃ VÀO NHỊP',
-      milestoneColor: 'text-orange-500',
-    };
-
-    return {
-      textStrong: 'text-red-500',
-      color: 'text-red-500',
-      bg: 'bg-red-50',
-      bgLight: 'bg-red-50',
-      border: 'border-red-200',
-      btn: 'bg-gradient-to-r from-red-400 to-pink-400',
-      shadow: 'shadow-red-200',
-      hint: '',
-      icon: '🔥',
-      badge: '🌱',
-      milestoneLabel: '',
-      milestoneColor: '',
-    };
-  };
-
-  const styles = getMilestoneStyles(userData?.streakCount || 0);
   const isValidPhone = (p) => /^0(3|5|7|8|9)[0-9]{8}$/.test(p);
 
   const loadUser = useCallback(async (p) => {
     if (!p || !isValidPhone(p)) return;
-
     const requestId = ++lookupRequestIdRef.current;
     setLoadingUser(true);
     setErrorMsg('');
-
     try {
       const res = await fetchStreak(p);
       if (requestId === lookupRequestIdRef.current) {
@@ -193,9 +159,6 @@ const FlameButton = () => {
           setName(res.data.name);
           setEmail(res.data.email || '');
           setIsExistingUser(true);
-          if (res.streakExpired) {
-            setErrorMsg(t('streak.error_expired_soft'));
-          }
         } else {
           setUserData(null);
           setIsExistingUser(false);
@@ -209,12 +172,11 @@ const FlameButton = () => {
         setIsExistingUser(false);
       }
     } finally {
-      if (requestId === lookupRequestIdRef.current) {
-        setLoadingUser(false);
-      }
+      if (requestId === lookupRequestIdRef.current) setLoadingUser(false);
     }
-  }, [t]);
+  }, []);
 
+  // Clear session if new day
   useEffect(() => {
     const today = getVNDate(0);
     const lastLogin = localStorage.getItem('streak_last_login_date');
@@ -229,16 +191,12 @@ const FlameButton = () => {
   }, [savedPhone]);
 
   useEffect(() => {
-    if (savedPhone) {
-      loadUser(savedPhone);
-    }
+    if (savedPhone) loadUser(savedPhone);
   }, [savedPhone, loadUser]);
 
   useEffect(() => {
     if (!savedPhone && isValidPhone(phone)) {
-      const timer = setTimeout(() => {
-        loadUser(phone);
-      }, 300);
+      const timer = setTimeout(() => loadUser(phone), 300);
       return () => clearTimeout(timer);
     }
   }, [phone, savedPhone, loadUser]);
@@ -251,16 +209,11 @@ const FlameButton = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // ── Actions ──────────────────────────────────────────────────────────────────
   const handleStart = async () => {
     if (loading) return;
-    if (!phone || !isValidPhone(phone)) {
-      setErrorMsg(t('streak.error_phone'));
-      return;
-    }
-    if (!name) {
-      setErrorMsg(t('streak.error_name'));
-      return;
-    }
+    if (!phone || !isValidPhone(phone)) { setErrorMsg(t('streak.error_phone')); return; }
+    if (!name) { setErrorMsg(t('streak.error_name')); return; }
     setLoading(true);
     setErrorMsg('');
     const res = await startStreak({ phone, name, email });
@@ -283,13 +236,11 @@ const FlameButton = () => {
     const res = await checkinStreak(savedPhone, forceReset);
     if (res.success) {
       if (res.needRevive) {
-        setReviveMissedDays(res.missedDays);
-        handleReviveModalOpen();
+        // needRevive is handled inline now — no separate modal
+        setUserData(res.data);
       } else {
         setUserData(res.data);
-        // FIX #3: Không gọi handleReviveModalClose() ở đây vì nó sẽ gọi closeModal()
-        // thêm lần nữa trong khi main modal vẫn đang mở → modalCount bị âm.
-        setIsReviveModalOpen(false);
+        setIsReviveConfirmOpen(false);
       }
     } else {
       setErrorMsg(res.message || t('streak.unknown_error'));
@@ -299,26 +250,14 @@ const FlameButton = () => {
 
   const handleRevive = async () => {
     if (loading) return;
-
-    // Guard: streak quá hạn khôi phục (>= 6 ngày)
-    if (isReviveExpired) {
-      setErrorMsg(t('streak.error_revive_expired'));
-      return;
-    }
-    // Guard: đã dùng lượt khôi phục rồi
-    if (reviveAlreadyUsed) {
-      setErrorMsg(t('streak.error_revive_used'));
-      return;
-    }
-
     setLoading(true);
     setErrorMsg('');
     const res = await reviveStreak(savedPhone);
     if (res.success) {
       setUserData(res.data);
-      handleReviveModalClose();
+      setIsReviveConfirmOpen(false);
     } else {
-      setErrorMsg(res.message || t("streak.unknown_error"));
+      setErrorMsg(res.message || t('streak.unknown_error'));
     }
     setLoading(false);
   };
@@ -331,13 +270,16 @@ const FlameButton = () => {
     setName('');
     setEmail('');
     setErrorMsg('');
+    setIsReviveConfirmOpen(false);
   };
 
-  const today = getVNDate(0);
+  // Inline revive confirm state (replaces separate modal)
+  const [isReviveConfirmOpen, setIsReviveConfirmOpen] = useState(false);
 
+  // ── Derived state ────────────────────────────────────────────────────────────
+  const today = getVNDate(0);
   const hasCheckedInToday = userData?.lastCheckin === today;
 
-  // Calculate diffDays on client (same logic as BE: YYYY-MM-DD UTC diff)
   const calcDiffDays = (lastCheckin) => {
     if (!lastCheckin) return 999;
     const last = new Date(lastCheckin + 'T00:00:00Z');
@@ -346,491 +288,492 @@ const FlameButton = () => {
   };
 
   const diffDays = calcDiffDays(userData?.lastCheckin);
-
-  // In revive window (2–5 days missed) — matches BE validation exactly
   const isInReviveWindow = diffDays >= 2 && diffDays <= 5;
-  // Past the revive window entirely (>= 6 days)
-  const isReviveExpired = diffDays >= 6;
-
+  const isStreakExpired = diffDays >= 6 && !!userData?.lastCheckin;
   const canRevive = isInReviveWindow && !userData?.reviveUsed;
-  // Already used revive token while still in window
   const reviveAlreadyUsed = isInReviveWindow && userData?.reviveUsed;
 
-  const hasMultipleMissed = isReviveExpired;
-
+  const cfg = getMilestoneConfig(userData?.streakCount || 0);
   const isMilestone = FIREWORK_MILESTONES.includes(userData?.streakCount);
 
-  // Chỉ hiện ở trang chủ
+  // Build timeline days for revive window
+  const buildTimeline = () => {
+    if (!userData?.lastCheckin) return [];
+    const days = [];
+    // Show last 3 days before today + today
+    for (let i = 3; i >= 0; i--) {
+      const d = getVNDate(-i);
+      const diff = calcDiffDays(d);
+      let type = 'future';
+      if (d === today) type = 'today';
+      else if (d === userData.lastCheckin) type = 'checked';
+      else if (diff > 0 && d > userData.lastCheckin) type = 'missed';
+      else if (d < userData.lastCheckin) type = 'checked';
+      const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+      const dayObj = new Date(d + 'T00:00:00Z');
+      days.push({ date: d, type, label: dayNames[dayObj.getUTCDay()] });
+    }
+    return days;
+  };
+
   if (location.pathname !== '/') return null;
 
   return (
     <>
-      {/* ── Fireworks overlay ─────────────────────────────────────────────────── */}
-      {showFireworks && <Fireworks />}
+      {showFireworks && <Fireworks onComplete={() => setShowFireworks(false)} />}
 
-      {/* ── Floating flame button ─────────────────────────────────────────────── */}
+      {/* ── Floating flame button ────────────────────────────────────────────── */}
       <div
         ref={elementRef}
         className="fixed bottom-[20px] right-[16px] sm:bottom-[24px] sm:right-[20px] md:bottom-[28px] md:right-[28px] lg:bottom-[36px] lg:right-[36px] z-[40] group select-none touch-none"
         style={{ touchAction: 'none' }}
         onClick={(e) => {
-          if (!hasMoved) {
-            handleOpen();
-          } else {
-            e.preventDefault();
-            e.stopPropagation();
-          }
+          if (!hasMoved) handleOpen();
+          else { e.preventDefault(); e.stopPropagation(); }
         }}
       >
-        <div className="absolute inset-0 bg-orange-400/20 blur-3xl rounded-full scale-150 md:scale-175 lg:scale-200 animate-pulse"></div>
-
+        <div className="absolute inset-0 bg-orange-400/20 blur-3xl rounded-full scale-150 animate-pulse" />
         <img
           src={flameImg}
           alt="Flame"
           draggable={false}
           className={`
-            w-[120px] h-[140px]
-            sm:w-[140px] sm:h-[160px]
-            md:w-[160px] md:h-[180px]
-            lg:w-[190px] lg:h-[210px]
-            object-contain origin-bottom
-            transition-transform
+            w-[120px] h-[140px] sm:w-[140px] sm:h-[160px]
+            md:w-[160px] md:h-[180px] lg:w-[190px] lg:h-[210px]
+            object-contain origin-bottom transition-transform
             group-hover:scale-110 md:group-hover:scale-125
             drop-shadow-[0_10px_10px_rgba(255,165,0,0.4)]
-            animate-float
-            ${isBouncing ? 'animate-bounce' : ''}
+            animate-float ${isBouncing ? 'animate-bounce' : ''}
           `}
-          style={{
-            filter:
-              userData?.streakCount >= 100
-                ? 'hue-rotate(260deg) saturate(1.5)'
-                : userData?.streakCount >= 30
-                  ? 'hue-rotate(270deg)'
-                  : userData?.streakCount >= 7
-                    ? 'hue-rotate(200deg)'
-                    : userData?.streakCount >= 3
-                      ? 'hue-rotate(30deg)'
-                      : 'hue-rotate(0deg)'
-          }}
+          style={{ filter: cfg.hueRotate }}
         />
-
-        <div className="absolute inset-0 pointer-events-none overflow-visible">
-          {[...Array(5)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute w-1.5 h-1.5 bg-yellow-300 rounded-full animate-sparkle"
-              style={{
-                top: `${Math.random() * 80}%`,
-                left: `${Math.random() * 80}%`,
-                animationDelay: `${i * 0.4}s`
-              }}
-            />
-          ))}
-        </div>
-
         {userData?.streakCount > 0 && (
           <div className="absolute top-1 right-1">
-            <div className="relative animate-bounce-subtle" key={userData.streakCount}>
-              <div className={`absolute inset-0 ${styles.bg} blur-sm rounded-full scale-110`}></div>
-              <div className={`relative ${styles.bg} ${styles.color} font-black px-3 py-1 rounded-full text-[14px] sm:text-[16px] md:text-[18px] px-3 sm:px-4 py-1.5 border-2 ${styles.border} shadow-lg flex items-center gap-1`}>
-                <span>{userData.streakCount}</span>
-                <span className="text-[px]">{styles.icon}</span>
-              </div>
+            <div
+              key={userData.streakCount}
+              className={`
+                bg-gradient-to-r ${cfg.fabColor} text-white font-black
+                px-3 py-1 rounded-full text-[14px] sm:text-[16px] md:text-[18px]
+                border-2 border-white/40 shadow-lg flex items-center gap-1
+                animate-bounce-subtle
+              `}
+            >
+              <span>{userData.streakCount}</span>
+              <span>🔥</span>
             </div>
           </div>
         )}
       </div>
 
-      {/* ── Main Modal ────────────────────────────────────────────────────────── */}
+      {/* ── Main Modal ───────────────────────────────────────────────────────── */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-[60] flex items-end md:items-center justify-center max-md:p-0 p-2 sm:p-4 animate-in fade-in duration-300"
-          style={{
-            background: 'rgba(100, 110, 120, 0.55)',
-            backdropFilter: 'blur(12px)',
-            overscrollBehavior: 'contain',
-            touchAction: 'pan-y'
-          }}
+          className="fixed inset-0 z-[60] flex items-end md:items-center justify-center max-md:p-0 p-4 animate-in fade-in duration-300"
+          style={{ background: 'rgba(15,20,30,0.6)', backdropFilter: 'blur(14px)', overscrollBehavior: 'contain', touchAction: 'pan-y' }}
           onClick={(e) => e.target === e.currentTarget && handleClose()}
         >
-          <div className={`
-            relative bg-white/95 backdrop-blur-sm max-md:rounded-t-[24px] max-md:rounded-b-none rounded-[2rem] sm:rounded-[3rem]
-            shadow-[0_32px_64px_-12px_rgba(0,0,0,0.18)]
-            w-full
-            max-md:max-w-full max-w-[88%] sm:max-w-lg md:max-w-2xl lg:max-w-3xl
-            max-h-[86dvh] sm:max-h-[90vh] md:max-h-[84vh]
-            border-t-[3px] md:border-4 ${styles.border} max-md:border-b-0 max-md:border-x-0
-            max-md:animate-in max-md:slide-in-from-bottom-full max-md:duration-300 md:animate-scaleIn overflow-hidden flex flex-col
-          `}>
+          <div className="
+            relative bg-white w-full
+            max-md:rounded-t-3xl max-md:rounded-b-none rounded-3xl
+            max-w-full sm:max-w-md
+            max-h-[88dvh] overflow-hidden flex flex-col
+            shadow-2xl
+          ">
+            {/* Handle */}
+            <div className="md:hidden w-8 h-1 bg-gray-200 rounded-full mx-auto mt-3 mb-0 flex-shrink-0" />
 
-            {/* Mobile handle puller */}
-            <div className="md:hidden w-10 h-1.5 bg-slate-300/80 rounded-full mx-auto mt-2.5 mb-1 z-50 relative pointer-events-none"></div>
-
-            {/* Background blobs */}
-            <div className="absolute -top-10 -left-10 w-40 h-40 bg-pink-100/40 blur-3xl rounded-full pointer-events-none"></div>
-            <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-blue-100/40 blur-3xl rounded-full pointer-events-none"></div>
-
-            {/* Sparkles for high streaks */}
-            {(styles.sparkle || styles.glow) && (
-              <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                <div className={`absolute inset-0 ${styles.glow ? 'bg-gradient-radial from-yellow-100/20 to-transparent' : ''}`}></div>
-                {[...Array(8)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="absolute w-2 h-2 bg-yellow-400/60 rounded-full animate-ping"
-                    style={{
-                      top: `${Math.random() * 100}%`,
-                      left: `${Math.random() * 100}%`,
-                      animationDelay: `${i * 0.5}s`,
-                      animationDuration: '3s'
-                    }}
-                  />
-                ))}
-              </div>
-            )}
-
-            {styles.galaxy && (
-              <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                {[...Array(20)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="absolute w-1 h-1 bg-white rounded-full animate-ping"
-                    style={{
-                      top: `${Math.random() * 100}%`,
-                      left: `${Math.random() * 100}%`,
-                      animationDelay: `${i * 0.2}s`,
-                      opacity: 0.8
-                    }}
-                  />
-                ))}
-              </div>
-            )}
-
-            {/* ── Desktop: horizontal layout | Mobile: vertical ── */}
-            <div className="flex flex-col md:flex-row min-h-0 flex-1 overflow-hidden">
-
-              {/* ── LEFT PANEL: Streak display ─────────────────────────────── */}
-              <div className={`
-                relative flex max-md:flex-row flex-col items-center max-md:justify-between justify-center max-md:gap-3 gap-3
-                md:w-[40%] md:min-h-[400px]
-                max-md:px-5 max-md:py-3.5 p-4 sm:p-5 md:p-6 lg:p-8
-                ${styles.bg}
-                md:rounded-l-[2.8rem] md:rounded-r-none
-                max-md:rounded-none
-                border-b-2 md:border-b-0 md:border-r-4 ${styles.border} max-md:border-x-0 max-md:border-t-0
-                overflow-hidden flex-shrink-0
-              `}>
-                <div className="max-md:hidden absolute -top-12 -left-12 w-36 h-36 rounded-full bg-white/20 pointer-events-none"></div>
-                <div className="max-md:hidden absolute -bottom-8 -right-8 w-28 h-28 rounded-full bg-white/15 pointer-events-none"></div>
-
-                <p className="max-md:hidden text-gray-400 font-black text-[11px] uppercase tracking-[0.25em] mb-1 relative z-10">
-                  {t('streak.streak_label')}
-                </p>
-
-                {/* Big streak number */}
-                <div className="relative inline-flex items-center justify-center" key={userData?.streakCount ?? 'none'}>
-                  {isMilestone && (
-                    <div className={`absolute inset-0 scale-125 rounded-full blur-2xl ${styles.bg} animate-pulse pointer-events-none`}></div>
-                  )}
-                  <p className={`
-                    text-[28px] md:text-[72px] lg:text-[88px]
-                    font-black leading-none max-md:tracking-tighter
-                    ${styles.textStrong}
-                    drop-shadow-[0_6px_20px_rgba(0,0,0,0.15)]
-                    relative z-10
-                    ${(userData?.streakCount ?? 0) >= 100 ? 'animate-pulse' : ''}
-                  `}>
-                    {userData?.streakCount ?? '—'}
-                  </p>
+            {/* ── HERO: streak number + user info ── */}
+            {savedPhone && userData ? (
+              <div className="flex items-center gap-4 px-5 pt-4 pb-4 border-b border-gray-100 flex-shrink-0">
+                {/* Ring */}
+                <div className="relative w-16 h-16 flex-shrink-0 flex items-center justify-center flex-col">
+                  <StreakRing count={userData.streakCount || 0} color={isStreakExpired ? '#D3D1C7' : cfg.ringColor} />
+                  <span className={`text-2xl font-black leading-none relative z-10 ${isStreakExpired ? 'text-gray-400' : 'text-gray-800'}`}>
+                    {isStreakExpired ? 0 : userData.streakCount}
+                  </span>
+                  <span className="text-[9px] text-gray-400 relative z-10 mt-0.5 font-semibold tracking-wide">
+                    {t('streak.days')}
+                  </span>
                 </div>
 
-                <p className="text-[10px] md:text-sm text-gray-500 uppercase tracking-[0.2em] font-bold relative z-10 max-md:m-0">
-                  {t('streak.days')}
-                </p>
-
-                {isMilestone && styles.milestoneLabel && (
-                  <div className={`
-                    max-md:mt-0 md:mt-3 px-2.5 md:px-4 py-1 md:py-1.5 rounded-full font-black text-[10px] md:text-[11px] tracking-widest
-                    bg-white/80 backdrop-blur-sm border-2 ${styles.border}
-                    ${styles.milestoneColor} shadow-md animate-bounce max-md:ml-auto
-                    relative z-10
-                  `}>
-                    {styles.milestoneLabel}
-                  </div>
-                )}
-
-                {styles.hint && !isMilestone && (
-                  <p className={`max-md:hidden text-[11px] font-black italic mt-2 animate-pulse text-center px-2 relative z-10 ${styles.milestoneColor || 'text-orange-400'}`}>
-                    {styles.hint}
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-gray-800 text-sm truncate">
+                    {userData.name}
                   </p>
-                )}
 
-                {isMilestone && (
-                  <div className="max-md:hidden flex gap-1 mt-2 relative z-10">
-                    {[...Array(Math.min((userData?.streakCount ?? 0) >= 100 ? 5 : (userData?.streakCount ?? 0) >= 30 ? 4 : (userData?.streakCount ?? 0) >= 7 ? 3 : 2, 5))].map((_, i) => (
-                      <span key={i} className="text-xl animate-bounce" style={{ animationDelay: `${i * 0.12}s` }}>⭐</span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* ── RIGHT PANEL: Info / Form ────────────────────────────────── */}
-              <div
-                className="flex-1 flex flex-col p-4 sm:p-5 md:p-6 lg:p-8 max-md:gap-3 gap-4 max-md:px-5 overflow-y-auto"
-                style={{ WebkitOverflowScrolling: 'touch' }}
-              >
-                {/* Title */}
-                <h2 className="text-base md:text-xl font-black text-center text-gray-800 tracking-tight">
-                  <span className="bg-gradient-to-r from-orange-400 via-pink-400 to-purple-500 bg-clip-text text-transparent">
-                    {t('streak.title_fun')}
-                  </span>
-                </h2>
-
-                {/* Error */}
-                {errorMsg && (
-                  <div className="bg-red-50 border-2 border-red-100 rounded-[1rem] md:rounded-[1.5rem] p-3 animate-bounce-subtle">
-                    <p className="text-red-500 text-sm font-bold text-center leading-relaxed">
-                      {errorMsg}
-                    </p>
-                  </div>
-                )}
-
-                {savedPhone && userData ? (
-                  /* ── Logged-in view ── */
-                  <div className="flex flex-col gap-3">
-                    <div className="text-center">
-                      <p className="text-base md:text-lg font-bold text-gray-700">
-                        {t('streak.greeting_back', { name: userData.name || t('streak.greeting_default') })}
-                      </p>
-                      {styles.hint && !isMilestone && (
-                        <p className="text-[11px] font-black italic text-orange-400 mt-1 animate-pulse">
-                          {styles.hint}
-                        </p>
-                      )}
+                  {/* Status pill */}
+                  {hasCheckedInToday && (
+                    <div className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full bg-green-50 border border-green-200 text-green-700 text-[11px] font-semibold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
+                      Đã check-in hôm nay
                     </div>
+                  )}
+                  {!hasCheckedInToday && !isInReviveWindow && !isStreakExpired && userData.lastCheckin && (
+                    <div className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full bg-orange-50 border border-orange-200 text-orange-700 text-[11px] font-semibold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-orange-400 inline-block animate-pulse" />
+                      Chưa check-in hôm nay
+                    </div>
+                  )}
+                  {canRevive && (
+                    <div className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[11px] font-semibold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block animate-pulse" />
+                      Có thể khôi phục
+                    </div>
+                  )}
+                  {reviveAlreadyUsed && (
+                    <div className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-600 text-[11px] font-semibold">
+                      🎟️ Đã dùng lượt khôi phục
+                    </div>
+                  )}
+                  {isStreakExpired && (
+                    <div className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-600 text-[11px] font-semibold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" />
+                      Chuỗi đã mất
+                    </div>
+                  )}
 
-                    {canRevive && (
-                      <div className="bg-red-50/80 backdrop-blur-sm border-2 border-red-100 rounded-xl md:rounded-[2rem] p-3 text-center animate-pulse">
-                        <p className="text-red-600 text-[12px] md:text-[13px] font-black flex items-center justify-center gap-1">
-                          <span>{t('streak.revive_warning')}</span>
+                  {isMilestone && cfg.label && (
+                    <div className={`inline-block mt-1 ml-2 px-2 py-0.5 rounded-full bg-white border text-[10px] font-black tracking-widest ${cfg.labelColor}`}>
+                      {cfg.badge} {cfg.label}
+                    </div>
+                  )}
+
+                  {/* Mini next-milestone progress */}
+                  {!isStreakExpired && userData.streakCount < 100 && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <div className="flex-1 h-1 rounded-full bg-gray-100 overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-700"
+                          style={{
+                            background: cfg.ringColor,
+                            width: (() => {
+                              const ms = [3, 7, 30, 100];
+                              const next = ms.find(m => m > userData.streakCount) || 100;
+                              const prev = ms[ms.indexOf(next) - 1] || 0;
+                              return `${Math.min(((userData.streakCount - prev) / (next - prev)) * 100, 100)}%`;
+                            })()
+                          }}
+                        />
+                      </div>
+                      <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap">
+                        Mốc {[3, 7, 30, 100].find(m => m > userData.streakCount) || 100} ngày
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : !savedPhone ? (
+              /* New user header */
+              <div className="px-5 pt-5 pb-4 text-center border-b border-gray-100 flex-shrink-0">
+                <div className="text-3xl mb-2">🔥</div>
+                <h2 className="text-base font-black text-gray-800">{t('streak.title_fun')}</h2>
+                <p className="text-xs text-gray-400 mt-1 leading-relaxed">Mỗi ngày check-in để giữ chuỗi. Tích lũy càng dài, huy hiệu càng xịn.</p>
+              </div>
+            ) : (
+              /* Loading header */
+              <div className="px-5 pt-5 pb-4 border-b border-gray-100 flex-shrink-0 flex items-center gap-3">
+                <div className="w-16 h-16 rounded-full bg-gray-100 animate-pulse flex-shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3 bg-gray-100 rounded animate-pulse w-24" />
+                  <div className="h-2 bg-gray-100 rounded animate-pulse w-16" />
+                </div>
+              </div>
+            )}
+
+            {/* ── BODY ── */}
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3" style={{ WebkitOverflowScrolling: 'touch' }}>
+
+              {/* Error */}
+              {errorMsg && (
+                <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-red-500 text-sm font-semibold text-center leading-relaxed">
+                  {errorMsg}
+                </div>
+              )}
+
+              {savedPhone && userData ? (
+                <>
+                  {/* ── STATE: Expired (>= 6 days) ── */}
+                  {isStreakExpired && (
+                    <>
+                      {/* What was lost */}
+                      <div className="bg-red-50 border border-red-100 rounded-2xl px-4 py-3">
+                        <p className="text-red-700 font-bold text-sm">
+                          Chuỗi {userData.streakCount} ngày đã kết thúc
                         </p>
-                        <p className="text-red-400 text-[10px] md:text-[11px] font-bold mt-0.5">
-                          {t('streak.revive_warning_desc')}
+                        <p className="text-red-400 text-xs mt-1 leading-relaxed">
+                          Bỏ lỡ {diffDays} ngày — vượt quá giới hạn khôi phục 5 ngày. Chuỗi cũ không lấy lại được nữa.
                         </p>
                       </div>
-                    )}
 
-                    {reviveAlreadyUsed && (
-                      <div className="bg-amber-50 border-2 border-amber-100 rounded-xl md:rounded-[2rem] p-3 text-center">
-                        <p className="text-amber-600 text-[12px] md:text-[13px] font-black flex items-center justify-center gap-1">
-                          <span>🎟️</span> <span>{t('streak.revive_used_banner')}</span>
-                        </p>
-                        <p className="text-amber-400 text-[10px] md:text-[11px] font-bold mt-0.5">
-                          {t('streak.revive_used_banner_desc')}
+                      {/* Positive reframe */}
+                      <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3">
+                        <p className="text-blue-700 font-bold text-sm">Bắt đầu lại ngay hôm nay</p>
+                        <p className="text-blue-400 text-xs mt-1 leading-relaxed">
+                          Thói quen bạn xây được vẫn còn đó. Check-in hôm nay để khởi động chuỗi mới.
                         </p>
                       </div>
-                    )}
 
-                    {hasMultipleMissed && (
-                      <div className="bg-orange-50 border-2 border-orange-100 rounded-xl md:rounded-[2rem] p-3 text-center">
-                        <p className="text-orange-600 text-[12px] md:text-[13px] font-black">
-                          {t('streak.lost_streak_hint')}
-                        </p>
-                        <p className="text-orange-400 text-[10px] md:text-[11px] font-bold mt-0.5">
-                          {t('streak.lost_streak_desc')}
+                      {/* Record vs next goal */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5 text-center">
+                          <p className="text-2xl font-black text-gray-500">{userData.streakCount}</p>
+                          <p className="text-[10px] text-gray-400 mt-0.5">Kỷ lục của bạn</p>
+                        </div>
+                        <div className="bg-blue-50 border border-blue-100 rounded-xl px-3 py-2.5 text-center">
+                          <p className="text-2xl font-black text-blue-400">
+                            {[3, 7, 30, 100].find(m => m > userData.streakCount) ?? '100+'}
+                          </p>
+                          <p className="text-[10px] text-blue-400 mt-0.5">Mục tiêu tiếp theo</p>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => handleCheckIn(true)}
+                        disabled={loading}
+                        className={`w-full ${cfg.btnColor} text-white font-black py-4 rounded-2xl transition-all shadow-lg hover:scale-[1.02] active:scale-95 text-sm ${loading ? 'opacity-60' : ''}`}
+                      >
+                        {loading ? t('streak.loading') : '🔥 Check-in hôm nay — bắt đầu chuỗi mới'}
+                      </button>
+                    </>
+                  )}
+
+                  {/* ── STATE: Revive window (2–5 days missed) ── */}
+                  {isInReviveWindow && !isReviveConfirmOpen && (
+                    <>
+                      <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3">
+                        <p className="text-amber-700 font-bold text-sm">Chuỗi sắp mất!</p>
+                        <p className="text-amber-500 text-xs mt-1 leading-relaxed">
+                          Bạn bỏ lỡ {diffDays - 1} ngày.{' '}
+                          {canRevive
+                            ? 'Còn 1 lượt khôi phục miễn phí cho chuỗi này.'
+                            : 'Đã dùng lượt khôi phục rồi — chỉ có thể check-in và reset.'}
                         </p>
                       </div>
-                    )}
 
-                    <div className="flex flex-col max-md:gap-2.5 gap-2.5 mt-auto">
-                      {/* Revive button: only shown when actually revivable */}
-                      {canRevive && (
+                      {/* Timeline */}
+                      <div>
+                        <p className="text-[11px] text-gray-400 font-semibold mb-2">Lịch sử gần đây</p>
+                        <div className="flex items-center gap-0">
+                          {buildTimeline().map((day, idx, arr) => (
+                            <React.Fragment key={day.date}>
+                              <div className={`
+                                w-10 h-10 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0
+                                ${day.type === 'checked' ? 'bg-green-100 text-green-700 border border-green-200' : ''}
+                                ${day.type === 'missed' ? 'bg-red-100 text-red-500 border border-dashed border-red-300' : ''}
+                                ${day.type === 'today' ? 'bg-blue-100 text-blue-700 border border-blue-300' : ''}
+                                ${day.type === 'future' ? 'bg-gray-50 text-gray-300 border border-gray-100' : ''}
+                              `}>
+                                {day.type === 'today' ? 'Hôm nay' : day.label}
+                              </div>
+                              {idx < arr.length - 1 && (
+                                <div className={`flex-1 h-0.5 ${day.type === 'checked' ? 'bg-green-200' : 'bg-red-200'}`} />
+                              )}
+                            </React.Fragment>
+                          ))}
+                        </div>
+                        <div className="flex gap-3 mt-2">
+                          {[['bg-green-200', 'Đã check-in'], ['bg-red-200', 'Bỏ lỡ'], ['bg-blue-200', 'Hôm nay']].map(([bg, label]) => (
+                            <div key={label} className="flex items-center gap-1">
+                              <div className={`w-2 h-2 rounded-full ${bg}`} />
+                              <span className="text-[10px] text-gray-400">{label}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {canRevive ? (
+                        <>
+                          <button
+                            onClick={() => setIsReviveConfirmOpen(true)}
+                            disabled={loading}
+                            className="w-full bg-gradient-to-r from-amber-400 to-orange-400 text-white font-black py-4 rounded-2xl transition-all shadow-lg hover:scale-[1.02] active:scale-95 text-sm flex items-center justify-center gap-2"
+                          >
+                            <span>✨</span>
+                            <span>Dùng lượt khôi phục — giữ chuỗi {userData.streakCount} ngày</span>
+                          </button>
+                          <button
+                            onClick={() => handleCheckIn(true)}
+                            disabled={loading}
+                            className="w-full bg-gray-50 border border-gray-200 text-gray-500 font-bold py-3 rounded-2xl transition-all text-xs hover:bg-gray-100"
+                          >
+                            {loading ? t('streak.loading') : 'Bỏ qua — reset về 1 ngày'}
+                          </button>
+                        </>
+                      ) : (
+                        /* reviveAlreadyUsed */
                         <button
-                          onClick={handleRevive}
+                          onClick={() => handleCheckIn(true)}
                           disabled={loading}
-                          className="w-full bg-gradient-to-r from-red-400 to-orange-400 hover:from-red-500 hover:to-orange-500 text-white font-black py-3.5 md:py-4 text-sm md:text-base rounded-2xl md:rounded-[2rem] transition-all shadow-xl shadow-red-100 hover:scale-105 active:scale-95 flex items-center justify-center gap-2 group"
+                          className={`w-full ${cfg.btnColor} text-white font-black py-4 rounded-2xl transition-all shadow-lg hover:scale-[1.02] active:scale-95 text-sm ${loading ? 'opacity-60' : ''}`}
                         >
-                          {loading ? t('streak.loading') : (
-                            <>
-                              <span className="group-hover:animate-bounce">✨</span>
-                              <span>{t('streak.revive_confirm')}</span>
-                              <span className="bg-white/30 px-2 py-0.5 rounded-lg text-xs">🆘</span>
-                            </>
-                          )}
+                          {loading ? t('streak.loading') : '🔥 Check-in — bắt đầu chuỗi mới'}
                         </button>
+                      )}
+                    </>
+                  )}
+
+                  {/* ── Revive inline confirm ── */}
+                  {isReviveConfirmOpen && (
+                    <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4 space-y-3">
+                      <div className="text-center">
+                        <div className="text-4xl mb-2">🍭</div>
+                        <p className="font-black text-gray-800 text-sm">{t('streak.revive_title')}</p>
+                        <p className="text-gray-500 text-xs mt-1 leading-relaxed">
+                          {t('streak.revive_desc', { count: diffDays - 1 })}
+                        </p>
+                      </div>
+                      <button
+                        onClick={handleRevive}
+                        disabled={loading}
+                        className="w-full bg-gradient-to-r from-amber-400 to-orange-400 text-white font-black py-4 rounded-2xl transition-all hover:scale-[1.02] active:scale-95 text-sm flex items-center justify-center gap-2"
+                      >
+                        <span>🔥</span>
+                        <span>{loading ? t('streak.loading') : t('streak.revive_confirm')}</span>
+                      </button>
+                      <button
+                        onClick={() => setIsReviveConfirmOpen(false)}
+                        className="w-full bg-white border border-gray-200 text-gray-400 font-bold py-2.5 rounded-xl text-xs"
+                      >
+                        Quay lại
+                      </button>
+                    </div>
+                  )}
+
+                  {/* ── STATE: Normal / checked in today ── */}
+                  {!isInReviveWindow && !isStreakExpired && !isReviveConfirmOpen && (
+                    <>
+                      {hasCheckedInToday ? (
+                        <div className="bg-green-50 border border-green-100 rounded-2xl px-4 py-3">
+                          <p className="text-green-700 font-bold text-sm">Tuyệt vời!</p>
+                          <p className="text-green-500 text-xs mt-1">
+                            {t('streak.already_checked_in', { name: userData.name || savedPhone })} Quay lại vào ngày mai nhé.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="bg-orange-50 border border-orange-100 rounded-2xl px-4 py-3">
+                          <p className="text-orange-700 font-bold text-sm">Đừng quên check-in hôm nay!</p>
+                          <p className="text-orange-400 text-xs mt-1">Giữ lửa mỗi ngày để chuỗi không bị ngắt.</p>
+                        </div>
                       )}
 
                       <button
                         onClick={() => handleCheckIn()}
                         disabled={loading || hasCheckedInToday}
-                        className={`w-full text-white font-black py-3.5 md:py-4 text-sm md:text-base rounded-2xl md:rounded-[2rem] transition-all shadow-xl hover:scale-105 active:scale-95 ${hasCheckedInToday
-                          ? 'bg-green-100 text-green-600 animate-pulse border-2 border-green-200 shadow-md cursor-not-allowed'
-                          : `${styles.btn} ${styles.shadow}`
-                          } ${loading ? 'opacity-70' : ''}`}
-                      >
-                        {hasCheckedInToday ? (
-                          <span className="flex items-center justify-center gap-2">
-                            <span className="font-bold text-white bg-gradient-to-r from-green-400 to-emerald-500 px-3 py-1 rounded-full shadow-md">
-                              {t('streak.already_checked_in', { name: userData?.name || savedPhone })}
-                            </span>
-                            <span className="text-xl">🍬</span>
-                          </span>
-                        ) : (
-                          loading ? t('streak.loading') : (canRevive ? t('streak.revive_skip') : t('streak.check_in_btn'))
-                        )}
-                      </button>
-
-                      <button
-                        onClick={handleSwitchUser}
-                        className="w-full bg-white border-2 border-gray-200 text-gray-600 
-                        hover:bg-gray-50 hover:border-gray-300 
-                        text-sm md:text-base
-                        font-bold py-3 md:py-3.5 rounded-xl md:rounded-[1.5rem] 
-                        transition-all shadow-sm hover:shadow-md 
-                        active:scale-95"
-                      >
-                        <span className="flex items-center justify-center gap-2">
-                          {t('streak.switch_user')}
-                        </span>
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  /* ── Register / login form ── */
-                  <div className="relative z-10 flex flex-col max-md:gap-4 gap-3.5">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] md:text-[11px] font-black text-gray-400 ml-3 md:ml-4 uppercase tracking-[0.1em] flex items-center gap-1">
-                        <span>📱</span> {t('streak.input_phone_label')}
-                      </label>
-                      <input
-                        type="tel"
-                        placeholder={t('streak.placeholder_phone')}
-                        value={phone}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/\D/g, '').slice(0, 10);
-                          setPhone(val);
-                          if (!isValidPhone(val)) {
-                            lookupRequestIdRef.current++;
-                            setIsExistingUser(false);
-                            setLoadingUser(false);
-                            setName('');
-                            setEmail('');
+                        className={`
+                          w-full font-black py-4 rounded-2xl transition-all text-sm
+                          ${hasCheckedInToday
+                            ? 'bg-green-50 text-green-500 border-2 border-green-100 cursor-not-allowed'
+                            : `${cfg.btnColor} text-white shadow-lg hover:scale-[1.02] active:scale-95 ${loading ? 'opacity-60' : ''}`
                           }
-                        }}
-                        className="w-full bg-blue-50/60 border-2 border-transparent text-gray-800 text-[16px] rounded-2xl md:rounded-[1.5rem] px-5 py-3 md:px-6 md:py-3 focus:outline-none focus:border-blue-200 focus:bg-white transition-all shadow-inner font-bold placeholder:text-gray-300"
-                      />
-                    </div>
+                        `}
+                      >
+                        {hasCheckedInToday
+                          ? `✅ ${t('streak.already_checked_in', { name: userData.name || savedPhone })}`
+                          : loading ? t('streak.loading') : t('streak.check_in_btn')}
+                      </button>
+                    </>
+                  )}
 
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] md:text-[11px] font-black text-gray-400 ml-3 md:ml-4 uppercase tracking-[0.1em] flex items-center gap-1">
-                        <span>🍭</span> {t('streak.input_name_label')}
-                      </label>
-                      {loadingUser ? (
-                        <div className="w-full bg-gray-50/60 text-gray-400 rounded-2xl md:rounded-[1.5rem] px-5 py-3 md:px-6 md:py-3 italic text-sm animate-pulse flex items-center gap-3 border-2 border-dashed border-gray-100">
-                          <span className="w-4 h-4 md:w-5 md:h-5 border-2 border-orange-200 border-t-orange-500 rounded-full animate-spin"></span>
-                          {t('streak.checking_user')}
-                        </div>
-                      ) : isExistingUser ? (
-                        <div className="w-full bg-orange-50 border-2 border-orange-100 text-gray-800 rounded-2xl md:rounded-[1.5rem] px-5 py-3 md:px-6 md:py-3 flex flex-col animate-scaleIn">
-                          <span className="font-black text-lg md:text-xl text-orange-500">{name}</span>
-                          <span className="text-[9px] md:text-[10px] text-orange-300 font-black uppercase tracking-wider mt-1">
-                            {t('streak.name_locked_hint')}
-                          </span>
-                        </div>
-                      ) : (
-                        <input
-                          type="text"
-                          placeholder={t('streak.placeholder_name')}
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          className="w-full bg-pink-50/60 border-2 border-transparent text-gray-800 text-[16px] rounded-2xl md:rounded-[1.5rem] px-5 py-3 md:px-6 md:py-3 focus:outline-none focus:border-pink-200 focus:bg-white transition-all shadow-inner font-bold placeholder:text-gray-300"
-                        />
-                      )}
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] md:text-[11px] font-black text-gray-400 ml-3 md:ml-4 uppercase tracking-[0.1em] flex items-center gap-1">
-                        <span>✉️</span> {t('streak.input_email_label')}
-                      </label>
-                      <input
-                        type="email"
-                        placeholder={t('streak.placeholder_email')}
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="w-full bg-purple-50/60 border-2 border-transparent text-gray-800 text-[16px] rounded-2xl md:rounded-[1.5rem] px-5 py-3 md:px-6 md:py-3 focus:outline-none focus:border-purple-200 focus:bg-white transition-all shadow-inner font-bold placeholder:text-gray-300"
-                      />
-                    </div>
-
+                  {!isReviveConfirmOpen && (
                     <button
-                      onClick={handleStart}
-                      disabled={loading}
-                      className={`w-full bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white font-black py-3.5 md:py-4 text-sm md:text-base rounded-2xl md:rounded-[2rem] transition-all shadow-2xl hover:scale-105 active:scale-95 mt-1 uppercase tracking-[0.2em] relative overflow-hidden group ${loading ? 'opacity-70' : ''
-                        }`}
+                      onClick={handleSwitchUser}
+                      className="w-full bg-gray-50 border border-gray-200 text-gray-500 font-bold py-3 rounded-xl transition-all text-xs hover:bg-gray-100 flex items-center justify-center gap-1.5"
                     >
-                      <span className="relative z-10">{loading ? t('streak.loading') : t('streak.start_btn')}</span>
-                      <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-500"></div>
+                      {t('streak.switch_user')}
                     </button>
+                  )}
+                </>
+              ) : (
+                /* ── Register / login form ── */
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                      📱 {t('streak.input_phone_label')}
+                    </label>
+                    <input
+                      type="tel"
+                      placeholder={t('streak.placeholder_phone')}
+                      value={phone}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                        setPhone(val);
+                        if (!isValidPhone(val)) {
+                          lookupRequestIdRef.current++;
+                          setIsExistingUser(false);
+                          setLoadingUser(false);
+                          setName('');
+                          setEmail('');
+                        }
+                      }}
+                      className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-base rounded-2xl px-4 py-3 focus:outline-none focus:border-orange-300 focus:bg-white transition-all font-semibold placeholder:text-gray-300"
+                      style={{ fontSize: 16 }}
+                    />
                   </div>
-                )}
 
-                {/* Close button */}
-                <div
-                  className="sticky bottom-0 z-20 mt-auto pt-2 pb-2 -mx-2 px-2 bg-white/95 backdrop-blur-md rounded-t-xl"
-                  style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))' }}
-                >
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                      🍭 {t('streak.input_name_label')}
+                    </label>
+                    {loadingUser ? (
+                      <div className="w-full bg-gray-50 text-gray-400 rounded-2xl px-4 py-3 italic text-sm animate-pulse flex items-center gap-2 border border-dashed border-gray-200">
+                        <span className="w-4 h-4 border-2 border-orange-200 border-t-orange-400 rounded-full animate-spin flex-shrink-0" />
+                        {t('streak.checking_user')}
+                      </div>
+                    ) : isExistingUser ? (
+                      <div className="w-full bg-orange-50 border border-orange-100 text-gray-800 rounded-2xl px-4 py-3 flex flex-col">
+                        <span className="font-black text-lg text-orange-500">{name}</span>
+                        <span className="text-[10px] text-orange-300 font-bold uppercase tracking-wider mt-0.5">
+                          {t('streak.name_locked_hint')}
+                        </span>
+                      </div>
+                    ) : (
+                      <input
+                        type="text"
+                        placeholder={t('streak.placeholder_name')}
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-base rounded-2xl px-4 py-3 focus:outline-none focus:border-pink-300 focus:bg-white transition-all font-semibold placeholder:text-gray-300"
+                        style={{ fontSize: 16 }}
+                      />
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                      ✉️ {t('streak.input_email_label')}
+                    </label>
+                    <input
+                      type="email"
+                      placeholder={t('streak.placeholder_email')}
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-base rounded-2xl px-4 py-3 focus:outline-none focus:border-purple-300 focus:bg-white transition-all font-semibold placeholder:text-gray-300"
+                      style={{ fontSize: 16 }}
+                    />
+                  </div>
+
                   <button
-                    onClick={handleClose}
-                    className="w-full bg-gray-50 hover:bg-gray-100 
-                    text-gray-500 hover:text-pink-500 
-                    font-bold py-3 rounded-xl 
-                    transition-all text-xs uppercase tracking-[0.25em] 
-                    flex items-center justify-center gap-2 
-                    border border-gray-200 shadow-sm"
+                    onClick={handleStart}
+                    disabled={loading}
+                    className={`w-full bg-gradient-to-r from-orange-400 to-pink-500 text-white font-black py-4 rounded-2xl transition-all shadow-xl hover:scale-[1.02] active:scale-95 text-sm uppercase tracking-widest ${loading ? 'opacity-70' : ''}`}
                   >
-                    <span>{t('streak.close_hint')}</span>
+                    {loading ? t('streak.loading') : t('streak.start_btn')}
                   </button>
                 </div>
-              </div>
+              )}
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* ── Revive Modal ──────────────────────────────────────────────────────── */}
-      {isReviveModalOpen && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300"
-          style={{ background: 'rgba(100, 110, 120, 0.55)', backdropFilter: 'blur(16px)' }}
-        >
-          <div className="bg-white rounded-[4rem] p-10 max-w-xs w-full shadow-2xl animate-scaleIn border-8 border-orange-50 relative overflow-hidden">
-            <div className="absolute -top-20 -right-20 w-40 h-40 bg-orange-100/30 blur-3xl rounded-full"></div>
-
-            <div className="text-center relative z-10">
-              <div className="w-24 h-24 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce">
-                <span className="text-6xl">🍭</span>
-              </div>
-              <h3 className="text-2xl font-black text-gray-800 mb-4">{t('streak.revive_title')}</h3>
-              <p className="text-gray-500 font-bold text-sm leading-relaxed mb-10 px-2">
-                {t('streak.revive_desc', { count: reviveMissedDays })}
-              </p>
-
-              <div className="flex flex-col gap-4">
-                <button
-                  onClick={handleRevive}
-                  disabled={loading}
-                  className="w-full bg-gradient-to-r from-orange-400 to-pink-400 hover:from-orange-500 hover:to-pink-500 text-white font-black py-5 rounded-[2rem] shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3 group"
-                >
-                  <span className="text-2xl group-hover:rotate-12 transition-transform">🔥</span>
-                  <span>{t('streak.revive_confirm')}</span>
-                </button>
-                <button
-                  onClick={() => handleCheckIn(true)}
-                  disabled={loading}
-                  className="w-full bg-gray-50 hover:bg-gray-100 text-gray-400 font-black py-4 rounded-[2rem] active:scale-95 transition-all text-xs uppercase tracking-widest"
-                >
-                  {t('streak.revive_skip')}
-                </button>
-              </div>
+            {/* ── Footer close ── */}
+            <div
+              className="flex-shrink-0 px-5 pb-5 pt-2 bg-white border-t border-gray-50"
+              style={{ paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom))' }}
+            >
+              <button
+                onClick={handleClose}
+                className="w-full bg-gray-50 hover:bg-gray-100 text-gray-400 hover:text-gray-600 font-bold py-3 rounded-xl transition-all text-xs uppercase tracking-widest border border-gray-100"
+              >
+                {t('streak.close_hint')}
+              </button>
             </div>
           </div>
         </div>
