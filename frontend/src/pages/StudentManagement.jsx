@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
+import { Search, BookOpen, AlertTriangle, Ban, ArrowRight, Users } from 'lucide-react';
 
 const StudentManagement = () => {
     const { t } = useTranslation();
@@ -60,12 +61,12 @@ const StudentManagement = () => {
                     <h1 className="text-3xl font-black text-slate-800 tracking-tight italic">
                         {t('admin.studentMgmt')}
                     </h1>
-                    <div className="h-1.5 w-20 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full"></div>
+                    <div className="h-1.5 w-20 bg-gradient-to-r from-[#1C695C] to-[#3FA48F] rounded-full"></div>
                 </div>
                 
                 <div className="relative w-full md:w-80 group">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors">
-                        🔍
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#1C695C] transition-colors">
+                        <Search size={16} />
                     </span>
                     <input 
                         type="text" 
@@ -79,7 +80,7 @@ const StudentManagement = () => {
 
             {filteredCourses.length === 0 ? (
                 <div className="bg-gradient-to-b from-white to-slate-50 rounded-[2.5rem] p-20 text-center border-2 border-dashed border-slate-200 shadow-inner">
-                    <div className="text-6xl mb-6 grayscale opacity-40">📭</div>
+                    <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-slate-100 flex items-center justify-center opacity-40"><BookOpen size={32} className="text-slate-400" /></div>
                     <p className="text-slate-400 text-lg font-bold">{t('admin.noCourseFound')}</p>
                     <p className="text-slate-300 text-sm mt-1">{t('admin.tryOtherKeyword')}</p>
                 </div>
@@ -145,22 +146,22 @@ const StudentManagement = () => {
                                     <div className="pt-2">
                                         {percent >= 80 && percent < 100 && (
                                             <p className="text-[10px] text-amber-600 font-black flex items-center gap-1.5 uppercase tracking-wide bg-amber-50 py-1.5 px-3 rounded-xl border border-amber-100/50">
-                                                <span className="animate-pulse">⚠️</span> {t('admin.courseStatus.warning')}
+                                                <AlertTriangle size={12} className="shrink-0 animate-pulse" /> {t('admin.courseStatus.warning')}
                                             </p>
                                         )}
                                         {percent >= 100 && (
                                             <p className="text-[10px] text-rose-600 font-black flex items-center gap-1.5 uppercase tracking-wide bg-rose-50 py-1.5 px-3 rounded-xl border border-rose-100/50">
-                                                <span>🚫</span> {t('admin.courseStatus.full')}
+                                                <Ban size={12} className="shrink-0" /> {t('admin.courseStatus.full')}
                                             </p>
                                         )}
                                     </div>
 
                                     <button 
                                         onClick={() => navigate(`/admin/students/course/${course._id}`)}
-                                        className="w-full mt-4 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full font-black text-sm uppercase tracking-widest hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 flex items-center justify-center gap-3 shadow-lg shadow-blue-200 hover:scale-[1.03] active:scale-95 group-hover:shadow-blue-500/30"
+                                        className="w-full mt-4 py-3.5 bg-gradient-to-r from-[#1C695C] to-[#3FA48F] text-white rounded-full font-black text-sm uppercase tracking-widest hover:from-[#134d44] hover:to-[#1C695C] transition-all duration-300 flex items-center justify-center gap-3 shadow-lg shadow-[#1C695C]/20 hover:scale-[1.03] active:scale-95"
                                     >
-                                        {t('admin.viewStudents')} 
-                                        <span className="group-hover:translate-x-1.5 transition-transform duration-300">→</span>
+                                        <Users size={14} /> {t('admin.viewStudents')} 
+                                        <ArrowRight size={14} className="group-hover:translate-x-1.5 transition-transform duration-300" />
                                     </button>
                                 </div>
                             </div>

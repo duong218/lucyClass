@@ -6,6 +6,11 @@ import { showToast } from '../utils/toastUtils';
 import ConfirmModal from '../components/common/ConfirmModal';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
+import {
+  ArrowLeft, GraduationCap, Search, Settings2, Check, Save, Download,
+  CheckCheck, X, RefreshCw, Star, ArrowRightLeft, UserMinus, Loader2,
+  ClipboardCheck, BadgeCheck, ChevronDown, ChevronUp
+} from 'lucide-react';
 
 // ─────────────────────────────────────────────
 // 🏅 Ranking Modal (admin only)
@@ -58,7 +63,7 @@ const RankingModal = ({ student, course, onClose, onSaved }) => {
             <div className="absolute -top-6 -right-6 w-28 h-28 bg-white/10 rounded-full blur-xl" />
             <div className="absolute bottom-0 left-0 w-20 h-20 bg-white/10 rounded-full blur-xl" />
             <div className="relative z-10 flex items-center gap-3">
-              <span className="text-3xl">🏆</span>
+              <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center"><Star size={20} className="text-white" fill="white" /></div>
               <div>
                 <h3 className="text-xl font-black text-white tracking-tight">{t('ranking.modalTitle')}</h3>
                 <p className="text-yellow-100 text-xs font-medium">{t('ranking.modalSubtitle')}</p>
@@ -77,19 +82,19 @@ const RankingModal = ({ student, course, onClose, onSaved }) => {
               </div>
             </div>
             <div>
-              <label className="text-[11px] font-black text-gray-500 uppercase tracking-widest block mb-2">⭐ {t('ranking.starsLabel')}</label>
+              <label className="text-[11px] font-black text-gray-500 uppercase tracking-widest block mb-2 flex items-center gap-1.5"><Star size={12} className="text-amber-400" fill="currentColor" /> {t('ranking.starsLabel')}</label>
               <div className="flex items-center gap-3 w-full">
                 <input type="number" min="0" max="100" value={stars} onChange={e => setStars(e.target.value)}
                   className="w-full px-4 py-3 bg-amber-50 border-2 border-amber-200 rounded-2xl font-black text-amber-700 text-lg outline-none focus:border-amber-400 transition-all" placeholder="0 – 100" />
                 <div className="flex items-center gap-1 text-2xl flex-shrink-0">
                   {[...Array(5)].map((_, i) => (
-                    <span key={i} className={`select-none ${stars && Number(stars) >= (i + 1) * 20 ? 'grayscale-0' : 'grayscale opacity-30'}`}>⭐</span>
+                    <Star key={i} size={20} className={`${stars && Number(stars) >= (i + 1) * 20 ? 'text-amber-400' : 'text-gray-200'}`} fill="currentColor" />
                   ))}
                 </div>
               </div>
             </div>
             <div>
-              <label className="text-[11px] font-black text-gray-500 uppercase tracking-widest block mb-2">🎖️ {t('ranking.titleLabel')}</label>
+              <label className="text-[11px] font-black text-gray-500 uppercase tracking-widest block mb-2 flex items-center gap-1.5"><BadgeCheck size={12} className="text-blue-500" /> {t('ranking.titleLabel')}</label>
               <div className="grid grid-cols-1 gap-2">
                 {TITLE_OPTIONS.map(opt => (
                   <button key={opt.value} type="button" onClick={() => setTitle(opt.value)}
@@ -188,11 +193,11 @@ const TransferModal = ({ student, currentCourse, onClose, onTransferred }) => {
             <div className="absolute -top-6 -right-6 w-28 h-28 bg-white/10 rounded-full blur-xl" />
             <div className="absolute bottom-0 left-0 w-20 h-20 bg-white/10 rounded-full blur-xl" />
             <button onClick={onClose}
-              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30 transition-all text-sm font-bold">
-              ✕
+              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30 transition-all">
+              <X size={14} />
             </button>
             <div className="relative z-10 flex items-center gap-3">
-              <span className="text-3xl">🔄</span>
+              <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center"><ArrowRightLeft size={20} className="text-white" /></div>
               <div>
                 <h3 className="text-xl font-black text-white tracking-tight">Chuyển lớp học viên</h3>
                 <p className="text-blue-100 text-xs font-medium mt-0.5">Chọn khóa học đích cho học viên</p>
@@ -226,7 +231,7 @@ const TransferModal = ({ student, currentCourse, onClose, onTransferred }) => {
           {/* Search + list */}
           <div className="px-6 pt-4 pb-2 shrink-0">
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><Search size={14} /></span>
               <input type="text" placeholder="Tìm khóa học..."
                 className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all"
                 value={search} onChange={e => setSearch(e.target.value)} />
@@ -270,7 +275,7 @@ const TransferModal = ({ student, currentCourse, onClose, onTransferred }) => {
                         </p>
                       </div>
                       {isFull && <span className="text-[10px] font-black bg-rose-100 text-rose-600 px-2 py-0.5 rounded-full shrink-0">ĐẦY</span>}
-                      {isSelected && <span className="text-white text-lg shrink-0">✓</span>}
+                      {isSelected && <Check size={16} className="text-white shrink-0" strokeWidth={3} />}
                     </button>
                   );
                 })}
@@ -288,7 +293,7 @@ const TransferModal = ({ student, currentCourse, onClose, onTransferred }) => {
               className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-black shadow-lg shadow-blue-200 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2">
               {saving
                 ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                : '🔄'}
+                : <RefreshCw size={14} className="animate-spin" />}
               Xác nhận chuyển
             </button>
           </div>
@@ -322,7 +327,7 @@ const TransferBadge = ({ transferHistory, allCourses }) => {
         onClick={() => setShow(v => !v)}
         className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-black border border-violet-200 hover:bg-violet-200 transition-all cursor-pointer select-none"
         title="Xem lịch sử chuyển lớp">
-        🔄 ĐÃ CHUYỂN
+        ĐÃ CHUYỂN
       </button>
 
       <AnimatePresence>
@@ -375,7 +380,7 @@ const AttendanceBadge = ({ status, onClick, disabled }) => {
     return (
       <button onClick={onClick}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-all active:scale-95 border border-emerald-200 select-none">
-        ✓ Có mặt
+        <Check size={11} strokeWidth={3} /> Có mặt
       </button>
     );
   }
@@ -383,7 +388,7 @@ const AttendanceBadge = ({ status, onClick, disabled }) => {
     return (
       <button onClick={onClick}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black bg-red-100 text-red-600 hover:bg-red-200 transition-all active:scale-95 border border-red-200 select-none">
-        ✗ Vắng
+        <X size={11} strokeWidth={3} /> Vắng
       </button>
     );
   }
@@ -637,7 +642,7 @@ const CourseStudentList = () => {
 
     if (loading) return (
         <div className="flex items-center justify-center h-64">
-            <span className="text-4xl animate-bounce">⏳</span>
+            <Loader2 size={36} className="animate-spin text-[#1C695C]" />
         </div>
     );
 
@@ -646,7 +651,7 @@ const CourseStudentList = () => {
             {/* ── Header ── */}
             <div className="flex items-center gap-4 flex-wrap">
                 <button onClick={() => navigate(backRoute)}
-                    className="p-3 bg-white border rounded-2xl hover:bg-gray-50 transition-all shadow-sm shrink-0">←</button>
+                    className="p-3 bg-white border rounded-2xl hover:bg-gray-50 transition-all shadow-sm shrink-0"><ArrowLeft size={18} className="text-gray-600" /></button>
                 <div className="flex-1 min-w-0">
                     <h1 className="text-2xl font-bold text-gray-800 truncate">{course?.name || t('admin.course')}</h1>
                     <p className="text-sm text-gray-400 capitalize">
@@ -654,8 +659,8 @@ const CourseStudentList = () => {
                     </p>
                 </div>
                 {isTeacher && (
-                    <span className="shrink-0 text-xs font-bold bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-full">
-                        👩‍🏫 Chế độ giáo viên
+                    <span className="shrink-0 text-xs font-bold bg-[#1C695C]/10 text-[#1C695C] px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                        <GraduationCap size={13} /> Chế độ giáo viên
                     </span>
                 )}
             </div>
@@ -665,7 +670,7 @@ const CourseStudentList = () => {
                 <div className="bg-white rounded-2xl border border-blue-100 shadow-sm p-5 space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
-                            <h2 className="font-black text-gray-800 text-base">📋 Điểm danh buổi học</h2>
+                            <h2 className="font-black text-gray-800 text-base flex items-center gap-2"><ClipboardCheck size={16} className="text-[#1C695C]" /> Điểm danh buổi học</h2>
                             <p className="text-xs text-gray-400 mt-0.5">Chọn ngày và đánh dấu từng học sinh. Nhấn badge để toggle trạng thái.</p>
                         </div>
                         <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
@@ -677,10 +682,10 @@ const CourseStudentList = () => {
                     {!attendanceLoading && (
                         <div className="flex gap-2 flex-wrap">
                             <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full text-xs font-black text-emerald-700">
-                                ✓ Có mặt: {attendanceSummary.present}
+                                <Check size={11} strokeWidth={3} /> Có mặt: {attendanceSummary.present}
                             </div>
                             <div className="flex items-center gap-1.5 bg-red-50 border border-red-100 px-3 py-1.5 rounded-full text-xs font-black text-red-600">
-                                ✗ Vắng: {attendanceSummary.absent}
+                                <X size={11} strokeWidth={3} /> Vắng: {attendanceSummary.absent}
                             </div>
                             {attendanceSummary.pending > 0 && (
                                 <div className="flex items-center gap-1.5 bg-gray-50 border border-dashed border-gray-200 px-3 py-1.5 rounded-full text-xs font-bold text-gray-500">
@@ -693,8 +698,8 @@ const CourseStudentList = () => {
                     {/* Actions */}
                     <div className="flex gap-2 flex-wrap items-center">
                         <button onClick={markAllPresent}
-                            className="text-xs font-bold px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-all active:scale-95">
-                            ✓ Tất cả có mặt
+                            className="text-xs font-bold px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-all active:scale-95 flex items-center gap-1.5">
+                            <CheckCheck size={13} /> Tất cả có mặt
                         </button>
                         <button onClick={handleSaveAttendance} disabled={savingAttendance || !attendanceDirty}
                             className={`text-xs font-black px-4 py-2 rounded-xl transition-all active:scale-95 flex items-center gap-1.5 ${
@@ -704,15 +709,15 @@ const CourseStudentList = () => {
                             }`}>
                             {savingAttendance
                                 ? <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                : '💾'}
+                                : <Save size={13} />}
                             {attendanceDirty ? 'Lưu điểm danh' : 'Đã lưu'}
                         </button>
                         {attendanceLoading && <span className="text-xs text-gray-400 animate-pulse">Đang tải...</span>}
                         <button onClick={handleExportExcel} disabled={exportingExcel}
                             className="text-xs font-black px-4 py-2 rounded-xl transition-all active:scale-95 flex items-center gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-200 disabled:opacity-60 disabled:cursor-not-allowed ml-auto">
                             {exportingExcel
-                                ? <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                : '📊'}
+                                ? <Loader2 size={13} className="animate-spin" />
+                                : <Download size={13} />}
                             Xuất Excel
                         </button>
                     </div>
@@ -723,7 +728,7 @@ const CourseStudentList = () => {
             <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
                 <div className="flex flex-col md:flex-row gap-4 justify-between mb-8">
                     <div className="relative flex-1">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><Search size={15} /></span>
                         <input type="text" placeholder={t('admin.search')}
                             className="w-full pl-10 pr-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                             value={search} onChange={e => setSearch(e.target.value)} />
@@ -749,7 +754,7 @@ const CourseStudentList = () => {
                                         : 'bg-gray-50 text-gray-500 hover:bg-gray-100 border-gray-200'
                                 }`}
                                 title="Ẩn/hiện cột">
-                                <span>⚙️</span>
+                                <Settings2 size={15} />
                                 <span className="hidden sm:inline">Cột</span>
                                 {hiddenColumns.size > 0 && (
                                     <span className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-[10px] font-black">
@@ -777,7 +782,7 @@ const CourseStudentList = () => {
                                                 <span className={`w-4 h-4 rounded flex items-center justify-center text-[10px] font-black shrink-0 ${
                                                     isColVisible(col) ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-400'
                                                 }`}>
-                                                    {isColVisible(col) ? '✓' : ''}
+                                                    {isColVisible(col) ? <Check size={10} strokeWidth={3} /> : null}
                                                 </span>
                                                 {COLUMN_LABELS[col]}
                                             </button>
@@ -869,7 +874,7 @@ const CourseStudentList = () => {
                                                             whileHover={s.isActive ? { scale: 1.3, rotate: 15 } : {}}
                                                             whileTap={s.isActive ? { scale: 0.9 } : {}}
                                                             className={`text-2xl transition-all ${s.isActive ? 'cursor-pointer drop-shadow-md hover:drop-shadow-lg' : 'opacity-20 cursor-not-allowed grayscale'}`}
-                                                            title={t('ranking.addToRanking')}>⭐</motion.button>
+                                                            title={t('ranking.addToRanking')}><Star size={18} fill={s.isActive ? 'currentColor' : 'none'} /></motion.button>
                                                     </div>
                                                 </td>
                                                 <td className="py-5 px-4">
@@ -883,11 +888,11 @@ const CourseStudentList = () => {
                                                             transition={{ duration: 0.3 }}
                                                             className={`p-2 rounded-xl transition-all ${
                                                                 s.isActive
-                                                                    ? 'text-blue-500 hover:bg-blue-50 active:scale-95'
+                                                                    ? 'text-[#1C6970] hover:bg-[#1C6970]/10 active:scale-95'
                                                                     : 'text-gray-300 cursor-not-allowed opacity-50'
                                                             }`}
                                                             title="Chuyển lớp">
-                                                            🔄
+                                                            <ArrowRightLeft size={16} />
                                                         </motion.button>
                                                         {/* Nút cho nghỉ ❌ */}
                                                         <button

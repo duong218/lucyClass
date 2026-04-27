@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
-import { User, Phone, Mail, AlertCircle } from 'lucide-react';
+import { User, Phone, Mail, AlertCircle, Megaphone } from 'lucide-react';
 
 const MarketingDashboard = () => {
   const [profile, setProfile] = useState(null);
@@ -42,19 +42,19 @@ const MarketingDashboard = () => {
 
   return (
     <div className="p-8 max-w-2xl">
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Thông tin cá nhân</h1>
+      <h1 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2"><Megaphone size={22} className="text-[#C96A3D]" /> Thông tin cá nhân</h1>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-violet-50 to-purple-50 p-6 flex items-center gap-4">
-          <div className="w-16 h-16 bg-violet-500 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+        <div className="bg-gradient-to-r from-[#C96A3D]/8 to-[#D9A441]/12 p-6 flex items-center gap-4">
+          <div className="w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-bold" style={{ backgroundColor: "#C96A3D" }}>
             {(profile?.displayName || profile?.username || 'M').charAt(0).toUpperCase()}
           </div>
           <div>
             <h2 className="text-lg font-bold text-gray-800">
               {profile?.displayName || profile?.username}
             </h2>
-            <span className="inline-block bg-violet-100 text-violet-700 text-xs font-semibold px-2.5 py-1 rounded-full mt-1">
+            <span className="inline-block bg-[#D9A441]/15 text-[#C96A3D] text-xs font-semibold px-2.5 py-1 rounded-full mt-1">
               Marketing
             </span>
           </div>

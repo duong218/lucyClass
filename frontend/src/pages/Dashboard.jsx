@@ -4,6 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { Bar, Line } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement, Title, Tooltip, Legend, Filler } from 'chart.js';
 import api from '../services/api';
+import {
+  BarChart2, BookOpen, Users, MessageSquare, FileDown, CloudUpload, RefreshCw,
+  Link2, Clock, ClipboardList, Cloud, AlertTriangle, Package, RotateCcw,
+  CheckCircle2, XCircle, X, TrendingUp
+} from 'lucide-react';
 import { formatDateTime, getRelativeTime } from '../utils/dateUtils';
 import { getImageUrl } from '../utils/getImageUrl';
 
@@ -213,10 +218,10 @@ const Dashboard = () => {
   );
 
   const widgets = [
-    { label: 'Tổng đăng ký', value: stats?.totalRegistrations || 0, icon: '👥', sub: 'Tháng này', bg: 'from-blue-50 to-blue-100/60 border-blue-200', num: 'text-blue-700' },
-    { label: 'Khoá học đang mở', value: stats?.activeCourses || 0, icon: '📚', sub: 'Đang hoạt động', bg: 'from-emerald-50 to-emerald-100/60 border-emerald-200', num: 'text-emerald-700' },
-    { label: 'Tổng giáo viên', value: stats?.totalTeachers || 0, icon: '👩‍🏫', sub: 'Đội ngũ', bg: 'from-amber-50 to-amber-100/60 border-amber-200', num: 'text-amber-700' },
-    { label: 'Nhận xét phụ huynh', value: stats?.totalFeedback || 0, icon: '💬', sub: 'Đánh giá', bg: 'from-purple-50 to-purple-100/60 border-purple-200', num: 'text-purple-700' },
+    { label: 'Tổng đăng ký', value: stats?.totalRegistrations || 0, icon: <Users size={22} />, sub: 'Tháng này', bg: 'from-[#1C695C]/5 to-[#3FA48F]/10 border-[#1C695C]/20', num: 'text-[#1C695C]', iconBg: 'bg-[#1C695C]/10 text-[#1C695C]' },
+    { label: 'Khoá học đang mở', value: stats?.activeCourses || 0, icon: <BookOpen size={22} />, sub: 'Đang hoạt động', bg: 'from-[#1C6970]/5 to-[#3FA48F]/10 border-[#1C6970]/20', num: 'text-[#1C6970]', iconBg: 'bg-[#1C6970]/10 text-[#1C6970]' },
+    { label: 'Tổng giáo viên', value: stats?.totalTeachers || 0, icon: <Users size={22} />, sub: 'Đội ngũ', bg: 'from-[#D9A441]/5 to-[#D9A441]/10 border-[#D9A441]/30', num: 'text-[#C96A3D]', iconBg: 'bg-[#D9A441]/15 text-[#C96A3D]' },
+    { label: 'Nhận xét phụ huynh', value: stats?.totalFeedback || 0, icon: <MessageSquare size={22} />, sub: 'Đánh giá', bg: 'from-purple-50 to-purple-100/60 border-purple-200', num: 'text-purple-700', iconBg: 'bg-purple-100 text-purple-600' },
   ];
 
   const regByCourseData = {
@@ -246,12 +251,12 @@ const Dashboard = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-black text-gray-800 tracking-tight">📊 Tổng quan</h1>
+          <h1 className="text-2xl font-black text-gray-800 tracking-tight flex items-center gap-2"><BarChart2 size={22} className="text-[#1C695C]" /> Tổng quan</h1>
           <p className="text-sm text-gray-400 mt-0.5">Xin chào! Đây là tình hình hôm nay của trung tâm.</p>
         </div>
         {lastBackup && (
-          <div className="text-[11px] text-gray-400 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl font-medium">
-            🕐 Sao lưu lần cuối: {new Date(lastBackup).toLocaleString('vi-VN')}
+          <div className="text-[11px] text-gray-400 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl font-medium flex items-center gap-1.5">
+            <Clock size={12} /> Sao lưu lần cuối: {new Date(lastBackup).toLocaleString('vi-VN')}
           </div>
         )}
       </div>
@@ -273,7 +278,7 @@ const Dashboard = () => {
           {/* Bảng đăng ký gần đây */}
           <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b bg-gray-50/60">
-              <h3 className="font-bold text-gray-800 flex items-center gap-2">📋 Đăng ký gần đây</h3>
+              <h3 className="font-bold text-gray-800 flex items-center gap-2"><ClipboardList size={16} className="text-[#1C695C]" /> Đăng ký gần đây</h3>
               <button onClick={() => navigate('/admin/registrations')} className="text-xs font-bold text-blue-600 hover:underline">Xem tất cả »</button>
             </div>
             <div className="overflow-x-auto">
@@ -308,18 +313,18 @@ const Dashboard = () => {
           {/* Bản sao lưu */}
           <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b bg-gray-50/60">
-              <h3 className="font-bold text-gray-800 flex items-center gap-2">☁️ Bản sao lưu Google Drive</h3>
+              <h3 className="font-bold text-gray-800 flex items-center gap-2"><Cloud size={16} className="text-[#1C6970]" /> Bản sao lưu Google Drive</h3>
               <button
                 onClick={fetchBackups}
                 disabled={googleNotConnected}
                 className={`text-xs font-bold ${googleNotConnected ? 'text-gray-300 cursor-not-allowed' : 'text-blue-600 hover:underline'}`}
               >
-                🔄 Tải lại
+                <RefreshCw size={13} className="inline mr-1" />Tải lại
               </button>
             </div>
             {googleNotConnected ? (
               <div className="m-4 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3">
-                <span className="text-2xl">⚠️</span>
+                <AlertTriangle size={22} className="text-amber-500 shrink-0" />
                 <div>
                   <p className="text-sm font-bold text-amber-800">Chưa kết nối Google Drive</p>
                   <button onClick={handleConnectGoogle} className="text-xs font-bold text-amber-700 underline mt-0.5">Kết nối ngay →</button>
@@ -338,7 +343,7 @@ const Dashboard = () => {
                   <tbody>
                     {backups.slice(0, visibleBackupCount).map(file => (
                       <tr key={file.id} className="border-b last:border-0 hover:bg-gray-50">
-                        <td className="px-4 py-3 font-medium">📦 {file.displayName || file.name}</td>
+                        <td className="px-4 py-3 font-medium flex items-center gap-2"><Package size={14} className="text-[#1C695C] shrink-0" />{file.displayName || file.name}</td>
                         <td className="px-4 py-3 text-xs text-gray-500">
                           {new Date(file.createdTime).toLocaleString('vi-VN')} · {formatBytes(file.size)}
                         </td>
@@ -386,29 +391,29 @@ const Dashboard = () => {
         <div className="w-full xl:w-80 space-y-5">
           {/* Thao tác nhanh */}
           <div className="bg-white rounded-2xl shadow-sm border p-5">
-            <h3 className="font-bold text-gray-800 mb-4 text-sm uppercase tracking-wider">⚡ Thao tác nhanh</h3>
+            <h3 className="font-bold text-gray-800 mb-4 text-sm uppercase tracking-wider flex items-center gap-2"><TrendingUp size={14} className="text-[#D9A441]" /> Thao tác nhanh</h3>
             <div className="space-y-3">
               <button onClick={handleExportExcel} className="w-full bg-indigo-500 text-white py-3 rounded-xl font-bold hover:bg-indigo-600 transition-all shadow-sm flex items-center justify-center gap-2 text-sm hover:-translate-y-0.5 hover:shadow-md">
-                <span>📥</span> Xuất Excel
+                <FileDown size={15} /> Xuất Excel
               </button>
               <button onClick={handleGoogleBackup} disabled={backupLoading} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-sm flex items-center justify-center gap-2 text-sm hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
-                <span>☁️</span> {backupLoading ? 'Đang sao lưu...' : 'Sao lưu lên Drive'}
+                {backupLoading ? <><RefreshCw size={15} className="animate-spin" /> Đang sao lưu...</> : <><CloudUpload size={15} /> Sao lưu lên Drive</>}
               </button>
               <button onClick={handleConnectGoogle} className="w-full bg-gray-600 text-white py-3 rounded-xl font-bold hover:bg-gray-700 transition-all shadow-sm flex items-center justify-center gap-2 text-sm hover:-translate-y-0.5 hover:shadow-md">
-                <span>🔗</span> Kết nối lại Google
+                <Link2 size={15} /> Kết nối lại Google
               </button>
             </div>
           </div>
 
           {/* Nhận xét gần đây */}
           <div className="bg-white rounded-2xl shadow-sm border p-5">
-            <h3 className="font-bold text-gray-800 mb-4 text-sm flex items-center gap-2">💬 Nhận xét gần đây</h3>
+            <h3 className="font-bold text-gray-800 mb-4 text-sm flex items-center gap-2"><MessageSquare size={14} className="text-[#1C695C]" /> Nhận xét gần đây</h3>
             <div className="space-y-4">
               {recentFeedback.map(fb => (
                 <div key={fb._id} className="border-b last:border-0 pb-3 last:pb-0">
                   <div className="flex items-center gap-2 mb-1">
                     <div className="w-8 h-8 rounded-full bg-gray-100 overflow-hidden flex items-center justify-center flex-shrink-0">
-                      {fb.photo ? <img src={getImageUrl(fb.photo)} className="w-full h-full object-cover" onError={handleImageError} /> : <span className="text-xs">👤</span>}
+                      {fb.photo ? <img src={getImageUrl(fb.photo)} className="w-full h-full object-cover" onError={handleImageError} /> : <Users size={16} className="text-gray-400" />}
                     </div>
                     <div>
                       <p className="font-bold text-xs text-gray-800">{fb.parentName}</p>
@@ -442,7 +447,7 @@ const Dashboard = () => {
       {selectedBackup && (
         <div className="fixed inset-0 z-[10001] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl">
-            <div className="text-4xl text-center mb-3">⚠️</div>
+            <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-red-100 flex items-center justify-center"><AlertTriangle size={28} className="text-red-500" /></div>
             <h3 className="text-xl font-black text-center mb-2 text-gray-800">Xác nhận khôi phục?</h3>
             <p className="text-center text-sm text-gray-500 mb-5">
               Hành động này sẽ <span className="text-red-600 font-bold underline">GHI ĐÈ TOÀN BỘ</span> dữ liệu hiện tại và không thể hoàn tác.
@@ -463,7 +468,7 @@ const Dashboard = () => {
             </div>
             <div className="flex gap-3">
               <button onClick={() => { setSelectedBackup(null); setRestorePassword(''); }} className="flex-1 py-3 rounded-2xl bg-gray-100 font-bold hover:bg-gray-200 transition-all text-sm">Huỷ</button>
-              <button onClick={() => handleRestore(selectedBackup.id)} className="flex-1 py-3 rounded-2xl bg-red-600 text-white font-bold hover:bg-red-700 shadow-lg transition-all text-sm">⚠️ Khôi phục</button>
+              <button onClick={() => handleRestore(selectedBackup.id)} className="flex-1 py-3 rounded-2xl bg-red-600 text-white font-bold hover:bg-red-700 shadow-lg transition-all text-sm"><RotateCcw size={14} className="inline mr-1.5" />Khôi phục</button>
             </div>
           </div>
         </div>
@@ -491,7 +496,7 @@ const Dashboard = () => {
           <div className="flex-1">
             <p className="font-bold text-sm leading-snug">{backupStatus.message}</p>
           </div>
-          <button onClick={() => setBackupStatus(null)} className="text-lg opacity-40 hover:opacity-100 leading-none mt-0.5">✕</button>
+          <button onClick={() => setBackupStatus(null)} className="opacity-40 hover:opacity-100 transition-opacity mt-0.5 shrink-0"><X size={16} /></button>
         </div>
       )}
 

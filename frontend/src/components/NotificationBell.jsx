@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, lazy, Suspense } from 'react';
+import React, { useRef, useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useNotifications from '../hooks/useNotifications';
 import AnnouncementListModal from './AnnouncementListModal';
@@ -32,6 +32,56 @@ const NotificationBell = ({
     enabled,
     ...(interval ? { interval } : {}),
   });
+
+  // Smart dropdown positioning
+  const [dropdownStyle, setDropdownStyle] = useState({});
+
+  useEffect(() => {
+    if (!isOpen || !wrapRef.current) return;
+
+    const updatePosition = () => {
+      const rect = wrapRef.current.getBoundingClientRect();
+      const viewportW = window.innerWidth;
+      const viewportH = window.innerHeight;
+      const dropdownW = viewportW < 400 ? viewportW - 16 : 320;
+      const dropdownH = 420; // approximate max height
+
+      // Horizontal: prefer right-aligned, but shift left if it overflows
+      let rightOffset = 0;
+      let leftOffset = 'auto';
+      const rightEdge = rect.right;
+      const overflowLeft = rect.right - dropdownW;
+
+      if (overflowLeft < 8) {
+        // Not enough space on the left — center on screen on mobile
+        if (viewportW < 500) {
+          leftOffset = -(rect.left - 8) + 'px';
+          rightOffset = 'auto';
+        } else {
+          rightOffset = -(dropdownW - rect.width) + 'px';
+        }
+      } else {
+        rightOffset = '0px';
+      }
+
+      // Vertical: prefer below, flip above if not enough room
+      const spaceBelow = viewportH - rect.bottom - 10;
+      const topOffset = spaceBelow < dropdownH && rect.top > dropdownH
+        ? -(dropdownH + 8) + 'px'
+        : 'calc(100% + 10px)';
+
+      setDropdownStyle({
+        width: dropdownW,
+        top: topOffset,
+        right: rightOffset,
+        left: leftOffset,
+      });
+    };
+
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    return () => window.removeEventListener('resize', updatePosition);
+  }, [isOpen]);
 
   // Đóng dropdown khi click ngoài
   const wrapRef = useRef(null);
@@ -121,8 +171,12 @@ const NotificationBell = ({
       {isOpen && (
         <div
           style={{
-            position: 'absolute', top: 'calc(100% + 10px)', right: 0,
-            width: 320, background: '#fff', borderRadius: 16,
+            position: 'absolute',
+            top: dropdownStyle.top || 'calc(100% + 10px)',
+            right: dropdownStyle.right ?? 0,
+            left: dropdownStyle.left || 'auto',
+            width: dropdownStyle.width || 320,
+            background: '#fff', borderRadius: 16,
             boxShadow: '0 20px 60px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.08)',
             border: '1px solid #f0f0f0', zIndex: 9999, overflow: 'hidden',
             animation: 'dropdown-in 0.2s cubic-bezier(0.175,0.885,0.32,1.275)',

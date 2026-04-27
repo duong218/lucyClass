@@ -17,7 +17,9 @@ import {
   LogIn,
   LogOut,
   Calendar,
-  History
+  History,
+  X,
+  Inbox
 } from 'lucide-react';
 import { useLockBodyScroll } from '../../hooks/useLockBodyScroll';
 
@@ -247,14 +249,14 @@ const DayDetailModal = ({ isOpen, onClose, dateStr, record, t }) => {
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors text-gray-500"
           >
-            ✕
+            <X size={14} />
           </button>
         </div>
 
         {/* Logs */}
         {logs.length === 0 ? (
           <div className="text-center py-8">
-            <div className="text-4xl mb-2 opacity-30">📭</div>
+            <div className="w-12 h-12 mx-auto mb-2 opacity-30 flex items-center justify-center"><Inbox size={36} className="text-gray-400" /></div>
             <p className="text-gray-400 font-semibold text-sm">{t('attendance.modal_no_data')}</p>
           </div>
         ) : (
@@ -561,7 +563,7 @@ const StaffAttendance = () => {
             <div className="max-h-[400px] overflow-y-auto">
               {history.length === 0 ? (
                 <div className="py-10 text-center">
-                  <div className="text-3xl opacity-20 mb-2">📋</div>
+                  <div className="w-10 h-10 mx-auto mb-2 opacity-20 flex items-center justify-center"><Inbox size={32} className="text-gray-400" /></div>
                   <p className="text-gray-400 text-sm font-semibold">{t('attendance.no_history')}</p>
                 </div>
               ) : (
