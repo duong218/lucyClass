@@ -1,233 +1,299 @@
 # Security Audit
 
-- Audit date: 2026-04-26
-- Auditor scope: `backend`, `frontend`, `docs`
-- Constraint followed: did not open `.env`, `.env.production`, or secret key files. Only `backend/.env.example` and `frontend/.env.example` were used to infer deployment/security intent.
+- Audit date: 2026-04-27
+- Scope: `backend`, `frontend`, `docs`
+- Method: static code review of FE/BE, route/middleware/controller/model flow review, config example review
+- Basis used for config intent: `backend/.env.example`, `frontend/.env.example`
+- Note: kết luận dưới đây dựa trên mã nguồn và cấu hình mẫu, không dựa trên secret vận hành thật
 
-## 1. Executive summary
+## 1. Kết luận nhanh
 
-Hệ thống hiện có nền bảo mật cơ bản khá ổn cho một web nội bộ quy mô nhỏ:
+Mức bảo mật hiện tại của web: **Trung bình khá**.
 
-- JWT access token trong memory, refresh token qua `httpOnly` cookie
-- phân quyền `admin` / `teacher` / `marketing`
-- CSP / Helmet / CORS / CSRF / rate-limit
-- upload ảnh có kiểm tra magic number và re-encode
-- backup/restore có mã hóa
+Đánh giá thực tế:
 
-Tuy vậy, lần scan này cho thấy 3 nhóm rủi ro đáng ưu tiên hơn phần còn lại:
+- đủ dùng cho một hệ thống custom nội bộ/quy mô vừa, có ý thức bảo mật tốt hơn mặt bằng chung;
+- chưa phải mức hardened cho môi trường nhiều người dùng, nhiều giáo viên phụ, hoặc yêu cầu bảo vệ dữ liệu nghiêm ngặt;
+- **không thấy lỗ hổng Critical kiểu takeover admin không cần auth, RCE, hoặc public upload nguy hiểm** qua lần rà soát này;
+- còn **2 nhóm cần ưu tiên xử lý**:
+  - lộ dữ liệu nhiều hơn mức cần thiết cho role `teacher`;
+  - dependency upload đang giữ `multer` 1.x đã có cảnh báo bảo mật upstream.
 
-1. luồng điểm danh khóa học đã cho giáo viên phụ truy cập đúng, nhưng cơ chế lưu hiện tại là `last-write-wins`, chưa đạt mức "đồng bộ an toàn" khi nhiều giáo viên cùng thao tác;
-2. luồng restore đang có khả năng làm lộ `MONGO_URI` vào log và giữ lại database tạm chứa dữ liệu thật lâu hơn dự kiến;
-3. một số API đang lộ dữ liệu hoặc trạng thái nhiều hơn mức cần thiết, nhất là forgot-password cho staff, danh sách học sinh cho teacher, và streak theo số điện thoại.
+Điểm chấm nội bộ tham chiếu: **6.8/10**.
 
-Đánh giá tổng thể:
+## 2. Phạm vi loại trừ theo mô tả hệ thống
 
-- Mức phù hợp hiện tại: dùng nội bộ được, nhưng chưa nên xem là đã "hardened".
-- Mức ưu tiên xử lý: `attendance integrity` và `restore hygiene` phải lên trước.
+Các điểm dưới đây **không tính là lỗ hổng** trong audit này vì đúng với chủ đích nghiệp vụ mà bạn mô tả:
 
-## 2. Context nghiệp vụ được kiểm tra
+### 2.1 Điểm danh 1 giáo viên chính + tối đa 4 giáo viên phụ
 
-### Teacher / course / attendance
+Hệ thống hiện tại cho phép giáo viên chính và giáo viên phụ cùng truy cập lớp nếu họ thực sự thuộc khóa đó:
 
-Code hiện tại đã bám đúng ý nghiệp vụ ở mức quyền truy cập:
-
-- mỗi khóa có `teacher` chính và `additionalTeachers`
-- tối đa 4 giáo viên phụ được chặn ở `backend/controllers/courseController.js:194-210`
-- giáo viên chính và giáo viên phụ đều được quyền truy cập/điểm danh lớp qua `checkCourseAccess()` ở `backend/controllers/courseController.js:67-83`
+- kiểm tra quyền nằm ở `backend/controllers/courseController.js:67`
+- giới hạn tối đa 4 giáo viên phụ nằm ở `backend/controllers/courseController.js`
 
 Kết luận:
 
-- yêu cầu "giáo viên phụ vẫn điểm danh được" đã được mở đúng quyền;
-- nhưng yêu cầu "đồng bộ hóa để không bất tiện mượn tài khoản" mới chỉ đúng ở mức chia sẻ quyền, chưa đúng ở mức chống ghi đè/xung đột dữ liệu.
+- đây **không phải broken access control**;
+- việc 5 giáo viên cùng xem cùng một lớp để điểm danh thay phiên là **đúng nghiệp vụ**;
+- audit chỉ xem đây là accepted design, không ghi lỗi vì “giáo viên phụ xem được danh sách lớp”.
 
-### Streak mini-game
+### 2.2 Streak cho phép check-in hộ
 
-Streak đang được thiết kế như một luồng riêng, không gắn với tài khoản admin/teacher/marketing.
+Bạn đã xác nhận đây là mini game marketing, có chủ đích “nới lỏng” để giữ user quay lại.
 
-Điều này phù hợp với ý anh/chị mô tả: đây là mini-game marketing, không phải luồng bảo mật lõi. Tuy nhiên chính vì vậy, nó phải được xem là "low assurance feature": không nên tin cậy streak như một danh tính thật hoặc một bằng chứng sở hữu số điện thoại.
+Kết luận:
+
+- audit **không coi đây là lỗ hổng auth của hệ lõi**;
+- nhưng vẫn ghi nhận đây là **bề mặt privacy/abuse** riêng của module streak.
+
+### 2.3 Excel chỉ xuất, không có upload Excel
+
+Theo mô tả hiện tại:
+
+- hệ thống chủ yếu **export Excel**;
+- không có role public upload file Excel vào server.
+
+Kết luận:
+
+- audit **không xếp rủi ro malware từ upload Excel** vào findings;
+- phần Excel chỉ được đánh giá theo hướng lộ dữ liệu khi export và vệ sinh dữ liệu đầu ra.
 
 ## 3. Điểm mạnh đang có
 
-Các kiểm soát sau đang được triển khai đúng hướng:
+Các lớp bảo vệ làm khá tốt:
+
+- Auth dùng access token trong memory + refresh token qua `httpOnly` cookie:
+  - `backend/controllers/authController.js:211`
+  - `backend/controllers/authController.js:224`
+  - `backend/controllers/authController.js:252`
+- FE luôn gửi `X-Requested-With` và `withCredentials`:
+  - `frontend/src/services/api.js:14`
+  - `frontend/src/services/api.js:19`
+- CSP, HSTS, CORS allowlist đã bật:
+  - `backend/server.js:93`
+  - `backend/server.js:116`
+  - `backend/server.js:125`
+- Upload ảnh có nhiều lớp lọc:
+  - giới hạn MIME/type: `backend/middlewares/upload.js:9`
+  - giới hạn kích thước: `backend/middlewares/upload.js:47`
+  - chống pixel bomb + re-encode: `backend/middlewares/upload.js:83`
+- Restore/backup đã có hardening khá tốt:
+  - admin re-auth trước restore: `backend/controllers/restore.controller.js:93`
+  - chặn chạy restore song song: `backend/services/restore.service.js:105`
+  - log restore đã redact URI: `backend/services/restore.service.js:192`
+  - restore không đè collection `admins`: `backend/services/restore.service.js:283`
+- `.env` thật đang được ignore khỏi git, chỉ giữ `env.example`:
+  - `.gitignore:5`
+  - `.gitignore:6`
+  - `.gitignore:7`
+  - `git ls-files` hiện chỉ thấy `.env.example`
+
+## 4. Findings còn tồn tại
+
+### F1. Medium - Teacher đang thấy PII phụ huynh rộng hơn mức cần thiết
+
+- Mức độ: `Medium`
+- Nhóm ảnh hưởng: privacy / least privilege / data minimization
+- File ảnh hưởng:
+  - `backend/controllers/registrationController.js:430`
+  - `backend/controllers/registrationController.js:448`
+  - `backend/controllers/courseController.js:442`
+  - `frontend/src/App.jsx`
+
+Mô tả:
+
+- API danh sách học sinh theo lớp cho teacher trả luôn `parentName`, `phone`, `email`.
+- Giáo viên phụ cũng vào được lớp theo đúng nghiệp vụ, nên về mặt thực tế có tối đa 5 người thấy dữ liệu liên hệ phụ huynh của cùng một khóa.
+- Export điểm danh theo lớp cho teacher cũng làm tăng bề mặt rò rỉ dữ liệu ra file tải xuống.
+
+Vì sao đây là vấn đề:
+
+- Điểm danh không nhất thiết cần full PII của phụ huynh.
+- Quyền hiện tại đang đúng về “được vào lớp”, nhưng vẫn **quá rộng về dữ liệu nhìn thấy**.
+- Rủi ro lớn nhất là lộ số điện thoại/email phụ huynh khi giáo viên phụ không thực sự cần dùng.
+
+Hướng xử lý:
+
+- Tách payload teacher-facing và admin-facing.
+- Với teacher, mặc định chỉ trả:
+  - `childName`
+  - `childAge`
+  - `isActive`
+  - trạng thái điểm danh
+- Chỉ mở `phone` hoặc `email` khi có use case rõ ràng.
+- Nếu vẫn cần liên hệ phụ huynh, cân nhắc:
+  - chỉ cho giáo viên chính xem full số;
+  - giáo viên phụ xem số đã mask.
+
+### F2. Medium - Backend vẫn đang dùng `multer` 1.x có cảnh báo bảo mật upstream
+
+- Mức độ: `Medium`
+- Nhóm ảnh hưởng: dependency risk / upload surface
+- File ảnh hưởng:
+  - `backend/package.json`
+  - `backend/package-lock.json:3886`
+  - các route dùng upload middleware:
+    - `backend/routes/announcementRoutes.js`
+    - `backend/routes/courseRoutes.js`
+    - `backend/routes/feedbackRoutes.js`
+    - `backend/routes/teacherRoutes.js`
+
+Mô tả:
 
-- `backend/server.js`: Helmet + CSP + HSTS + CORS allowlist
-- `backend/middlewares/securityMiddleware.js`: CSRF theo `Origin` + `X-Requested-With`
-- `backend/middlewares/auth.js`: JWT verify + session conflict theo `activeSessionId`
-- `backend/middlewares/upload.js`: extension + MIME + magic number + `sharp` re-encode + strip metadata
-- `backend/controllers/registrationController.js`: transaction cho đăng ký + capacity check + duplicate check
-- `backend/services/backup.service.js` và `backend/services/restore.service.js`: backup mã hóa, restore có safety backup và chặn zip-slip
+- `package-lock` ghi thẳng rằng `Multer 1.x is impacted by a number of vulnerabilities`.
+- Dù hệ thống hiện đã bọc thêm nhiều lớp kiểm tra ở `backend/middlewares/upload.js`, rủi ro dependency vẫn còn vì lõi parser multipart vẫn là bản cũ.
 
-Đây là nền tốt. Vấn đề chính nằm ở integrity, privacy minimization, và operational hygiene.
+Vì sao đây là vấn đề:
 
-## 4. Findings
+- Đây không phải lỗ hổng logic do bạn viết, mà là **technical security debt**.
+- Upload hiện không public hoàn toàn, nhưng vẫn là bề mặt có thật cho admin/marketing.
 
-### F1 - ~~High~~ Low (Accepted Risk) - Điểm danh khóa học bị ghi đè lẫn nhau, chưa có đồng bộ an toàn giữa giáo viên chính và giáo viên phụ
+Hướng xử lý:
 
-> **Reassessment (2026-04-26):** Downgraded từ High → Low (Accepted Risk) sau khi xác nhận workflow thực tế.
+- Ưu tiên nâng `multer` lên 2.x sau khi test lại toàn bộ upload flow.
+- Nếu có thời gian refactor, cân nhắc chuyển sang parser multipart khác ổn định hơn.
+- Sau nâng version, test lại:
+  - upload ảnh course
+  - upload ảnh teacher
+  - upload feedback
+  - upload announcement
 
-Evidence:
+### F3. Low - Module streak vẫn lộ trạng thái theo số điện thoại và dễ bị “xem/check hộ” ngoài ý muốn
 
-- `checkCourseAccess()` cho phép cả giáo viên chính và giáo viên phụ vào lớp: `backend/controllers/courseController.js:67-83`
-- `saveAttendance()` kiểm tra `studentId` là ObjectId, `status` là `present/absent`, **và validate mọi studentId phải thuộc lớp đang thao tác** (đã fix): `backend/controllers/courseController.js:130-175`
+- Mức độ: `Low`
+- Nhóm ảnh hưởng: privacy / abuse surface
+- File ảnh hưởng:
+  - `backend/controllers/streakController.js:58`
+  - `backend/controllers/streakController.js:169`
+  - `backend/controllers/streakController.js:206`
+  - `backend/controllers/streakController.js:294`
+  - `frontend/src/services/streakService.js`
+  - `frontend/src/components/FlameButton.jsx:328`
+  - `frontend/src/components/FlameButton.jsx:405`
 
-Impact ban đầu:
+Mô tả:
 
-- hai giáo viên mở cùng một buổi điểm danh rồi lưu lệch thời điểm sẽ ghi đè nhau;
-- trạng thái hiện tại là "cùng truy cập được", chưa phải "cùng làm mà không mất dữ liệu".
+- `streak/me`, `checkin`, `revive` đang chạy theo `phone`.
+- FE còn lưu `streak_phone` ở `localStorage`.
+- Ai biết số điện thoại đều có thể thử xem trạng thái streak hoặc thao tác hộ.
 
-Business context (accepted risk):
+Đánh giá theo nghiệp vụ của bạn:
 
-- **Workflow thực tế loại trừ xung đột**: trung tâm phân công rõ ràng ai hôm nay điểm danh — tại 1 thời điểm chỉ có 1 giáo viên điểm danh;
-- sau khi lưu, các giáo viên khác cùng khóa thấy kết quả sau ~5 giây;
-- trường hợp 2 giáo viên cùng bấm lưu cùng lúc gần như không xảy ra trong thực tế;
-- `takenBy` đã track ai điểm danh gần nhất → đủ audit trail;
-- `studentId` validation đã chặn inject ID không thuộc lớp;
-- thêm optimistic locking sẽ tạo phức tạp không cần thiết cho quy mô nhỏ.
+- đây là **accepted risk** vì module này cố ý nới lỏng để phục vụ marketing;
+- không xem là lỗi auth của core system.
 
-Conclusion:
+Vì sao vẫn cần ghi lại:
 
-- rủi ro nghiệp vụ **thấp** với quy trình hiện tại của trung tâm;
-- nếu sau này mở rộng quy mô hoặc cho phép điểm danh đồng thời, cần xem xét lại.
+- vẫn là dữ liệu hành vi gắn với số điện thoại;
+- nếu sau này gắn quà thật, voucher, ưu đãi hoặc reward có giá trị thì model hiện tại không đủ an toàn.
 
-### F2 - ~~High~~ Fixed - Restore có thể làm lộ `MONGO_URI` vào log và giữ lại database tạm chứa dữ liệu thật
+Hướng xử lý:
 
-> **Fixed (2026-04-26):** 3 sub-issues đã được sửa trong `backend/services/restore.service.js`.
+- Nếu streak tiếp tục chỉ là mini game: giữ nguyên nhưng ghi rõ đây là module low-trust.
+- Giảm dữ liệu trả về ở `GET /api/streak/me` nếu không thật sự cần.
+- Không mở rộng streak sang quyền lợi có giá trị nếu chưa thêm OTP hoặc signed challenge.
 
-Evidence (trước khi sửa):
+### F4. Low - CSP vẫn cho phép `'unsafe-inline'`, làm giảm giá trị phòng thủ khi có XSS ở nơi khác
 
-- log mongorestore đang in nguyên command, bao gồm `--uri=${MONGO_URI}`: `backend/services/restore.service.js:190-191`
-- tên database tạm dùng `Date.now()` mili-giây: `backend/services/restore.service.js:252-253`
-- cron cleanup parse suffix rồi nhân `* 1000` → timestamp bị x1000, cron không bao giờ xóa được temp DB
+- Mức độ: `Low`
+- Nhóm ảnh hưởng: defense in depth
+- File ảnh hưởng:
+  - `backend/server.js:116`
+  - `backend/server.js:120`
 
-Remediation applied:
+Mô tả:
 
-1. **Mask URI trong log**: thay `args.join(' ')` bằng `safeArgs` với `--uri=<REDACTED>`
-2. **Chuẩn hóa timestamp**: đổi `Date.now()` sang `Math.floor(Date.now() / 1000)` (giây) → khớp với `cron.js` và `cleanRestoreTmp.js` parser
-3. **Drop temp DB ngay**: sau validate thành công, drop temp DB lập tức thay vì chờ cron dọn rác
+- CSP đã có, nhưng `script-src` vẫn chứa `'unsafe-inline'`.
+- Điều này không tạo lỗ hổng XSS mới, nhưng làm **giảm blast-radius** nếu một điểm XSS xuất hiện ở chỗ khác.
 
-Verification:
+Hướng xử lý:
 
-- `cron.js:146` nhân `* 1000` → đúng vì suffix giờ là giây
-- `cleanRestoreTmp.js:57` nhân `* 1000` → đúng vì suffix giờ là giây
-- Temp DB được xóa ngay, cron chỉ là safety net cho trường hợp drop thất bại
+- Nếu không còn phụ thuộc inline script, chuyển sang nonce/hash CSP.
+- Ít nhất nên rà lại recaptcha/script hiện tại để xem có thể bỏ `'unsafe-inline'` hay không.
 
-### F3 - ~~Medium~~ Fixed - Forgot password cho staff đang tiết lộ trạng thái tài khoản nhiều hơn cần thiết
+### F5. Low - Frontend vẫn dùng `innerHTML` ở fallback render, hiện chưa nguy hiểm nhưng không nên giữ
 
-> **Fixed (2026-04-26):** Backend trả generic response, frontend bỏ gợi ý format username.
+- Mức độ: `Low`
+- Nhóm ảnh hưởng: frontend hardening
+- File ảnh hưởng:
+  - `frontend/src/pages/AdminLogin.jsx:124`
+  - `frontend/src/pages/ForgotPassword.jsx:138`
+  - `frontend/src/pages/ResetPassword.jsx:125`
 
-Evidence (trước khi sửa):
+Mô tả:
 
-- nhánh `staff` trả lỗi riêng khi username/email không khớp: `backend/controllers/authController.js:314-330`
-- còn trả lỗi riêng khi staff chưa có email: `backend/controllers/authController.js:333-337`
-- trong khi nhánh `admin` đã dùng generic success để tránh enumeration: `backend/controllers/authController.js:345-353`
-- FE hiển thị placeholder `LC12345678` và helper text `LC + 8 số` → lộ format username
+- Các chỗ này đang chèn HTML bằng `innerHTML` khi ảnh logo lỗi.
+- Hiện tại chuỗi chèn vào là hard-coded, nên **chưa phải XSS thực tế**.
 
-Remediation applied:
+Vì sao vẫn nên xử lý:
 
-1. **Backend**: Staff forgot-password giờ trả cùng 1 message `"Nếu thông tin hợp lệ, link reset đã được gửi"` cho mọi trường hợp (không tìm thấy, sai email, chưa có email). Log nội bộ vẫn ghi nguyên nhân thật.
-2. **Frontend**: Placeholder đổi thành `"Nhập tên tài khoản"`, helper text đổi thành `"Tên đăng nhập do admin cung cấp"` — không lộ format.
+- đây là pattern xấu về mặt an toàn frontend;
+- nếu sau này sửa thành chuỗi động hoặc nối thêm dữ liệu ngoài ý muốn, nó sẽ thành sink XSS.
 
-### F4 - Medium - Teacher đang xem được PII phụ huynh rộng hơn nhu cầu điểm danh tối thiểu
+Hướng xử lý:
 
-Evidence:
+- thay `innerHTML` bằng state/JSX fallback bình thường;
+- tránh duy trì pattern DOM mutation thủ công trong code React.
 
-- API học sinh theo lớp trả luôn `parentName`, `phone`, `email`: `backend/controllers/registrationController.js:443-449`
-- route teacher dùng chung màn hình đó: `frontend/src/App.jsx:96-99`
-- màn hình teacher thực tế hiển thị cột phụ huynh và số điện thoại: `frontend/src/pages/CourseStudentList.jsx:803-842`
+## 5. Điểm đã rà nhưng không coi là lỗi
 
-Impact:
+### 5.1 Attendance shared giữa giáo viên chính/phụ
 
-- mọi giáo viên được gán vào lớp, kể cả giáo viên phụ, đều xem được dữ liệu liên hệ phụ huynh;
-- nếu mục tiêu chính của route teacher là điểm danh, đây là overexposure so với nguyên tắc least privilege;
-- rủi ro này tăng lên khi dùng nhiều giáo viên phụ để thay giáo viên chính.
+Kết luận:
 
-Recommendation:
+- đúng nghiệp vụ;
+- access control hiện tại phù hợp;
+- không ghi lỗi vì giáo viên phụ được điểm danh/xem lớp của khóa mình.
 
-- tách payload teacher-facing và admin-facing;
-- với teacher, mặc định chỉ trả `childName`, `childAge`, `isActive`, attendance state, và chỉ mở contact info khi có nhu cầu nghiệp vụ rõ;
-- cân nhắc mask phone (`***`) cho giáo viên phụ nếu không cần liên lạc trực tiếp.
+Lưu ý:
 
-### F5 - Medium - Streak là identity-by-phone không xác thực chủ sở hữu, nên chỉ được xem là rủi ro kinh doanh chấp nhận được, không phải bảo mật mạnh
+- cơ chế hiện tại là chia sẻ cùng một bản ghi attendance;
+- đây là quyết định nghiệp vụ chấp nhận được với mô hình vận hành bạn mô tả.
 
-Evidence:
+### 5.2 Backup/restore
 
-- route streak không dùng auth token riêng, chỉ rate-limit + validate input: `backend/routes/streakRoutes.js:19-57`
-- API lấy streak theo số điện thoại trả cả `phone`, `name`, `streakCount`, `lastCheckin`, `reviveUsed`: `backend/controllers/streakController.js:58-65`, `169-195`
-- check-in và revive cũng chỉ dựa vào `phone`: `backend/controllers/streakController.js:206-344`
-- FE còn lưu `streak_phone` ở localStorage để dùng lại: `frontend/src/components/FlameButton.jsx:266-270`
+Sau rà soát hiện tại:
 
-Impact:
+- restore yêu cầu admin auth;
+- có re-auth bằng mật khẩu trước thao tác phá hủy;
+- có limit thao tác nặng;
+- có lock chống restore song song;
+- log restore đã redact URI.
 
-- ai biết số điện thoại đều có thể xem trạng thái streak và thao tác hộ;
-- limit hiện tại giúp giảm spam nhưng không chứng minh quyền sở hữu số điện thoại;
-- vì có lưu `name` và `phone`, đây là rủi ro riêng tư/marketing hơn là rủi ro chiếm quyền hệ thống.
+Kết luận:
 
-Business conclusion:
+- đây là khu vực nhạy cảm nhưng hiện tại đã được harden ở mức khá tốt;
+- chưa ghi finding mới tại thời điểm audit này.
 
-- nếu chủ đích là "cho check chuỗi hộ của nhau" thì đây là accepted risk;
-- nhưng streak phải tiếp tục bị cô lập hoàn toàn khỏi auth lõi, dữ liệu học viên, và mọi quyết định quan trọng.
+### 5.3 Repo secrets
 
-Recommendation:
+Ở mức repo:
 
-- giữ streak tách biệt với tài khoản nội bộ như hiện nay;
-- không mở rộng streak sang reward thật, voucher, hay thao tác có giá trị nếu chưa thêm OTP/signed token;
-- tối thiểu hóa dữ liệu trả về: có thể bỏ `name` khỏi `GET /streak/me` nếu không cần;
-- nếu vẫn dùng phone cho marketing, cần xem đây là luồng PII và có chính sách retention/xóa dữ liệu rõ ràng.
+- `.env` và `.env.*` đang bị ignore khỏi git;
+- `git ls-files` hiện chỉ thấy `.env.example`.
 
-### F6 - Low - Startup env validation chưa chặn thiếu một số secret quan trọng
+Kết luận:
 
-Evidence:
+- về mặt git tracking, repo đang theo hướng an toàn;
+- vẫn cần giữ kỷ luật không commit nhầm secret thật về sau.
 
-- danh sách env bắt buộc hiện chưa gồm `JWT_SECRET`, `REFRESH_TOKEN_SECRET`, `COOKIE_SECRET`, `EMAIL_FROM`, `CORS_ORIGINS`: `backend/server.js:55-60`
+## 6. Thứ tự ưu tiên xử lý
 
-Impact:
+1. Giảm dữ liệu PII teacher nhìn thấy ở danh sách học sinh và export attendance.
+2. Nâng `multer` khỏi 1.x và test lại toàn bộ luồng upload.
+3. Thu gọn dữ liệu public của streak nếu muốn giảm bề mặt privacy.
+4. Siết CSP để bỏ `'unsafe-inline'` nếu khả thi.
+5. Dọn toàn bộ `innerHTML` fallback khỏi frontend React.
 
-- app có thể khởi động trong trạng thái cấu hình sai hoặc nửa an toàn;
-- lỗi sẽ phát nổ muộn ở runtime thay vì fail fast ngay từ lúc boot.
+## 7. Đánh giá cuối cùng
 
-Recommendation:
+Hệ thống của bạn **không yếu theo kiểu “vỡ từ gốc”**. Nền tảng auth, CSRF, upload ảnh, backup/restore và tách role đang làm tương đối ổn cho một web custom nội bộ.
 
-- thêm các secret và biến bảo mật lõi vào `requiredEnvs`;
-- fail startup ngay nếu thiếu secret xác thực hoặc cookie signing.
+Điểm còn thiếu chủ yếu nằm ở:
 
-## 5. Kết luận riêng theo yêu cầu nghiệp vụ
+- nguyên tắc least privilege cho giáo viên;
+- nợ bảo mật dependency;
+- hardening/privacy ở các module phụ như streak và frontend fallback.
 
-### Attendance nhiều giáo viên phụ
-
-Phần quyền đang đúng hướng:
-
-- có 1 giáo viên chính;
-- tối đa 4 giáo viên phụ;
-- giáo viên phụ đã có thể điểm danh lớp.
-
-Nhưng phần "đồng bộ hóa để không cần mượn tài khoản" hiện chưa hoàn tất về mặt an toàn dữ liệu. Nếu muốn dùng nghiêm túc trong vận hành hằng ngày, cần sửa F1 trước.
-
-### Streak mini-game
-
-Với mục tiêu marketing và mức quan trọng thấp, mô hình hiện tại có thể chấp nhận nếu:
-
-- streak không ảnh hưởng tới auth lõi;
-- không gắn với quyền lợi thật;
-- chấp nhận rõ đây là tính năng low-trust;
-- kiểm soát retention của `phone`, `name`, `email`.
-
-Nếu sau này streak tăng giá trị kinh doanh, phải nâng cấp cơ chế xác thực ngay.
-
-## 6. Priority fix order
-
-1. ~~Sửa attendance save theo hướng chống conflict + validate `studentId` thuộc đúng lớp.~~ → `studentId` validation đã fix. Conflict accepted risk (workflow loại trừ).
-2. ~~Sửa restore logging và cleanup temp restore DB.~~ → Fixed (2026-04-26).
-3. ~~Làm generic response cho forgot-password staff.~~ → Fixed (2026-04-26).
-4. Giảm dữ liệu PII trả cho teacher.
-5. Hardening streak theo mức độ giá trị kinh doanh thật.
-6. Bổ sung startup env validation.
-
-## 7. Final assessment
-
-Đây không phải codebase "mất kiểm soát"; nền bảo mật đã có ý thức khá rõ. Vấn đề chính là vài điểm rủi ro còn nằm ở chỗ rất thực tế:
-
-- integrity khi nhiều người cùng thao tác,
-- dữ liệu dư thừa cho role không cần thiết,
-- và hygiene của backup/restore.
-
-Nếu xử lý xong F1 và F2 trước, mức an toàn thực tế của hệ thống nội bộ này sẽ tăng rõ rệt.
+Nếu xử lý xong `F1` và `F2`, mức an toàn thực tế của hệ thống sẽ tăng rõ rệt và phù hợp hơn để vận hành lâu dài.
