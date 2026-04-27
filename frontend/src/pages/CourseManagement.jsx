@@ -85,8 +85,8 @@ const CourseManagement = () => {
       if (current.includes(teacherId)) {
         return { ...prev, additionalTeachers: current.filter(id => id !== teacherId) };
       }
-      if (current.length >= 4) {
-        showToast.error('Tối đa 4 giáo viên phụ thôi nhé! 🙈');
+      if (current.length >= 15) {
+        showToast.error('Tối đa 15 giáo viên phụ thôi nhé! 🙈');
         return prev;
       }
       return { ...prev, additionalTeachers: [...current, teacherId] };
@@ -110,8 +110,8 @@ const CourseManagement = () => {
       if (items.some(h => h.length > 40)) newErrors.highlights = 'Each highlight max 40 characters';
     }
 
-    if (formData.additionalTeachers.length > 4) {
-      newErrors.additionalTeachers = 'Maximum 4 additional teachers';
+    if (formData.additionalTeachers.length > 15) {
+      newErrors.additionalTeachers = 'Maximum 15 additional teachers';
     }
     if (formData.teacher && formData.additionalTeachers.includes(formData.teacher)) {
       newErrors.additionalTeachers = 'Giáo viên phụ không được trùng giáo viên chính';
@@ -264,7 +264,7 @@ const CourseManagement = () => {
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">
               Giáo viên phụ
-              <span className="ml-2 text-xs font-normal text-gray-400">(tùy chọn, tối đa 4 người)</span>
+              <span className="ml-2 text-xs font-normal text-gray-400">(tùy chọn, tối đa 15 người)</span>
             </label>
             {availableAdditionalTeachers.length === 0 ? (
               <p className="text-xs text-gray-400 italic py-2">
@@ -294,7 +294,7 @@ const CourseManagement = () => {
             )}
             {formData.additionalTeachers.length > 0 && (
               <p className="text-xs text-blue-500 mt-1.5 font-medium">
-                Đã chọn {formData.additionalTeachers.length}/4 giáo viên phụ
+                Đã chọn {formData.additionalTeachers.length}/15 giáo viên phụ
               </p>
             )}
             {errors.additionalTeachers && (
