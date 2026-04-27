@@ -80,7 +80,7 @@ const HeroSection = () => {
 
             <button
               onClick={scrollToCourses}
-              className="bg-[#3B82F6] text-white px-10 md:px-14 py-4 md:py-5 rounded-full text-lg md:text-xl font-bold transition-all shadow-[0_10px_20px_rgba(59,130,246,0.3)] hover:shadow-[0_15px_30px_rgba(59,130,246,0.4)] hover:-translate-y-1 hover:scale-105 active:scale-95"
+              className="bg-[#1C695C] text-white px-10 md:px-14 py-4 md:py-5 rounded-full text-lg md:text-xl font-bold transition-all shadow-[0_10px_20px_rgba(28,105,92,0.35)] hover:shadow-[0_15px_30px_rgba(28,105,92,0.45)] hover:bg-[#155047] hover:-translate-y-1 hover:scale-105 active:scale-95"
             >
               {t('hero.cta')}
             </button>
