@@ -4,6 +4,20 @@ import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
 import { getImageUrl } from '../utils/getImageUrl';
 import { openModal, closeModal } from '../utils/modalScrollLock';
+import {
+  GraduationCap,
+  Globe,
+  Baby,
+  Star,
+  MessageCircle,
+  User,
+  FileText,
+  ChevronUp,
+  ChevronDown,
+  ChevronLeft,
+  Eye,
+  X,
+} from 'lucide-react';
 
 /* ─── Vivid palette for cards (cycles) ─── */
 const CARD_PALETTES = [
@@ -73,7 +87,7 @@ const TeacherCard = ({ teacher, index, onHoverStart, onHoverEnd }) => {
             onError={(e) => { e.target.src = '/placeholder.jpg'; }}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-5xl bg-gradient-to-br from-primary-100 to-primary-200">👩‍🏫</div>
+          <div className="w-full h-full flex items-center justify-center text-5xl bg-gradient-to-br from-primary-100 to-primary-200"><User className="w-12 h-12 text-primary-400" /></div>
         )}
         {/* Online dot */}
         <div className="absolute bottom-1 right-1 w-4 h-4 bg-emerald-400 border-2 border-white rounded-full" />
@@ -88,9 +102,9 @@ const TeacherCard = ({ teacher, index, onHoverStart, onHoverEnd }) => {
       </p>
 
       {/* Experience badge */}
-      <span className={`${p.badge} text-xs font-bold px-3 py-1 rounded-full mb-3 shadow-sm`}>
-        🎓 {teacher.experience || 1}+ {t('teachersSection.card.yearsExp')}
-      </span>
+        <span className={`${p.badge} text-xs font-bold px-3 py-1 rounded-full mb-3 shadow-sm flex items-center gap-1`}>
+          <GraduationCap className="w-3.5 h-3.5" /> {teacher.experience || 1}+ {t('teachersSection.card.yearsExp')}
+        </span>
 
       {/* Rating */}
       <div className="flex items-center gap-1.5">
@@ -148,10 +162,10 @@ const TeacherModal = ({ teacher, index, onClose }) => {
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors text-lg font-bold z-10"
+          className="absolute top-4 right-4 w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors z-10"
           aria-label="Close"
         >
-          ✕
+          <X className="w-4 h-4" />
         </button>
 
         <div className="p-8 pt-7">
@@ -166,7 +180,7 @@ const TeacherModal = ({ teacher, index, onClose }) => {
                   onError={(e) => { e.target.src = '/placeholder.jpg'; }}
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-4xl">👩‍🏫</div>
+                <div className="w-full h-full flex items-center justify-center text-4xl"><User className="w-10 h-10 text-primary-400" /></div>
               )}
             </div>
             <div>
@@ -175,8 +189,8 @@ const TeacherModal = ({ teacher, index, onClose }) => {
                 {teacher.specialization || t('teachersSection.card.defaultRole')}
               </p>
               <div className="flex flex-wrap items-center gap-2 mt-2">
-                <span className={`${p.badge} text-xs font-bold px-3 py-1 rounded-full shadow-sm`}>
-                  🎓 {teacher.experience || 1}+ {t('teachersSection.card.yearsExp')}
+                <span className={`${p.badge} text-xs font-bold px-3 py-1 rounded-full shadow-sm flex items-center gap-1`}>
+                  <GraduationCap className="w-3.5 h-3.5" /> {teacher.experience || 1}+ {t('teachersSection.card.yearsExp')}
                 </span>
                 <div className="flex items-center gap-1">
                   <Stars rating={teacher.rating} />
@@ -196,7 +210,7 @@ const TeacherModal = ({ teacher, index, onClose }) => {
           {/* Feedbacks */}
           <div>
             <h4 className="text-sm font-bold text-text-main mb-3 flex items-center gap-1.5">
-              💬 {t('teachersSection.modal.reviews')}
+              <MessageCircle className="w-4 h-4" /> {t('teachersSection.modal.reviews')}
             </h4>
 
             {feedbacks.length > 0 ? (
@@ -204,7 +218,7 @@ const TeacherModal = ({ teacher, index, onClose }) => {
                 {feedbacks.slice(0, 3).map((fb, i) => (
                   <div key={i} className="bg-gradient-to-r from-amber-50/80 to-orange-50/50 rounded-xl p-4 border border-amber-100/60">
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-bold text-text-main">👤 {fb.reviewer}</span>
+                      <span className="text-xs font-bold text-text-main flex items-center gap-1"><User className="w-3 h-3" /> {fb.reviewer}</span>
                       <Stars rating={fb.rating} size="text-xs" />
                     </div>
                     <p className="text-sm text-text-light leading-relaxed">"{fb.text}"</p>
@@ -213,7 +227,7 @@ const TeacherModal = ({ teacher, index, onClose }) => {
               </div>
             ) : (
               <div className="bg-gray-50 rounded-xl p-6 text-center border border-gray-100">
-                <span className="text-3xl mb-2 block">📝</span>
+                <FileText className="w-8 h-8 mb-2 mx-auto text-gray-300" />
                 <p className="text-sm text-text-light font-medium">{t('teachersSection.modal.noReviews')}</p>
               </div>
             )}
@@ -253,7 +267,7 @@ const ShowAllModal = ({ teachers, onClose, onSelectTeacher, t }) => {
           <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6" />
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-2xl font-black text-text-main">{t('teachersSection.viewAll')}</h3>
-            <button onClick={onClose} className="text-2xl">✕</button>
+            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"><X className="w-4 h-4 text-gray-500" /></button>
           </div>
           <div className="space-y-4">
             {teachers.map((teacher, i) => (
@@ -266,7 +280,7 @@ const ShowAllModal = ({ teachers, onClose, onSelectTeacher, t }) => {
                   {teacher.avatar ? (
                     <img src={getImageUrl(teacher.avatar)} alt={teacher.name} className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-2xl">👩‍🏫</div>
+                    <div className="w-full h-full flex items-center justify-center bg-gray-50"><User className="w-7 h-7 text-gray-400" /></div>
                   )}
                 </div>
                 <div>
@@ -392,10 +406,10 @@ const TeachersSection = () => {
     : displayTeachers;
 
   const trustBadges = [
-    { id: 'certified', icon: '🎓', labelKey: 'teachersSection.trust.certified' },
-    { id: 'curriculum', icon: '🌍', labelKey: 'teachersSection.trust.curriculum' },
-    { id: 'childSafe', icon: '👶', labelKey: 'teachersSection.trust.childSafe' },
-    { id: 'rated', icon: '⭐', labelKey: 'teachersSection.trust.rated' },
+    { id: 'certified', icon: <GraduationCap className="w-5 h-5" />, labelKey: 'teachersSection.trust.certified' },
+    { id: 'curriculum', icon: <Globe className="w-5 h-5" />, labelKey: 'teachersSection.trust.curriculum' },
+    { id: 'childSafe', icon: <Baby className="w-5 h-5" />, labelKey: 'teachersSection.trust.childSafe' },
+    { id: 'rated', icon: <Star className="w-5 h-5" />, labelKey: 'teachersSection.trust.rated' },
   ];
 
   // Interaction handler for pausing auto-behaviors
@@ -584,7 +598,7 @@ const TeachersSection = () => {
                     {teacher.avatar ? (
                       <img src={getImageUrl(teacher.avatar)} alt="" className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-xl bg-gray-50 text-gray-400">👩‍🏫</div>
+                      <div className="w-full h-full flex items-center justify-center bg-gray-50 text-gray-400"><User className="w-6 h-6 text-gray-400" /></div>
                     )}
                   </div>
                 </motion.div>
@@ -617,7 +631,7 @@ const TeachersSection = () => {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-3xl">👩‍🏫</div>
+                  <div className="w-full h-full flex items-center justify-center"><User className="w-8 h-8 text-primary-400" /></div>
                 )}
               </div>
 
@@ -643,24 +657,24 @@ const TeachersSection = () => {
         <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-4 z-50">
           <button
             onClick={() => handleMobileNav('prev')}
-            className="w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center text-xl active:scale-90 transition-transform"
+            className="w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center active:scale-90 transition-transform"
           >
-            ↑
+            <ChevronUp className="w-5 h-5 text-gray-600" />
           </button>
           <button
             onClick={() => {
               setSelectedTeacher(displayTeachers[currentIndex]);
               setSelectedIndex(currentIndex);
             }}
-            className="w-12 h-12 bg-primary-100 text-primary-600 rounded-full shadow-lg flex items-center justify-center text-xl active:scale-90 transition-transform"
+            className="w-12 h-12 bg-primary-100 text-primary-600 rounded-full shadow-lg flex items-center justify-center active:scale-90 transition-transform"
           >
-            ←
+            <ChevronLeft className="w-5 h-5" />
           </button>
           <button
             onClick={() => handleMobileNav('next')}
-            className="w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center text-xl active:scale-90 transition-transform"
+            className="w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center active:scale-90 transition-transform"
           >
-            ↓
+            <ChevronDown className="w-5 h-5 text-gray-600" />
           </button>
         </div>
 
@@ -689,7 +703,7 @@ const TeachersSection = () => {
 
     {/* Text */}
     <span className="relative z-10 flex items-center gap-2 justify-center">
-      👀 {t('teachersSection.viewAll')} →
+      <Eye className="w-4 h-4" /> {t('teachersSection.viewAll')}
     </span>
   </button>
 </div>

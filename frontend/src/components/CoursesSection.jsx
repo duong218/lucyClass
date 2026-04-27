@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import CourseDetailModal from './CourseDetailModal';
 import { getImageUrl } from '../utils/getImageUrl';
+import { Telescope, Palette, FlaskConical, Music, ChevronUp, ChevronDown } from 'lucide-react';
 
 const CoursesSection = () => {
   const { t } = useTranslation();
@@ -83,7 +84,12 @@ const CoursesSection = () => {
   };
 
   const getIconForIndex = (index) => {
-    const icons = ['🔭', '🎨', '🔬', '🎵'];
+    const icons = [
+      <Telescope className="w-16 h-16 text-blue-500 opacity-70" />,
+      <Palette className="w-16 h-16 text-yellow-500 opacity-70" />,
+      <FlaskConical className="w-16 h-16 text-green-500 opacity-70" />,
+      <Music className="w-16 h-16 text-orange-500 opacity-70" />,
+    ];
     return icons[index % 4];
   };
 
@@ -167,34 +173,41 @@ const CoursesSection = () => {
                         onError={handleImageError}
                       />
                     ) : (
-                      <span className="text-5xl">{getIconForIndex(idx)}</span>
+                      <div className="flex items-center justify-center w-full h-full">{getIconForIndex(idx)}</div>
                     )}
                   </div>
                   {/* Text */}
                   <div className="flex flex-col gap-0.5 px-0.5">
                     <h3 className="text-[13px] font-bold text-gray-900 leading-snug line-clamp-2">{course.name}</h3>
                     <p className="text-[11px] text-gray-500 line-clamp-2 leading-relaxed">{getShortDescription(course.description || course.desc || '')}</p>
-                    <p className="text-[11px] text-blue-500 font-semibold mt-1">→ Xem chi tiết</p>
+                    <p className="text-[11px] text-blue-500 font-semibold mt-1 flex items-center gap-0.5">Xem chi tiết <ChevronDown className="w-3 h-3 -rotate-90" /></p>
                   </div>
                 </div>
 
                 <div className="flip-card hidden md:block w-full h-full">
                   <div className="flip-card-inner hidden md:block">
                     {/* Front Side */}
-                    <div className={`flip-card-front ${style.bg} border-2 border-transparent shadow-lg text-center rounded-3xl`}>
-                      <div className="w-32 h-32 bg-white/80 rounded-full flex items-center justify-center text-6xl mb-6 shadow-soft group-hover:scale-110 transition-transform duration-300">
+                    <div className={`flip-card-front ${style.bg} border-2 border-transparent shadow-lg text-center rounded-3xl overflow-hidden`}>
+                      {/* Large image area - rounded square with padding */}
+                      <div className="p-3 pb-0">
+                        <div className="w-full aspect-square overflow-hidden rounded-2xl flex items-center justify-center bg-white/40">
                         {course.image ? (
-                          <img 
-                            src={getImageUrl(course.image)} 
-                            alt={course.name} 
-                            className="w-full h-full object-cover rounded-full" 
+                          <img
+                            src={getImageUrl(course.image)}
+                            alt={course.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                             onError={handleImageError}
                           />
                         ) : (
-                          getIconForIndex(idx)
+                          <div className="flex items-center justify-center w-full h-full">
+                            {getIconForIndex(idx)}
+                          </div>
                         )}
+                        </div>
                       </div>
-                      <h3 className={`text-2xl font-black ${style.text} leading-tight group-hover:text-blue-500 transition-colors`}>{course.name}</h3>
+                      <div className="px-5 py-4">
+                        <h3 className={`text-xl font-black ${style.text} leading-tight group-hover:text-blue-500 transition-colors`}>{course.name}</h3>
+                      </div>
                     </div>
 
                     {/* Back Side */}
@@ -233,7 +246,7 @@ const CoursesSection = () => {
               className="hidden md:flex text-blue-500 hover:underline font-bold transition-all duration-300 items-center justify-center gap-1 mx-auto"
             >
               {showAll ? t('coursesSection.showLess') : t('coursesSection.showMore')}
-              <span className="text-lg leading-none">{showAll ? '↑' : '↓'}</span>
+              {showAll ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
             </button>
           </div>
         )}

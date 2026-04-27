@@ -105,7 +105,8 @@
     "showMore": "查看更多",
     "showLess": "收起",
     "viewSchedule": "查看时间表",
-    "close_popup": "关闭弹窗"
+    "close_popup": "关闭弹窗",
+    "swipeForMore": "上下滑动查看更多"
   },
   "registration": {
     "title": "立即注册！",
