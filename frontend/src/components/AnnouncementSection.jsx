@@ -15,6 +15,10 @@ const AnnouncementSection = () => {
   const [openAll, setOpenAll] = useState(false);
   const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const [touchStartX, setTouchStartX] = useState(null);
+  const [touchStartY, setTouchStartY] = useState(null);
+  const [swipeDelta, setSwipeDelta] = useState(0);
+  const [isSwiping, setIsSwiping] = useState(false);
 
   useEffect(() => {
     const fetchAnnouncements = async () => {
@@ -32,6 +36,40 @@ const AnnouncementSection = () => {
   }, []);
 
 
+
+  const handleTouchStart = (e) => {
+    setTouchStartX(e.touches[0].clientX);
+    setTouchStartY(e.touches[0].clientY);
+    setSwipeDelta(0);
+    setIsSwiping(false);
+  };
+
+  const handleTouchMove = (e) => {
+    if (touchStartX === null) return;
+    const deltaX = e.touches[0].clientX - touchStartX;
+    const deltaY = e.touches[0].clientY - touchStartY;
+    // Only hijack horizontal swipes
+    if (!isSwiping && Math.abs(deltaY) > Math.abs(deltaX)) return;
+    setIsSwiping(true);
+    setSwipeDelta(deltaX);
+  };
+
+  const handleTouchEnd = () => {
+    const SWIPE_THRESHOLD = 60;
+    if (isSwiping) {
+      if (swipeDelta < -SWIPE_THRESHOLD) {
+        // Swipe left → next card
+        setActiveIndex((prev) => Math.min(prev + 1, visibleItems.length - 1));
+      } else if (swipeDelta > SWIPE_THRESHOLD) {
+        // Swipe right → previous card
+        setActiveIndex((prev) => Math.max(prev - 1, 0));
+      }
+    }
+    setTouchStartX(null);
+    setTouchStartY(null);
+    setSwipeDelta(0);
+    setIsSwiping(false);
+  };
 
   const handleImageError = (e) => {
     e.target.src = '/placeholder.jpg';
@@ -480,11 +518,24 @@ const AnnouncementSection = () => {
           )}
 
           {/* Fan Card Stack Layout Container */}
-          <div className="relative w-full max-w-md h-[380px] lg:h-[420px] mx-auto">
+          <div
+            className="relative w-full max-w-md h-[380px] lg:h-[420px] mx-auto select-none"
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          >
+            {/* Swipe hint arrows shown while dragging */}
+            {isSwiping && (
+              <div className="absolute inset-0 z-50 pointer-events-none flex items-center justify-between px-2">
+                <div className={`text-3xl font-black transition-opacity duration-150 ${swipeDelta > 30 ? 'opacity-80 text-primary-500' : 'opacity-20 text-gray-400'}`}>←</div>
+                <div className={`text-3xl font-black transition-opacity duration-150 ${swipeDelta < -30 ? 'opacity-80 text-primary-500' : 'opacity-20 text-gray-400'}`}>→</div>
+              </div>
+            )}
             {visibleItems.map((announcement, index) => (
               <div
                 key={announcement._id}
                 onClick={() => setActiveIndex(index)}
+                style={index === activeIndex && isSwiping ? { transform: `translateX(${swipeDelta * 0.25}px)`, transition: 'none' } : {}}
                 className={`absolute top-0 left-0 w-full cursor-pointer transition-all duration-500 ease-in-out hover:scale-[1.02] ${getCardStyle(index)} ${
                   index === activeIndex
                     ? `ring-8 ${getCardTheme(index).ring}/50 scale-100 rounded-[40px]`
@@ -533,6 +584,21 @@ const AnnouncementSection = () => {
                   </div>
                 </div>
               </div>
+            ))}
+          </div>
+
+          {/* Swipe dot indicators */}
+          <div className="flex justify-center gap-2 mt-4">
+            {visibleItems.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => setActiveIndex(index)}
+                className={`rounded-full transition-all duration-300 ${
+                  index === activeIndex
+                    ? `w-6 h-3 bg-primary-400`
+                    : 'w-3 h-3 bg-gray-300 hover:bg-gray-400'
+                }`}
+              />
             ))}
           </div>
 
