@@ -205,7 +205,7 @@ const TimetableEditor = () => {
 
                 {/* Corner cell */}
                 <th
-                  className="sticky left-0 z-[50] border-r border-gray-200 text-left"
+                  className="sticky left-0 z-[10] border-r border-gray-200 text-left"
                   style={{ background: BRAND_BG, width: 88, minWidth: 88, padding: '10px 8px' }}
                 >
                   <span
@@ -295,7 +295,7 @@ const TimetableEditor = () => {
                   >
                     {/* Sticky row label */}
                     <td
-                      className="sticky left-0 z-[40] border-r border-gray-100"
+                      className="sticky left-0 z-[10] border-r border-gray-100"
                       style={{
                         background: '#F7FAFC',
                         width: 88, minWidth: 88,
