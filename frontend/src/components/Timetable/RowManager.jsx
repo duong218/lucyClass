@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
-import { HiPlus, HiTrash, HiPencil, HiCheck, HiX, HiMenuAlt4, HiDotsVertical } from 'react-icons/hi';
+import { HiPlus, HiTrash, HiPencil, HiCheck, HiX, HiMenuAlt4, HiDotsVertical, HiOfficeBuilding } from 'react-icons/hi';
 import timetableService from '../../services/timetableService';
 import { showToast } from '../../utils/toastUtils';
 import ConfirmModal from '../common/ConfirmModal';
@@ -12,13 +12,13 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
   const [items, setItems] = useState([]);
   const [newRow, setNewRow] = useState({ 
     roomName: '', 
-    timeSlot: '', 
+    timeSlot: '',
+    branch: '',
     order: 0 
   });
   const [isLoading, setIsLoading] = useState(false);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, id: null });
 
-  // 🛡️ Sync local reorder state with props
   useEffect(() => {
     if (Array.isArray(rows)) {
       const sortedRows = [...rows].sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -45,9 +45,12 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
     
     setIsLoading(true);
     try {
-      await timetableService.createRow(newRow);
+      await timetableService.createRow({
+        ...newRow,
+        branch: newRow.branch.trim() || 'Cơ sở 1',
+      });
       showToast.success('Tadaa! Đã lưu thành công! 🎉');
-      setNewRow({ roomName: '', timeSlot: '', order: items.length + 2 });
+      setNewRow({ roomName: '', timeSlot: '', branch: '', order: items.length + 2 });
       onRowsUpdated?.();
     } catch (err) {
       showToast.error('Không thể cập nhật trạng thái 😢');
@@ -62,7 +65,11 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
 
     setIsLoading(true);
     try {
-      await timetableService.updateRow(editingRow._id, editingRow);
+      await timetableService.updateRow(editingRow._id, {
+        roomName: editingRow.roomName,
+        timeSlot: editingRow.timeSlot,
+        branch: editingRow.branch?.trim() || 'Cơ sở 1',
+      });
       showToast.success('Tuyệt vời! Cập nhật hoàn tất! ✨');
       setEditingRow(null);
       onRowsUpdated?.();
@@ -108,7 +115,7 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
         exit={{ scale: 0.9, opacity: 0, y: 20 }}
         className="relative bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden max-h-[85vh] border border-white/20"
       >
-        {/* 🚀 Header */}
+        {/* Header */}
         <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
           <div>
             <h2 className="text-3xl font-black text-gray-800 uppercase tracking-tight">Manage Rows</h2>
@@ -119,7 +126,7 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
           </button>
         </div>
 
-        {/* 🚀 Scrollable List Area */}
+        {/* Scrollable List */}
         <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-6">
           <Reorder.Group axis="y" values={items} onReorder={handleReorder} className="space-y-4">
             {items.map((row) => (
@@ -130,32 +137,53 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
                 animate={{ opacity: 1, y: 0 }}
                 className="bg-white border border-gray-100 p-4 rounded-3xl hover:shadow-xl transition-all group flex items-center gap-4 hover:border-blue-100 active:scale-[0.98]"
               >
-                {/* 📌 Drag Handle */}
+                {/* Drag Handle */}
                 <div className="cursor-grab active:cursor-grabbing text-gray-300 group-hover:text-blue-300 transition-colors">
                   <HiMenuAlt4 className="text-2xl" />
                 </div>
 
                 <div className="flex-1 flex flex-col md:flex-row md:items-center justify-between gap-4">
                   {editingRow?._id === row._id ? (
-                    <div className="flex-1 grid grid-cols-2 gap-3 items-center">
+                    /* ── Edit mode: 3 fields ── */
+                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
                       <input
                         type="text"
                         value={editingRow.roomName}
                         onChange={(e) => setEditingRow({ ...editingRow, roomName: e.target.value })}
+                        placeholder="Tên phòng"
                         className="px-4 py-2 border border-blue-200 rounded-xl outline-none focus:ring-4 ring-blue-50 text-sm font-bold"
                       />
                       <input
                         type="text"
                         value={editingRow.timeSlot}
                         onChange={(e) => setEditingRow({ ...editingRow, timeSlot: e.target.value })}
+                        placeholder="Khung giờ"
+                        className="px-4 py-2 border border-blue-200 rounded-xl outline-none focus:ring-4 ring-blue-50 text-sm font-bold"
+                      />
+                      <input
+                        type="text"
+                        value={editingRow.branch || ''}
+                        onChange={(e) => setEditingRow({ ...editingRow, branch: e.target.value })}
+                        placeholder="Cơ sở (vd: Cơ sở 1)"
                         className="px-4 py-2 border border-blue-200 rounded-xl outline-none focus:ring-4 ring-blue-50 text-sm font-bold"
                       />
                     </div>
                   ) : (
+                    /* ── View mode ── */
                     <div>
                       <div className="font-black text-gray-800 text-lg">{row?.roomName || 'Unnamed Room'}</div>
-                      <div className="text-[10px] font-black uppercase text-gray-400 tracking-widest bg-gray-50 px-2 py-0.5 rounded-lg w-fit mt-1">
-                        {row?.timeSlot || '--:--'}
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <div className="text-[10px] font-black uppercase text-gray-400 tracking-widest bg-gray-50 px-2 py-0.5 rounded-lg">
+                          {row?.timeSlot || '--:--'}
+                        </div>
+                        {row?.branch && (
+                          <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg"
+                            style={{ background: '#E8F5F3', color: '#1C695C' }}
+                          >
+                            <HiOfficeBuilding className="text-xs" />
+                            {row.branch}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -172,16 +200,10 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
                       </>
                     ) : (
                       <>
-                        <button
-                          onClick={() => setEditingRow(row)}
-                          className="p-3 text-blue-600 hover:bg-blue-50 rounded-2xl transition-all"
-                        >
+                        <button onClick={() => setEditingRow(row)} className="p-3 text-blue-600 hover:bg-blue-50 rounded-2xl transition-all">
                           <HiPencil className="text-xl" />
                         </button>
-                        <button
-                          onClick={() => handleDeleteClick(row._id)}
-                          className="p-3 text-red-500 hover:bg-red-50 rounded-2xl transition-all"
-                        >
+                        <button onClick={() => handleDeleteClick(row._id)} className="p-3 text-red-500 hover:bg-red-50 rounded-2xl transition-all">
                           <HiTrash className="text-xl" />
                         </button>
                       </>
@@ -192,7 +214,6 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
             ))}
           </Reorder.Group>
 
-          {/* 🚀 Empty Indicator */}
           {items.length === 0 && (
             <div className="py-12 flex flex-col items-center justify-center text-gray-300 gap-4 border-2 border-dashed border-gray-50 rounded-[2rem]">
               <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 2 }}>
@@ -203,10 +224,10 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
           )}
         </div>
 
-        {/* 🚀 Sticky Footer Form */}
+        {/* Sticky Footer Form */}
         <div className="p-8 bg-gray-50/80 border-t border-gray-100 backdrop-blur-sm">
-          <form onSubmit={handleAddRow} className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 grid grid-cols-2 gap-4">
+          <form onSubmit={handleAddRow} className="flex flex-col gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Room Name</label>
                 <input
@@ -229,12 +250,24 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
                   required
                 />
               </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 flex items-center gap-1">
+                  <HiOfficeBuilding className="text-xs" /> Cơ sở
+                </label>
+                <input
+                  type="text"
+                  value={newRow.branch}
+                  onChange={(e) => setNewRow({ ...newRow, branch: e.target.value })}
+                  className="w-full px-6 py-3 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-4 ring-blue-50 text-sm font-bold shadow-sm transition-all"
+                  placeholder="e.g., Cơ sở 1, Quận 7..."
+                />
+              </div>
             </div>
-            <div className="flex items-end">
+            <div className="flex justify-end">
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full md:w-auto h-[52px] px-8 bg-gray-800 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-black transition-all hover:shadow-2xl active:scale-95 disabled:opacity-50"
+                className="h-[52px] px-8 bg-gray-800 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-black transition-all hover:shadow-2xl active:scale-95 disabled:opacity-50"
               >
                 <HiPlus className="text-lg" /> Add Row
               </button>

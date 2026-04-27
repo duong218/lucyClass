@@ -13,6 +13,14 @@ const timetableRowSchema = new mongoose.Schema({
     trim: true,
     maxlength: [50, 'Time slot max 50 characters']
   },
+  // Cơ sở (branch) — ví dụ: "Cơ sở 1", "Quận 7", "Bình Thạnh"
+  branch: {
+    type: String,
+    required: [true, 'Branch is required'],
+    trim: true,
+    maxlength: [100, 'Branch name max 100 characters'],
+    default: 'Cơ sở 1'
+  },
   order: {
     type: Number,
     required: true,
@@ -22,7 +30,7 @@ const timetableRowSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Always sort by order ASC when fetching
-//timetableRowSchema.index({ order: 1 });
+// Always sort by branch then order when fetching
+// timetableRowSchema.index({ branch: 1, order: 1 });
 
 module.exports = mongoose.model('TimetableRow', timetableRowSchema);
