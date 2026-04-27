@@ -219,8 +219,8 @@ const parseAdditionalTeachers = (additionalTeachers) => {
       ? [additionalTeachers]
       : [];
   arr = arr.filter(id => id && id.toString().trim());
-  if (arr.length > 4) {
-    throw Object.assign(new Error('Maximum 4 additional teachers allowed'), { status: 400 });
+  if (arr.length > 15) {
+    throw Object.assign(new Error('Maximum 15 additional teachers allowed'), { status: 400 });
   }
   for (const id of arr) {
     if (!mongoose.Types.ObjectId.isValid(id)) {
