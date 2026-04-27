@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
 const { loginLimiter, forgotPasswordLimiter, resetPasswordLimiter } = require('../middlewares/rateLimiter');
-
+const checkBlockedIP = require('../middlewares/checkBlockedIP'); // ← thêm
 const catchAsync = require('../utils/catchAsync');
 
 router.get('/me', auth, (req, res) => {
@@ -12,7 +12,8 @@ router.get('/me', auth, (req, res) => {
 });
 
 // Auth POST routes - CSRF is intentionally SKIPPED here to prevent session recovery blocks
-router.post('/login', loginLimiter, catchAsync(authController.login));
+// checkBlockedIP phải đứng TRƯỚC loginLimiter để IP bị chặn bị từ chối trước khi tính vào rate limit
+router.post('/login', checkBlockedIP, loginLimiter, catchAsync(authController.login));
 router.post('/logout', auth, catchAsync(authController.logout));
 router.post('/refresh-token', catchAsync(authController.refreshToken));
 

@@ -6,11 +6,65 @@ const axios = require('axios');
 const crypto = require('crypto');
 const { sendEmail, getHtmlTemplate } = require('../utils/emailService');
 const systemLogger = require('../utils/systemLogger');
+const LoginAttemptLog = require('../models/LoginAttemptLog');
+const BlockedIP = require('../models/BlockedIP');
+
+// ── Ngưỡng cảnh báo: bao nhiêu lần fail / IP thì auto-block ──────────────────
+const FAIL_THRESHOLD = 5;      // bao nhiêu lần fail cùng IP trong cửa sổ thời gian
+const FAIL_WINDOW_MS = 10 * 60 * 1000; // 10 phút
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const escapeStringRegexp = (string) => {
   return string.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&');
+};
+
+// ─── Hàm tiện ích lấy IP từ request ─────────────────────────────────────────
+const getClientIP = (req) =>
+  req.clientIP || // đã được middleware checkBlockedIP gắn sẵn
+  req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+  req.socket?.remoteAddress ||
+  'unknown';
+
+// ─── Ghi log attempt vào DB ──────────────────────────────────────────────────
+const recordAttempt = async (req, action, extra = {}) => {
+  try {
+    await LoginAttemptLog.create({
+      ip: getClientIP(req),
+      username: extra.username || null,
+      action,
+      userAgent: req.headers['user-agent'] || null,
+      reason: extra.reason || null,
+      userId: extra.userId || null,
+    });
+  } catch (err) {
+    systemLogger.error('[LoginAttemptLog] Failed to write log', { message: err.message });
+  }
+};
+
+// ─── Kiểm tra + auto-block IP nếu vượt ngưỡng fail ─────────────────────────
+const checkAndAutoBlock = async (ip) => {
+  const since = new Date(Date.now() - FAIL_WINDOW_MS);
+  const failCount = await LoginAttemptLog.countDocuments({
+    ip,
+    action: 'LOGIN_FAIL',
+    createdAt: { $gte: since },
+  });
+
+  if (failCount >= FAIL_THRESHOLD) {
+    await BlockedIP.findOneAndUpdate(
+      { ip },
+      {
+        ip,
+        reason: `Tự động chặn: ${failCount} lần đăng nhập sai trong 10 phút`,
+        blockedBy: null,
+      },
+      { upsert: true, new: true }
+    );
+    systemLogger.warn('[Security] Auto-blocked IP', { ip, failCount });
+    return true;
+  }
+  return false;
 };
 
 // ─── Cookie config (không đổi) ────────────────────────────────────────────────
@@ -22,11 +76,11 @@ const getCookieOptions = () => {
     sameSite: isProd ? 'none' : 'lax',
     path: '/',
     maxAge: isProd ? 8 * 60 * 60 * 1000 : undefined,
-    domain: isProd ? process.env.COOKIE_DOMAIN : undefined
+    domain: isProd ? process.env.COOKIE_DOMAIN : undefined,
   };
 };
 
-// ─── generateTokens — thêm role vào payload ───────────────────────────────────
+// ─── generateTokens ───────────────────────────────────────────────────────────
 const generateTokens = (user) => {
   const jwtSecret = process.env.JWT_SECRET;
   const refreshTokenSecret = process.env.REFRESH_TOKEN_SECRET;
@@ -52,31 +106,29 @@ const generateTokens = (user) => {
 
 // ─── Helper: tìm user theo username trong cả 2 collection ────────────────────
 const findUserByUsername = async (username) => {
-  // Thử Admin trước
   let user = await Admin.findOne({ username });
   if (user) return { user, isStaff: false };
 
-  // Thử StaffAccount
   user = await StaffAccount.findOne({ username });
   if (user) return { user, isStaff: true };
 
   return { user: null, isStaff: false };
 };
 
-// ─── Helper: tìm Admin theo email (chỉ Admin, không tìm StaffAccount) ──────────
+// ─── Helper: tìm Admin theo email ────────────────────────────────────────────
 const findAdminByEmail = async (safeEmail) => {
   const regex = new RegExp('^' + escapeStringRegexp(safeEmail) + '$', 'i');
   const user = await Admin.findOne({ email: { $regex: regex } });
   return user || null;
 };
 
-// ─── Helper: tìm user theo username + email (staff forgot password) ───────────
+// ─── Helper: tìm staff theo username + email ─────────────────────────────────
 const findStaffByUsernameAndEmail = async (username, safeEmail) => {
   const regex = new RegExp('^' + escapeStringRegexp(safeEmail) + '$', 'i');
   const user = await StaffAccount.findOne({
     username,
     email: { $regex: regex },
-    isActive: true
+    isActive: true,
   });
   return user;
 };
@@ -86,15 +138,17 @@ const findStaffByUsernameAndEmail = async (username, safeEmail) => {
 // ─────────────────────────────────────────────────────────────────────────────
 exports.login = async (req, res) => {
   const { username, password, captchaToken } = req.body;
+  const ip = getClientIP(req);
+
   try {
     const safeUsername = String(username || '').trim();
 
-    // FIX #3: Verify CAPTCHA trước — trước cả DB query để tránh username enumeration
+    // Verify CAPTCHA trước
     const recaptchaRes = await axios.post(
       'https://www.google.com/recaptcha/api/siteverify',
       new URLSearchParams({
         secret: process.env.RECAPTCHA_SECRET_KEY,
-        response: captchaToken
+        response: captchaToken,
       }),
       { timeout: 5000 }
     );
@@ -106,16 +160,25 @@ exports.login = async (req, res) => {
 
     if (!user) {
       console.warn(`[Login] Failed: User not found (${safeUsername})`);
-      return res
-        .status(401)
-        .json({ message: 'Tên đăng nhập hoặc mật khẩu không đúng' });
+      await recordAttempt(req, 'LOGIN_FAIL', {
+        username: safeUsername,
+        reason: 'User not found',
+      });
+      await checkAndAutoBlock(ip);
+      return res.status(401).json({ message: 'Tên đăng nhập hoặc mật khẩu không đúng' });
     }
 
     // Check lock
     if (user.lockUntil && user.lockUntil > Date.now()) {
       const remainingSeconds = Math.ceil((user.lockUntil - Date.now()) / 1000);
+      await recordAttempt(req, 'LOGIN_FAIL', {
+        username: safeUsername,
+        userId: user._id,
+        reason: `Account locked (${remainingSeconds}s remaining)`,
+      });
+      await checkAndAutoBlock(ip);
       return res.status(423).json({
-        message: `Tài khoản đang bị khóa. Thử lại sau ${remainingSeconds}s`
+        message: `Tài khoản đang bị khóa. Thử lại sau ${remainingSeconds}s`,
       });
     }
 
@@ -129,13 +192,19 @@ exports.login = async (req, res) => {
       user.loginAttempts = (user.loginAttempts || 0) + 1;
       if (user.loginAttempts >= 5) user.lockUntil = Date.now() + 120000;
       await user.save();
+
+      await recordAttempt(req, 'LOGIN_FAIL', {
+        username: safeUsername,
+        userId: user._id,
+        reason: `Wrong password (attempt #${user.loginAttempts})`,
+      });
+      await checkAndAutoBlock(ip);
+
       await delay(1000);
-      return res
-        .status(401)
-        .json({ message: 'Tên đăng nhập hoặc mật khẩu không đúng' });
+      return res.status(401).json({ message: 'Tên đăng nhập hoặc mật khẩu không đúng' });
     }
 
-    // Reset login attempts
+    // ── Đăng nhập thành công ──────────────────────────────────────────────────
     user.loginAttempts = 0;
     user.lockUntil = undefined;
 
@@ -145,6 +214,11 @@ exports.login = async (req, res) => {
     if (!user.refreshTokens) user.refreshTokens = [];
     user.refreshTokens = [refreshToken];
     await user.save();
+
+    await recordAttempt(req, 'LOGIN_SUCCESS', {
+      username: safeUsername,
+      userId: user._id,
+    });
 
     const options = getCookieOptions();
     res.cookie('refreshToken', refreshToken, options);
@@ -160,20 +234,20 @@ exports.login = async (req, res) => {
         username: user.username,
         email: user.email,
         role: user.role,
-        displayName: user.displayName || user.username
-      }
+        displayName: user.displayName || user.username,
+      },
     });
   } catch (error) {
     systemLogger.error('[Login] Error', {
       message: error.message,
-      stack: error.stack
+      stack: error.stack,
     });
     res.status(500).json({ message: 'Hệ thống gặp sự cố' });
   }
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /api/auth/refresh-token  (không đổi nhiều, thêm tìm StaffAccount)
+// POST /api/auth/refresh-token
 // ─────────────────────────────────────────────────────────────────────────────
 exports.refreshToken = async (req, res) => {
   const token = req.cookies?.refreshToken;
@@ -188,7 +262,6 @@ exports.refreshToken = async (req, res) => {
 
     const decoded = jwt.verify(token, refreshTokenSecret, { algorithms: ['HS256'] });
 
-    // Tìm trong cả 2 collection
     let user =
       (await Admin.findById(decoded.id).select('+activeSessionId')) ||
       (await StaffAccount.findById(decoded.id).select('+activeSessionId'));
@@ -203,15 +276,13 @@ exports.refreshToken = async (req, res) => {
 
     const cookieSessionId = req.cookies?.sessionId;
     if (!cookieSessionId || cookieSessionId !== user.activeSessionId) {
-      console.warn(
-        `[Refresh] SESSION_CONFLICT for ${user.username}: cookie=${cookieSessionId ? 'present' : 'missing'}`
-      );
+      console.warn(`[Refresh] SESSION_CONFLICT for ${user.username}`);
       const options = getCookieOptions();
       res.clearCookie('refreshToken', options);
       res.clearCookie('sessionId', options);
       return res.status(401).json({
         code: 'SESSION_CONFLICT',
-        message: 'Tài khoản đã được đăng nhập từ thiết bị khác'
+        message: 'Tài khoản đã được đăng nhập từ thiết bị khác',
       });
     }
 
@@ -242,20 +313,17 @@ exports.logout = async (req, res) => {
   const token = req.cookies.refreshToken;
   try {
     if (token) {
-      // FIX #9: Dùng jwt.verify thay vì jwt.decode để đảm bảo token không bị tamper
       let decoded = null;
       try {
         decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET, { algorithms: ['HS256'] });
       } catch (verifyErr) {
-        // Token không hợp lệ hoặc hết hạn — vẫn xóa cookie, không làm gì với DB
         console.warn('[Logout] Invalid token, skipping DB cleanup:', verifyErr.message);
       }
 
       if (decoded?.id) {
-        // Xoá trong cả 2 collection
         const updateFields = {
           $pull: { refreshTokens: token },
-          $unset: { activeSessionId: 1 }
+          $unset: { activeSessionId: 1 },
         };
         const adminRes = await Admin.findByIdAndUpdate(decoded.id, updateFields);
         if (!adminRes) {
@@ -275,9 +343,6 @@ exports.logout = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/auth/forgot-password
-// Logic mới:
-//   - Nếu body có "username" → đây là staff → tìm theo username + email
-//   - Nếu chỉ có "email" → admin flow cũ
 // ─────────────────────────────────────────────────────────────────────────────
 exports.forgotPassword = async (req, res) => {
   try {
@@ -290,7 +355,7 @@ exports.forgotPassword = async (req, res) => {
       'https://www.google.com/recaptcha/api/siteverify',
       new URLSearchParams({
         secret: process.env.RECAPTCHA_SECRET_KEY,
-        response: recaptchaToken
+        response: recaptchaToken,
       }),
       { timeout: 5000 }
     );
@@ -301,65 +366,47 @@ exports.forgotPassword = async (req, res) => {
 
     const safeEmail = String(email || '').trim();
     const safeUsername = String(username || '').trim();
-
-    // ── SECURITY: accountType phải được khai báo tường minh ──────────────────────
-    // Không cho phép thiếu accountType để tránh bypass flow
     const accountType = String(req.body.accountType || '').trim();
+
     if (accountType !== 'admin' && accountType !== 'staff') {
       return res.status(400).json({ message: 'Yêu cầu không hợp lệ' });
     }
 
-    let user = null;
-
-    // 🔒 SECURITY: Generic success message — dùng chung cho mọi trường hợp
-    // để không tiết lộ tài khoản có tồn tại hay không (chống account enumeration)
     const GENERIC_SUCCESS = { success: true, message: 'Nếu thông tin hợp lệ, link reset đã được gửi' };
 
+    let user = null;
+
     if (accountType === 'staff') {
-      // ── Staff flow: BẮT BUỘC có username + email ──────────────────────────────
-      if (!safeUsername) {
-        return res.status(400).json({ message: 'Vui lòng nhập tên đăng nhập' });
-      }
-      if (!safeEmail) {
-        return res.status(400).json({ message: 'Vui lòng nhập email' });
-      }
+      if (!safeUsername) return res.status(400).json({ message: 'Vui lòng nhập tên đăng nhập' });
+      if (!safeEmail) return res.status(400).json({ message: 'Vui lòng nhập email' });
 
       user = await findStaffByUsernameAndEmail(safeUsername, safeEmail);
-
       if (!user) {
-        // Log nội bộ nguyên nhân thật, nhưng trả generic cho client
         console.warn(`[ForgotPassword] Staff not found: username=${safeUsername}, email=${safeEmail}`);
         return res.json(GENERIC_SUCCESS);
       }
-
-      // Tài khoản staff chưa được admin gán email — trả generic, log nội bộ
       if (!user.email || user.email.trim() === '') {
         console.warn(`[ForgotPassword] Staff ${safeUsername} has no email`);
         return res.json(GENERIC_SUCCESS);
       }
     } else {
-      // ── Admin flow: CHỈ tìm trong Admin model, KHÔNG đụng StaffAccount ─────────
-      if (!safeEmail) {
-        return res.status(400).json({ message: 'Vui lòng nhập email' });
-      }
+      if (!safeEmail) return res.status(400).json({ message: 'Vui lòng nhập email' });
 
       user = await findAdminByEmail(safeEmail);
-
       if (!user) {
-        // Trả success để không tiết lộ email admin có tồn tại không
         console.warn(`[ForgotPassword] Admin not found for email: ${safeEmail}`);
-        return res.json({
-          success: true,
-          message: 'Nếu thông tin hợp lệ, link reset đã được gửi'
-        });
+        return res.json(GENERIC_SUCCESS);
       }
     }
 
+    // Ghi log reset password request
+    await recordAttempt(req, 'RESET_PASSWORD_REQUEST', {
+      username: user.username,
+      userId: user._id,
+    });
+
     const resetToken = crypto.randomBytes(20).toString('hex');
-    user.resetPasswordToken = crypto
-      .createHash('sha256')
-      .update(resetToken)
-      .digest('hex');
+    user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
     user.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
     await user.save();
 
@@ -381,10 +428,10 @@ exports.forgotPassword = async (req, res) => {
       to: user.email,
       subject: 'LucyClass - Đặt lại mật khẩu',
       html: getHtmlTemplate(htmlContent),
-      text: `Đặt lại mật khẩu tại: ${resetUrl}`
+      text: `Đặt lại mật khẩu tại: ${resetUrl}`,
     });
 
-    res.json({ success: true, message: 'Nếu thông tin hợp lệ, link reset đã được gửi' });
+    res.json(GENERIC_SUCCESS);
   } catch (error) {
     systemLogger.error('[ForgotPassword] Error', { message: error.message });
     res.status(500).json({ message: 'Lỗi gửi email' });
@@ -392,31 +439,25 @@ exports.forgotPassword = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /api/auth/reset-password/:token  (tìm trong cả 2 collection)
+// POST /api/auth/reset-password/:token
 // ─────────────────────────────────────────────────────────────────────────────
 exports.resetPassword = async (req, res) => {
   try {
     const { password } = req.body;
     const { token } = req.params;
 
-    // ── Validate độ mạnh password trước khi làm bất cứ điều gì ──
-    // Yêu cầu: 8+ ký tự, có chữ hoa, chữ thường, số, ký tự đặc biệt
     const strongPassword = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,64}$/;
     if (!password || !strongPassword.test(password)) {
       return res.status(400).json({
         success: false,
-        message: 'Mật khẩu phải có ít nhất 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt'
+        message: 'Mật khẩu phải có ít nhất 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt',
       });
     }
 
-    const resetPasswordToken = crypto
-      .createHash('sha256')
-      .update(token)
-      .digest('hex');
-
+    const resetPasswordToken = crypto.createHash('sha256').update(token).digest('hex');
     const query = {
       resetPasswordToken,
-      resetPasswordExpire: { $gt: Date.now() }
+      resetPasswordExpire: { $gt: Date.now() },
     };
 
     let user = await Admin.findOne(query);
@@ -426,17 +467,20 @@ exports.resetPassword = async (req, res) => {
       return res.status(400).json({ message: 'Link không hợp lệ hoặc hết hạn' });
     }
 
-    // Pre-save hook của cả Admin và StaffAccount schema tự hash password khi isModified('password')
-    // nên chỉ cần gán plaintext — hook sẽ hash đúng 1 lần khi user.save() được gọi
     user.password = password;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
     user.loginAttempts = 0;
     user.lockUntil = undefined;
-    // Xoá tất cả session cũ, bắt đăng nhập lại
     user.refreshTokens = [];
     user.activeSessionId = undefined;
     await user.save();
+
+    // Ghi log đặt lại thành công
+    await recordAttempt(req, 'RESET_PASSWORD_SUCCESS', {
+      username: user.username,
+      userId: user._id,
+    });
 
     res.json({ success: true, message: 'Đặt lại mật khẩu thành công! Vui lòng đăng nhập lại.' });
   } catch (error) {
