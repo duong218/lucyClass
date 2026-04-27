@@ -532,7 +532,10 @@ backend/
   - `/api/announcements`,
   - `/api/registrations`,
   - `/api/streak`,
-  - `/api/rankings/top`.
+  - `/api/rankings/top`,
+  - `/api/timetable`,
+  - `/api/submit`,
+  - `/api/health`.
 
 ### Luồng admin/staff
 - Frontend đăng nhập qua `/api/auth/login`.

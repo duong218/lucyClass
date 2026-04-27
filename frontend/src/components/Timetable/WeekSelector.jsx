@@ -2,13 +2,17 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { HiChevronLeft, HiChevronRight, HiCalendar } from 'react-icons/hi';
 
+const BRAND      = '#1C695C';
+const BRAND_BG   = '#E8F5F3';
+const BRAND_TEXT = '#1C695C';
+
 const WeekSelector = ({ selectedDate, setSelectedDate }) => {
   const { t, i18n } = useTranslation();
 
   const getStartOfWeek = (date) => {
-    const d = new Date(date);
+    const d   = new Date(date);
     const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Monday start
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
     d.setDate(diff);
     d.setHours(0, 0, 0, 0);
     return d;
@@ -16,7 +20,7 @@ const WeekSelector = ({ selectedDate, setSelectedDate }) => {
 
   const getEndOfWeek = (date) => {
     const start = getStartOfWeek(date);
-    const end = new Date(start);
+    const end   = new Date(start);
     end.setDate(start.getDate() + 6);
     return end;
   };
@@ -36,53 +40,75 @@ const WeekSelector = ({ selectedDate, setSelectedDate }) => {
   const currentMonday = getStartOfWeek(selectedDate);
   const currentSunday = getEndOfWeek(selectedDate);
 
-  const formatDate = (date) => {
-    return date.toLocaleDateString(i18n.language === 'vi' ? 'vi-VN' : 'en-US', {
+  // Compact format for mobile, fuller for desktop
+  const formatDateShort = (date) =>
+    date.toLocaleDateString(i18n.language === 'vi' ? 'vi-VN' : 'en-US', {
+      day: 'numeric',
+      month: 'short',
+    });
+
+  const formatDateFull = (date) =>
+    date.toLocaleDateString(i18n.language === 'vi' ? 'vi-VN' : 'en-US', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
     });
-  };
 
   return (
-    <div className="flex flex-col sm:flex-row items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mb-6">
-      <div className="flex items-center gap-3 bg-blue-50 text-blue-700 px-4 py-2 rounded-xl">
-        <HiCalendar className="text-xl" />
-        <span className="font-bold text-sm whitespace-nowrap">
-          Tuần
+    <div className="flex items-center gap-2 sm:gap-4 bg-white px-3 sm:px-4 py-3 rounded-2xl shadow-sm border border-gray-100 mb-4 sm:mb-6">
+
+      {/* Calendar badge — hidden on very small screens to save space */}
+      <div
+        className="hidden xs:flex items-center gap-1.5 px-3 py-1.5 rounded-xl shrink-0 text-sm font-bold"
+        style={{ background: BRAND_BG, color: BRAND_TEXT }}
+      >
+        <HiCalendar className="text-base" />
+        <span className="hidden sm:inline">Tuần</span>
+      </div>
+
+      {/* Prev button */}
+      <button
+        onClick={handlePrevWeek}
+        className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500 shrink-0"
+        title={t('common.prev') || 'Tuần trước'}
+      >
+        <HiChevronLeft className="text-xl" />
+      </button>
+
+      {/* Date range display — grows to fill space */}
+      <div className="flex-1 text-center">
+        {/* Mobile: compact two dates */}
+        <span className="sm:hidden text-xs font-bold text-gray-700">
+          {formatDateShort(currentMonday)} — {formatDateShort(currentSunday)}
+        </span>
+        {/* Desktop: full dates */}
+        <span className="hidden sm:inline text-sm font-medium text-gray-700 font-display">
+          {formatDateFull(currentMonday)} — {formatDateFull(currentSunday)}
         </span>
       </div>
 
-      <div className="flex items-center gap-2">
-        <button
-          onClick={handlePrevWeek}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-600"
-          title={t('common.prev')}
-        >
-          <HiChevronLeft className="text-2xl" />
-        </button>
+      {/* Next button */}
+      <button
+        onClick={handleNextWeek}
+        className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500 shrink-0"
+        title={t('common.next') || 'Tuần sau'}
+      >
+        <HiChevronRight className="text-xl" />
+      </button>
 
-        <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl min-w-[240px] text-center">
-          <span className="text-sm font-medium text-gray-700 font-display">
-            {formatDate(currentMonday)} — {formatDate(currentSunday)}
-          </span>
-        </div>
-
-        <button
-          onClick={handleNextWeek}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-600"
-          title={t('common.next')}
-        >
-          <HiChevronRight className="text-2xl" />
-        </button>
-      </div>
-
+      {/* Jump to this week */}
       <button
         onClick={() => setSelectedDate(getStartOfWeek(new Date()))}
-        className="ml-auto text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline"
+        className="text-[10px] sm:text-xs font-bold hover:underline shrink-0"
+        style={{ color: BRAND }}
       >
-        {t('admin.recentRegistrations')} {/* Using an existing "Recent" key as placeholder or "Today" */}
-        {i18n.language === 'vi' ? 'Tuần này' : 'Jump to this week'}
+        <span className="hidden sm:inline">
+          {i18n.language === 'vi' ? 'Tuần này' : 'This week'}
+        </span>
+        {/* Mobile: icon only */}
+        <span className="sm:hidden">
+          <HiCalendar className="text-base" style={{ color: BRAND }} />
+        </span>
       </button>
     </div>
   );

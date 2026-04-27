@@ -160,6 +160,9 @@ frontend/
 ### `frontend/public/model-transform/doraemon.png`
 - Nhân vật trang trí dùng trong khu vực thông báo và trải nghiệm tương tác.
 
+### `frontend/public/model-transform/Fire.lottie`
+- File animation Lottie hình ngọn lửa, dùng cho `MilestonePopup` và `FlameButton`.
+
 ### `frontend/public/model-transform/GoiY.png`
 - Ảnh gợi ý dùng trong minigame của trang 404.
 
@@ -278,6 +281,7 @@ frontend/
 
 ### `frontend/src/components/FlameButton.jsx`
 - Nút nổi hỗ trợ điều hướng nhanh/tương tác đặc biệt.
+- Tích hợp animation Lottie Fire, hỗ trợ badge số lượng streak với hiệu ứng scale và shadow linh hoạt theo thiết bị.
 
 ### `frontend/src/components/HeartRain.jsx`
 - Hiệu ứng mưa tim dùng cho trải nghiệm động.
@@ -288,9 +292,15 @@ frontend/
 ### `frontend/src/components/LearningJourney.jsx`
 - Section mô tả lộ trình học tập.
 
+### `frontend/src/components/MilestonePopup.jsx`
+- Popup chúc mừng khi người dùng đạt các mốc streak (1, 3, 7, 30, 100 ngày).
+- Hiệu ứng hoành tráng với pháo giấy (Confetti), vòng hào quang (Sunburst), hạt biểu tượng trôi nổi và ngọn lửa Lottie.
+- Tự động cá nhân hóa lời chúc theo tên người dùng.
+
 ### `frontend/src/components/NotificationBell.jsx`
 - Chuông thông báo cho khu vực nội bộ.
 - Kết nối với `announcementService` để lấy thông báo mới và đánh dấu đã xem.
+- Hỗ trợ tính toán vị trí dropdown thông minh và tối ưu hiệu năng bằng `useCallback`.
 
 ### `frontend/src/components/ProtectedRoute.jsx`
 - Chặn route theo trạng thái đăng nhập và role.
