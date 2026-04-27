@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   getByDate,
@@ -341,6 +341,8 @@ const AttendanceManagement = () => {
   // Export panel
   const [exportPanelOpen, setExportPanelOpen] = useState(false);
   const [exportTab, setExportTab] = useState('date'); // 'date' | 'month'
+  const exportBtnRef = useRef(null);
+  const [exportPanelPos, setExportPanelPos] = useState({ top: 0, left: 0 });
   const nowVN = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
   const [exportMonth, setExportMonth] = useState(nowVN.getMonth() + 1);
   const [exportYear, setExportYear] = useState(nowVN.getFullYear());
@@ -547,7 +549,19 @@ const AttendanceManagement = () => {
         </div>
         <div className="relative">
           <button
-            onClick={() => setExportPanelOpen(prev => !prev)}
+            ref={exportBtnRef}
+            onClick={() => {
+              if (!exportPanelOpen && exportBtnRef.current) {
+                const rect = exportBtnRef.current.getBoundingClientRect();
+                const panelWidth = 288; // w-72
+                const margin = 8;
+                let left = rect.right - panelWidth;
+                if (left < margin) left = margin;
+                if (left + panelWidth > window.innerWidth - margin) left = window.innerWidth - panelWidth - margin;
+                setExportPanelPos({ top: rect.bottom + margin, left });
+              }
+              setExportPanelOpen(prev => !prev);
+            }}
             disabled={exporting || loading}
             className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
               exporting || loading
@@ -561,10 +575,11 @@ const AttendanceManagement = () => {
             <ChevronDown size={14} className={`transition-transform ${exportPanelOpen ? 'rotate-180' : ''}`} />
           </button>
 
-          {/* Export dropdown panel */}
+          {/* Export dropdown panel — dùng fixed để không bị clip bởi overflow của parent */}
           {exportPanelOpen && (
             <div
-              className="absolute right-0 top-full mt-2 z-30 bg-white border border-gray-200 rounded-2xl shadow-lg p-4 w-72"
+              className="fixed z-[9999] bg-white border border-gray-200 rounded-2xl shadow-lg p-4 w-72"
+              style={{ top: exportPanelPos.top, left: exportPanelPos.left }}
               onClick={e => e.stopPropagation()}
             >
               {/* Overlay để đóng khi click ngoài */}
