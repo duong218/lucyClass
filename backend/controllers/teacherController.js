@@ -314,10 +314,7 @@ exports.remove = async (req, res, next) => {
     );
     if (!teacher) return res.status(404).json({ success: false, message: 'Teacher not found' });
 
-    // Delete image from Cloudinary after soft-delete
-    if (teacher.avatarPublicId) {
-      try { await deleteImageFromCloudinary(teacher.avatarPublicId); } catch (_) {}
-    }
+    // Avatar Cloudinary sẽ được xóa bởi deepCleanService sau 6 tháng
 
     // Deactivate StaffAccount liên kết (soft-disable, không xoá hẳn để giữ audit trail)
     if (teacher.staffAccountId) {

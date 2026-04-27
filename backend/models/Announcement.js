@@ -60,6 +60,16 @@ const announcementSchema = new mongoose.Schema({
   reviewedAt: {
     type: Date,
     default: null
+  },
+
+  // ─── Soft Delete ─────────────────────────────────────────────────────────
+  isDeleted: {
+    type: Boolean,
+    default: false
+  },
+  deletedAt: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true

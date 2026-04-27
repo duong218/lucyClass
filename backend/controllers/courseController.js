@@ -11,8 +11,8 @@ exports.getAll = async (req, res, next) => {
   try {
     const Registration = require('../models/Registration');
     const courses = await Course.find({ isDeleted: { $ne: true } })
-      .populate('teacher')
-      .populate('additionalTeachers')
+      .populate({ path: 'teacher', match: { isDeleted: { $ne: true } } })
+      .populate({ path: 'additionalTeachers', match: { isDeleted: { $ne: true } } })
       .sort({ createdAt: -1 });
 
     const counts = await Registration.aggregate([
@@ -45,8 +45,8 @@ exports.getById = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Invalid ID format' });
     }
     const course = await Course.findOne({ _id: id, isDeleted: { $ne: true } })
-      .populate('teacher')
-      .populate('additionalTeachers');
+      .populate({ path: 'teacher', match: { isDeleted: { $ne: true } } })
+      .populate({ path: 'additionalTeachers', match: { isDeleted: { $ne: true } } });
     if (!course) return res.status(404).json({ success: false, message: 'Course not found' });
     return res.json({ success: true, data: course });
   } catch (error) {
@@ -368,8 +368,8 @@ exports.update = async (req, res) => {
     let course;
     try {
       course = await Course.findByIdAndUpdate(id, data, { new: true, runValidators: true })
-        .populate('teacher')
-        .populate('additionalTeachers');
+        .populate({ path: 'teacher', match: { isDeleted: { $ne: true } } })
+        .populate({ path: 'additionalTeachers', match: { isDeleted: { $ne: true } } });
       dbUpdated = true;
     } catch (dbError) {
       if (uploadResult?.public_id) {
@@ -418,9 +418,7 @@ exports.remove = async (req, res, next) => {
     );
     if (!course) return res.status(404).json({ success: false, message: 'Course not found' });
 
-    if (course.imagePublicId) {
-      try { await deleteImageFromCloudinary(course.imagePublicId); } catch (_) {}
-    }
+    // Ảnh Cloudinary sẽ được xóa bởi deepCleanService sau 6 tháng
     await clearCache('/api/courses');
     await logAdminAction({
       adminId: req.admin?.id || null,

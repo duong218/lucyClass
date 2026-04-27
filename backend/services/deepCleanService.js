@@ -8,10 +8,12 @@
  *  - runDeepClean()         → dùng cho cron 6 tháng/lần + trigger thủ công từ admin UI
  *
  * Thứ tự xóa trong runDeepClean (quan trọng, không đổi):
- *   1. Course đã xóa > 6 tháng  → xóa Registration liên quan trước
- *   2. Teacher đã xóa > 6 tháng → null ref trong Course, xóa StaffAccount
+ *   1. Course đã xóa > 6 tháng  → xóa Registration liên quan trước, xóa ảnh Cloudinary
+ *   2. Teacher đã xóa > 6 tháng → null ref trong Course, xóa StaffAccount, xóa avatar Cloudinary
  *   3. Registration orphan       → courseId không còn tồn tại
  *   4. Ranking orphan            → studentId / courseId không còn tồn tại
+ *   5. Announcement đã xóa > 6 tháng → xóa ảnh Cloudinary
+ *   6. Feedback đã xóa > 6 tháng     → xóa ảnh Cloudinary
  */
 
 const Course       = require('../models/Course');
@@ -19,6 +21,9 @@ const Teacher      = require('../models/Teacher');
 const StaffAccount = require('../models/StaffAccount');
 const Registration = require('../models/Registration');
 const Ranking      = require('../models/Ranking');
+const Announcement = require('../models/Announcement');
+const Feedback     = require('../models/Feedback');
+const { deleteImageFromCloudinary } = require('../utils/cloudinary');
 const { clearCache } = require('../middlewares/cacheMiddleware');
 
 const SIX_MONTHS_MS = 6 * 30 * 24 * 60 * 60 * 1000;
@@ -77,7 +82,7 @@ const _cleanDeletedCourses = async (cutoff) => {
   const deadCourses = await Course.find({
     isDeleted: true,
     deletedAt: { $lte: cutoff }
-  }).select('_id name').lean();
+  }).select('_id name imagePublicId').lean();
 
   if (!deadCourses.length) {
     log('Không có Course nào cần xóa');
@@ -90,7 +95,13 @@ const _cleanDeletedCourses = async (cutoff) => {
   const regResult    = await Registration.deleteMany({ courseId: { $in: deadCourseIds } });
   const courseResult = await Course.deleteMany({ _id: { $in: deadCourseIds } });
 
-  log(`→ ${courseResult.deletedCount} Course, ${regResult.deletedCount} Registration`);
+  // Xóa ảnh Cloudinary của các Course đã xóa thật
+  const imageIds = deadCourses.map(c => c.imagePublicId).filter(Boolean);
+  for (const publicId of imageIds) {
+    try { await deleteImageFromCloudinary(publicId); } catch (_) {}
+  }
+
+  log(`→ ${courseResult.deletedCount} Course, ${regResult.deletedCount} Registration, ${imageIds.length} ảnh Cloudinary`);
   return { courses: courseResult.deletedCount, registrations: regResult.deletedCount };
 };
 
@@ -101,7 +112,7 @@ const _cleanDeletedTeachers = async (cutoff) => {
   const deadTeachers = await Teacher.find({
     isDeleted: true,
     deletedAt: { $lte: cutoff }
-  }).select('_id name staffAccountId').lean();
+  }).select('_id name staffAccountId avatarPublicId').lean();
 
   if (!deadTeachers.length) {
     log('Không có Teacher nào cần xóa');
@@ -124,6 +135,12 @@ const _cleanDeletedTeachers = async (cutoff) => {
 
   const teacherResult = await Teacher.deleteMany({ _id: { $in: deadTeacherIds } });
 
+  // Xóa avatar Cloudinary của các Teacher đã xóa thật
+  const avatarIds = deadTeachers.map(t => t.avatarPublicId).filter(Boolean);
+  for (const publicId of avatarIds) {
+    try { await deleteImageFromCloudinary(publicId); } catch (_) {}
+  }
+
   // Chỉ xóa StaffAccount đã deactivate (isActive: false) — tránh xóa nhầm
   let staffCount = 0;
   if (deadStaffIds.length) {
@@ -134,7 +151,7 @@ const _cleanDeletedTeachers = async (cutoff) => {
     staffCount = staffResult.deletedCount;
   }
 
-  log(`→ ${teacherResult.deletedCount} Teacher, ${staffCount} StaffAccount`);
+  log(`→ ${teacherResult.deletedCount} Teacher, ${staffCount} StaffAccount, ${avatarIds.length} avatar Cloudinary`);
   return { teachers: teacherResult.deletedCount, staffAccounts: staffCount };
 };
 
@@ -146,6 +163,60 @@ const _cleanOrphanRegistrations = async () => {
   const result = await Registration.deleteMany({ courseId: { $nin: activeCourseIds } });
   log(`→ ${result.deletedCount} Registration orphan`);
   return result.deletedCount;
+};
+
+/**
+ * Bước 4: Xóa Announcement đã soft-delete > 6 tháng + ảnh Cloudinary
+ */
+const _cleanDeletedAnnouncements = async (cutoff) => {
+  const deadAnnouncements = await Announcement.find({
+    isDeleted: true,
+    deletedAt: { $lte: cutoff }
+  }).select('_id imagePublicId').lean();
+
+  if (!deadAnnouncements.length) {
+    log('Không có Announcement nào cần xóa');
+    return 0;
+  }
+
+  const deadIds  = deadAnnouncements.map(a => a._id);
+  const imageIds = deadAnnouncements.map(a => a.imagePublicId).filter(Boolean);
+
+  await Announcement.deleteMany({ _id: { $in: deadIds } });
+
+  for (const publicId of imageIds) {
+    try { await deleteImageFromCloudinary(publicId); } catch (_) {}
+  }
+
+  log(`→ ${deadAnnouncements.length} Announcement, ${imageIds.length} ảnh Cloudinary`);
+  return deadAnnouncements.length;
+};
+
+/**
+ * Bước 5: Xóa Feedback đã soft-delete > 6 tháng + ảnh Cloudinary
+ */
+const _cleanDeletedFeedbacks = async (cutoff) => {
+  const deadFeedbacks = await Feedback.find({
+    isDeleted: true,
+    deletedAt: { $lte: cutoff }
+  }).select('_id photoPublicId').lean();
+
+  if (!deadFeedbacks.length) {
+    log('Không có Feedback nào cần xóa');
+    return 0;
+  }
+
+  const deadIds  = deadFeedbacks.map(f => f._id);
+  const photoIds = deadFeedbacks.map(f => f.photoPublicId).filter(Boolean);
+
+  await Feedback.deleteMany({ _id: { $in: deadIds } });
+
+  for (const publicId of photoIds) {
+    try { await deleteImageFromCloudinary(publicId); } catch (_) {}
+  }
+
+  log(`→ ${deadFeedbacks.length} Feedback, ${photoIds.length} ảnh Cloudinary`);
+  return deadFeedbacks.length;
 };
 
 /**
@@ -164,6 +235,8 @@ const runDeepClean = async () => {
     staffAccounts:           0,
     orphanRegistrations:     0,
     orphanRankings:          0,
+    announcements:           0,
+    feedbacks:               0,
   };
 
   try {
@@ -181,9 +254,13 @@ const runDeepClean = async () => {
     const rankingReport        = await cleanOrphanRankings();
     report.orphanRankings      = rankingReport.total;
 
+    report.announcements = await _cleanDeletedAnnouncements(cutoff);
+    report.feedbacks     = await _cleanDeletedFeedbacks(cutoff);
+
     // Xóa cache nếu có thay đổi
     const totalDeleted = report.courses + report.registrationsFromCourse
-      + report.teachers + report.orphanRegistrations + report.orphanRankings;
+      + report.teachers + report.orphanRegistrations + report.orphanRankings
+      + report.announcements + report.feedbacks;
 
     if (totalDeleted > 0) {
       await Promise.all([
@@ -191,6 +268,8 @@ const runDeepClean = async () => {
         clearCache('/api/teachers'),
         clearCache('/api/rankings'),
         clearCache('/api/rankings/top'),
+        clearCache('/api/announcements'),
+        clearCache('/api/feedback'),
       ]);
     }
 

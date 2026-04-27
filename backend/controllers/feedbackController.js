@@ -179,10 +179,7 @@ exports.remove = async (req, res, next) => {
     );
     if (!fb) return res.status(404).json({ success: false, message: 'Feedback not found' });
 
-    // Delete image from Cloudinary after soft-delete
-    if (fb.photoPublicId) {
-      try { await deleteImageFromCloudinary(fb.photoPublicId); } catch (_) {}
-    }
+    // Ảnh Cloudinary sẽ được xóa bởi deepCleanService sau 6 tháng
     await clearCache('/api/feedback');
     await logAdminAction({
       adminId: req.admin?.id || null,

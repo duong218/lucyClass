@@ -19,7 +19,7 @@ const MKT_DAILY_LIMIT = 5;
 // ============================================================================
 exports.getAll = async (req, res) => {
   try {
-    const announcements = await Announcement.find({ status: 'published' })
+    const announcements = await Announcement.find({ status: 'published', isDeleted: { $ne: true } })
       .sort({ createdAt: -1 })
       .lean();
     return sendSuccess(res, announcements);
@@ -34,17 +34,18 @@ exports.getAll = async (req, res) => {
 // ============================================================================
 exports.getLatest = async (req, res) => {
   try {
-    const latest = await Announcement.findOne({ status: 'published' })
+    const latest = await Announcement.findOne({ status: 'published', isDeleted: { $ne: true } })
       .sort({ createdAt: -1 })
       .lean();
 
     const newCount = await Announcement.countDocuments({
       status: 'published',
-      isUnread: true
+      isUnread: true,
+      isDeleted: { $ne: true }
     });
 
     // Đếm pending để admin biết cần duyệt
-    const pendingCount = await Announcement.countDocuments({ status: 'pending' });
+    const pendingCount = await Announcement.countDocuments({ status: 'pending', isDeleted: { $ne: true } });
 
     return sendSuccess(res, { latest, newCount, pendingCount });
   } catch (error) {
@@ -58,7 +59,7 @@ exports.getLatest = async (req, res) => {
 exports.markSeen = async (req, res) => {
   try {
     await Announcement.updateMany(
-      { status: 'published', isUnread: true },
+      { status: 'published', isUnread: true, isDeleted: { $ne: true } },
       { $set: { isUnread: false } }
     );
     return sendSuccess(res, null, 'Marked all as seen');
@@ -72,7 +73,7 @@ exports.markSeen = async (req, res) => {
 // ============================================================================
 exports.getPending = async (req, res) => {
   try {
-    const pending = await Announcement.find({ status: 'pending' })
+    const pending = await Announcement.find({ status: 'pending', isDeleted: { $ne: true } })
       .sort({ createdAt: -1 })
       .populate('submittedBy', 'username displayName role')
       .lean();
@@ -88,7 +89,7 @@ exports.getPending = async (req, res) => {
 exports.getMySubmissions = async (req, res) => {
   try {
     const staffId = req.user?._id || req.user?.id;
-    const submissions = await Announcement.find({ submittedBy: staffId })
+    const submissions = await Announcement.find({ submittedBy: staffId, isDeleted: { $ne: true } })
       .sort({ createdAt: -1 })
       .populate('reviewedBy', 'username displayName')
       .lean();
@@ -186,7 +187,7 @@ exports.reviewAnnouncement = async (req, res) => {
       return sendError(res, 'action phải là "approve" hoặc "reject"', null, 400);
     }
 
-    const announcement = await Announcement.findById(id);
+    const announcement = await Announcement.findOne({ _id: id, isDeleted: { $ne: true } });
     if (!announcement) return sendError(res, 'Không tìm thấy thông báo', null, 404);
     if (announcement.status !== 'pending') {
       return sendError(res, 'Thông báo này không ở trạng thái chờ duyệt', null, 400);
@@ -275,7 +276,7 @@ exports.update = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return sendError(res, 'Invalid ID format', null, 400);
     }
-    const announcement = await Announcement.findById(id);
+    const announcement = await Announcement.findOne({ _id: id, isDeleted: { $ne: true } });
     if (!announcement) return sendError(res, 'Announcement not found', null, 404);
 
     const { title, description } = req.body;
@@ -332,13 +333,11 @@ exports.remove = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return sendError(res, 'Invalid ID format', null, 400);
     }
-    const announcement = await Announcement.findById(id);
+    const announcement = await Announcement.findOne({ _id: id, isDeleted: { $ne: true } });
     if (!announcement) return sendError(res, 'Announcement not found', null, 404);
 
-    if (announcement.imagePublicId) {
-      try { await deleteImageFromCloudinary(announcement.imagePublicId); } catch (_) {}
-    }
-    await Announcement.findByIdAndDelete(id);
+    // Chuyển sang soft-delete — ảnh Cloudinary sẽ được xóa bởi deepCleanService sau 6 tháng
+    await Announcement.findByIdAndUpdate(id, { isDeleted: true, deletedAt: new Date() });
     await clearCache('/api/announcements');
     return sendSuccess(res, null, 'Announcement deleted successfully');
   } catch (error) {
