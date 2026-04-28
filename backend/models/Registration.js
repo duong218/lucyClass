@@ -42,6 +42,13 @@ const registrationSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  // ── Ghi chú / link sheet của admin ───────────────────────────────────────
+  note: {
+    type: String,
+    default: '',
+    trim: true,
+    maxlength: 500
+  },
   // ── Lịch sử chuyển lớp ────────────────────────────────────────────────────
   transferHistory: {
     type: [

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,7 +9,7 @@ import api from '../services/api';
 import {
   ArrowLeft, GraduationCap, Search, Settings2, Check, Save, Download,
   CheckCheck, X, RefreshCw, Star, ArrowRightLeft, UserMinus, Loader2,
-  ClipboardCheck, BadgeCheck, ChevronDown, ChevronUp
+  ClipboardCheck, BadgeCheck, ChevronDown, ChevronUp, StickyNote, Link, Pencil
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────
@@ -402,6 +402,133 @@ const AttendanceBadge = ({ status, onClick, disabled }) => {
 };
 
 // ─────────────────────────────────────────────
+// 📝 Note Cell — inline edit ghi chú / link
+// ─────────────────────────────────────────────
+const NoteCell = ({ studentId, initialNote, onSaved }) => {
+  const [editing, setEditing]   = useState(false);
+  const [value, setValue]       = useState(initialNote || '');
+  const [saving, setSaving]     = useState(false);
+  const inputRef                = useRef(null);
+
+  // Detect URL để render dạng link
+  const isUrl = (str) => {
+    try { return Boolean(new URL(str)); } catch { return false; }
+  };
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+
+  const MAX_NOTE = 500;
+
+  // Strip tất cả thẻ HTML/script trước khi lưu
+  const sanitize = (str) => str.replace(/<[^>]*>/gi, '');
+
+  const handleSave = async () => {
+    const cleaned = sanitize(value.trim());
+    if (cleaned.length > MAX_NOTE) {
+      showToast.error(`Ghi chú tối đa ${MAX_NOTE} ký tự`);
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.put(`/registrations/${studentId}`, { note: cleaned });
+      onSaved(studentId, cleaned);
+      setValue(cleaned);
+      setEditing(false);
+    } catch (err) {
+      showToast.error(err?.message || 'Lưu ghi chú thất bại');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSave(); }
+    if (e.key === 'Escape') { setValue(initialNote || ''); setEditing(false); }
+  };
+
+  if (editing) {
+    const remaining = MAX_NOTE - value.length;
+    const isOverLimit = remaining < 0;
+    return (
+      <div className="flex items-start gap-1.5 min-w-[200px]">
+        <div className="flex-1 flex flex-col gap-1">
+          <textarea
+            ref={inputRef}
+            value={value}
+            onChange={e => {
+              const raw = e.target.value.replace(/<[^>]*>/gi, ''); // strip HTML ngay khi gõ
+              setValue(raw);
+            }}
+            onKeyDown={handleKeyDown}
+            rows={2}
+            placeholder="Ghi chú hoặc dán link..."
+            className={`text-xs border rounded-xl px-3 py-2 outline-none focus:ring-2 resize-none font-medium text-gray-700 bg-white shadow-sm transition-colors ${
+              isOverLimit
+                ? 'border-red-400 focus:ring-red-200'
+                : 'border-blue-300 focus:ring-blue-300'
+            }`}
+          />
+          <span className={`text-[10px] font-bold text-right ${isOverLimit ? 'text-red-500' : 'text-gray-400'}`}>
+            {value.length}/{MAX_NOTE}
+          </span>
+        </div>
+        <div className="flex flex-col gap-1">
+          <button
+            onClick={handleSave}
+            disabled={saving || isOverLimit}
+            className="p-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-all disabled:opacity-60"
+            title="Lưu (Enter)">
+            {saving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} strokeWidth={3} />}
+          </button>
+          <button
+            onClick={() => { setValue(initialNote || ''); setEditing(false); }}
+            className="p-1.5 rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 transition-all"
+            title="Hủy (Esc)">
+            <X size={12} strokeWidth={3} />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const trimmed = (value || '').trim();
+
+  return (
+    <div
+      className="group flex items-start gap-1.5 cursor-pointer min-w-[140px] max-w-[220px]"
+      onClick={() => setEditing(true)}
+      title="Nhấn để chỉnh sửa ghi chú">
+      <div className="flex-1 min-w-0">
+        {trimmed ? (
+          isUrl(trimmed) ? (
+            <a
+              href={trimmed}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline truncate max-w-full">
+              <Link size={11} className="shrink-0" />
+              <span className="truncate">{trimmed}</span>
+            </a>
+          ) : (
+            <p className="text-xs text-gray-600 font-medium leading-relaxed line-clamp-2 break-words">
+              {trimmed}
+            </p>
+          )
+        ) : (
+          <span className="text-xs text-gray-300 font-medium italic group-hover:text-gray-400 transition-colors">
+            + Thêm ghi chú
+          </span>
+        )}
+      </div>
+      <Pencil size={11} className="shrink-0 text-gray-300 group-hover:text-blue-400 transition-colors mt-0.5" />
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
 // 📋 Main Component
 // ─────────────────────────────────────────────
 const CourseStudentList = () => {
@@ -623,6 +750,11 @@ const CourseStudentList = () => {
         setStudents(prev => prev.filter(s => s._id !== studentId));
     }, []);
 
+    // Callback cập nhật note local sau khi lưu thành công
+    const handleNoteSaved = useCallback((studentId, newNote) => {
+        setStudents(prev => prev.map(s => s._id === studentId ? { ...s, note: newNote } : s));
+    }, []);
+
     const filteredStudents = useMemo(() => students.filter(s => {
         const matchesSearch =
             s.childName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
@@ -815,6 +947,7 @@ const CourseStudentList = () => {
                                 ) : (
                                     <>
                                         <th className="pb-4 px-4 text-center">{t('ranking.column')}</th>
+                                        <th className="pb-4 px-4">Ghi chú</th>
                                         <th className="pb-4 px-4 text-center">{t('admin.actions')}</th>
                                     </>
                                 )}
@@ -823,7 +956,7 @@ const CourseStudentList = () => {
                         <tbody className="divide-y divide-gray-50">
                             {filteredStudents.length === 0 ? (
                                 <tr>
-                                    <td colSpan={(isTeacher ? 3 : 4) + (ALL_COLUMNS.length - hiddenColumns.size)} className="py-12 text-center text-gray-400">
+                                    <td colSpan={(isTeacher ? 3 : 5) + (ALL_COLUMNS.length - hiddenColumns.size)} className="py-12 text-center text-gray-400">
                                         {t('admin.emptyStudents')}
                                     </td>
                                 </tr>
@@ -876,6 +1009,13 @@ const CourseStudentList = () => {
                                                             className={`text-2xl transition-all ${s.isActive ? 'cursor-pointer drop-shadow-md hover:drop-shadow-lg' : 'opacity-20 cursor-not-allowed grayscale'}`}
                                                             title={t('ranking.addToRanking')}><Star size={18} fill={s.isActive ? 'currentColor' : 'none'} /></motion.button>
                                                     </div>
+                                                </td>
+                                                <td className="py-5 px-4">
+                                                    <NoteCell
+                                                        studentId={s._id}
+                                                        initialNote={s.note}
+                                                        onSaved={handleNoteSaved}
+                                                    />
                                                 </td>
                                                 <td className="py-5 px-4">
                                                     <div className="flex justify-center items-center gap-1.5">

@@ -445,7 +445,7 @@ exports.getStudentsByCourse = async (req, res, next) => {
       status: 'registered'
     })
       .populate('courseId', 'name')
-      .select('childName childAge parentName phone email isActive courseId')
+      .select('childName childAge parentName phone email isActive courseId note transferHistory')
       .sort({ isActive: -1, createdAt: -1 })
       .lean();
 
