@@ -553,11 +553,13 @@ const CourseStudentList = () => {
 
     // ── Column visibility (mobile) ───────────────────────────────────────
     const ALL_COLUMNS = isTeacher
-        ? ['age', 'parent', 'phone', 'status']        // teacher: 4 optional cols (STT, Tên, Điểm danh luôn hiện)
-        : ['age', 'parent', 'phone', 'status'];        // admin: same optional cols (STT, Tên, Ranking, Actions luôn hiện)
+        ? ['age', 'parent', 'status']                  // teacher: ẩn SĐT hoàn toàn
+        : ['age', 'parent', 'phone', 'status'];        // admin: đủ cột
     const COLUMN_LABELS = { age: 'Tuổi', parent: 'Phụ huynh', phone: 'SĐT', status: 'Trạng thái' };
-    // Mặc định ẩn tuổi + phụ huynh để bảng gọn hơn trên mobile
-    const [hiddenColumns, setHiddenColumns] = useState(new Set(['age', 'parent']));
+    // Mặc định ẩn tuổi + phụ huynh; teacher còn ẩn thêm phone
+    const [hiddenColumns, setHiddenColumns] = useState(
+        isTeacher ? new Set(['age', 'parent', 'phone']) : new Set(['age', 'parent'])
+    );
     const [showColPicker, setShowColPicker] = useState(false);
 
     const toggleColumn = (col) => {
@@ -920,7 +922,7 @@ const CourseStudentList = () => {
                                             </button>
                                         ))}
                                         <div className="border-t border-gray-100 mt-2 pt-2">
-                                            <button onClick={() => setHiddenColumns(new Set())}
+                                            <button onClick={() => setHiddenColumns(isTeacher ? new Set(['phone']) : new Set())}
                                                 className="w-full text-xs font-bold text-blue-500 hover:text-blue-700 py-1 transition-all">
                                                 Hiện tất cả
                                             </button>
