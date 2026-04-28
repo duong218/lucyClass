@@ -19,25 +19,40 @@ const normalizeToMondayUTC = (dateInput) => {
 
 const DAY_NAMES = { 1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday', 5: 'Friday', 6: 'Saturday', 7: 'Sunday' };
 
-// Detect if a timeSlot belongs to AM or PM session
+// Detect AM/PM session from startTime "HH:mm"
 // Returns 'AM', 'PM', or 'OTHER'
-const detectSession = (timeSlot) => {
-  if (!timeSlot) return 'OTHER';
-  // Extract first hour number from strings like "8:00 - 9:30", "08:00", "14:00-15:30", "2pm", etc.
-  const match = timeSlot.match(/(\d{1,2})[:h]/i);
-  if (!match) {
-    // Try matching bare hour like "8am", "2pm"
-    const amPmMatch = timeSlot.match(/(\d{1,2})\s*(am|pm)/i);
-    if (amPmMatch) {
-      const suffix = amPmMatch[2].toLowerCase();
-      return suffix === 'am' ? 'AM' : 'PM';
-    }
-    return 'OTHER';
-  }
-  const hour = parseInt(match[1], 10);
+/**
+ * Converts "HH:mm" string to total minutes since midnight.
+ */
+const timeToMinutes = (hhmm) => {
+  if (!hhmm) return -1;
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
+};
+
+/**
+ * Detects AM/PM session from a startTime "HH:mm" string.
+ */
+const detectSession = (startTime) => {
+  if (!startTime) return 'OTHER';
+  const hour = parseInt(startTime.split(':')[0], 10);
   if (hour >= 0 && hour < 12) return 'AM';
   if (hour >= 12 && hour < 24) return 'PM';
   return 'OTHER';
+};
+
+/**
+ * Validates HH:mm format and logical range.
+ */
+const validateTime = (value, label) => {
+  if (!value || !/^\d{2}:\d{2}$/.test(value)) {
+    return `${label} phải có định dạng HH:mm (vd: 08:30)`;
+  }
+  const mins = timeToMinutes(value);
+  if (mins < 0 || mins > 1439) {
+    return `${label} phải nằm trong khoảng 00:00 – 23:59`;
+  }
+  return null;
 };
 
 // --- 📊 GET TIMETABLE ---
@@ -70,7 +85,8 @@ exports.getTimetable = async (req, res, next) => {
       return {
         _id: row._id,
         roomName: row.roomName,
-        timeSlot: row.timeSlot,
+        startTime: row.startTime,
+        endTime: row.endTime,
         branch: row.branch || 'Cơ sở 1',
         order: row.order,
         cells
@@ -88,10 +104,65 @@ exports.getTimetable = async (req, res, next) => {
 
 exports.createRow = async (req, res) => {
   try {
-    const { roomName, timeSlot, branch } = req.body;
+    const { roomName, startTime, endTime, branch } = req.body;
 
-    if (!roomName || !timeSlot) {
-      return res.status(400).json({ success: false, message: 'roomName and timeSlot are required' });
+    if (!roomName || !startTime || !endTime) {
+      return res.status(400).json({ success: false, message: 'roomName, startTime và endTime là bắt buộc' });
+    }
+
+    // ── Validate time format ──────────────────────────────────────
+    const startErr = validateTime(startTime, 'startTime');
+    if (startErr) return res.status(400).json({ success: false, message: startErr });
+
+    const endErr = validateTime(endTime, 'endTime');
+    if (endErr) return res.status(400).json({ success: false, message: endErr });
+
+    if (timeToMinutes(startTime) >= timeToMinutes(endTime)) {
+      return res.status(400).json({ success: false, message: 'Giờ bắt đầu phải nhỏ hơn giờ kết thúc' });
+    }
+
+    // ── Giới hạn số phòng tối đa ──────────────────────────────────
+    const MAX_ROWS = parseInt(process.env.TIMETABLE_MAX_ROWS, 10) || 50;
+    const totalRows = await TimetableRow.countDocuments();
+    if (totalRows >= MAX_ROWS) {
+      return res.status(400).json({
+        success: false,
+        message: `Đã đạt giới hạn tối đa ${MAX_ROWS} phòng. Vui lòng xoá bớt trước khi thêm mới.`
+      });
+    }
+
+    const normalizedBranch = cleanInput((branch || 'Cơ sở 1').trim()).toUpperCase();
+    const cleanName        = cleanInput(roomName.trim());
+    const roomNameRegex    = new RegExp(`^${cleanName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+    const branchRegex      = new RegExp(`^${normalizedBranch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+    const newStart         = timeToMinutes(startTime);
+    const newEnd           = timeToMinutes(endTime);
+
+    // ── Check overlap: cùng roomName (case-insensitive) + branch, giờ bị chồng ──
+    // Overlap khi: newStart < existingEnd AND newEnd > existingStart
+    const toMins = (fieldName) => ({
+      $add: [
+        { $multiply: [{ $toInt: { $arrayElemAt: [{ $split: [fieldName, ':'] }, 0] } }, 60] },
+        { $toInt: { $arrayElemAt: [{ $split: [fieldName, ':'] }, 1] } }
+      ]
+    });
+
+    const overlapping = await TimetableRow.findOne({
+      roomName: roomNameRegex,
+      branch:   branchRegex,
+      $expr: {
+        $and: [
+          { $lt: [{ $literal: newStart }, toMins('$endTime')]   },
+          { $gt: [{ $literal: newEnd },   toMins('$startTime')] },
+        ]
+      }
+    }).lean();
+
+    if (overlapping) {
+      return res.status(409).json({
+        success: false,
+        message: `Không thể tạo: "${cleanName}" (${normalizedBranch}) ${startTime}–${endTime} bị trùng với ca đã có ${overlapping.startTime}–${overlapping.endTime}. Vui lòng chọn khung giờ ngoài khoảng này.`
+      });
     }
 
     let row;
@@ -99,14 +170,15 @@ exports.createRow = async (req, res) => {
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
-        const maxRow = await TimetableRow.findOne().sort({ order: -1 }).lean();
+        const maxRow   = await TimetableRow.findOne().sort({ order: -1 }).lean();
         const nextOrder = (maxRow?.order ?? 0) + 1;
 
         row = await TimetableRow.create({
-          roomName: cleanInput(roomName.trim()),
-          timeSlot: cleanInput(timeSlot.trim()),
-          branch: cleanInput((branch || 'Cơ sở 1').trim()),
-          order: nextOrder
+          roomName:  cleanName,
+          startTime,
+          endTime,
+          branch:    normalizedBranch,
+          order:     nextOrder
         });
         break;
       } catch (err) {
@@ -119,18 +191,21 @@ exports.createRow = async (req, res) => {
     }
 
     await logAdminAction({
-      adminId: req.admin.id,
-      adminName: req.admin.username,
-      action: 'CREATE_TIMETABLE_ROW',
-      targetType: 'timetable_row',
-      targetId: row._id,
-      description: `Created row: [${row.branch}] ${row.roomName} - ${row.timeSlot}`,
+      adminId:     req.admin.id,
+      adminName:   req.admin.username,
+      action:      'CREATE_TIMETABLE_ROW',
+      targetType:  'timetable_row',
+      targetId:    row._id,
+      description: `Created row: [${row.branch}] ${row.roomName} ${row.startTime}–${row.endTime}`,
       req
     });
 
     res.status(201).json({ success: true, data: row, message: 'Row created successfully' });
   } catch (error) {
     console.error('[Timetable] createRow error:', error.message);
+    if (error.code === 11000) {
+      return res.status(409).json({ success: false, message: 'Phòng này đã tồn tại (trùng dữ liệu). Vui lòng kiểm tra lại.' });
+    }
     res.status(400).json({ success: false, message: error.message });
   }
 };
@@ -139,37 +214,95 @@ exports.createRow = async (req, res) => {
 
 exports.updateRow = async (req, res) => {
   try {
-    const { roomName, timeSlot, branch } = req.body;
-
-    const updateData = {};
-    if (roomName !== undefined) updateData.roomName = cleanInput(roomName.trim());
-    if (timeSlot !== undefined) updateData.timeSlot = cleanInput(timeSlot.trim());
-    if (branch !== undefined) updateData.branch = cleanInput(branch.trim());
-
-    if (Object.keys(updateData).length === 0) {
-      return res.status(400).json({ success: false, message: 'No fields to update' });
-    }
+    const { roomName, startTime, endTime, branch } = req.body;
 
     const { id } = req.params;
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ success: false, message: 'Invalid ID format' });
     }
+
+    const current = await TimetableRow.findById(id).lean();
+    if (!current) return res.status(404).json({ success: false, message: 'Row not found' });
+
+    const updateData = {};
+    if (roomName  !== undefined) updateData.roomName  = cleanInput(roomName.trim());
+    if (startTime !== undefined) updateData.startTime = startTime;
+    if (endTime   !== undefined) updateData.endTime   = endTime;
+    if (branch    !== undefined) updateData.branch    = cleanInput(branch.trim()).toUpperCase();
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ success: false, message: 'No fields to update' });
+    }
+
+    // ── Validate times if changed ─────────────────────────────────
+    const checkStart  = updateData.startTime ?? current.startTime;
+    const checkEnd    = updateData.endTime   ?? current.endTime;
+    const checkName   = updateData.roomName  ?? current.roomName;
+    const checkBranch = updateData.branch    ?? current.branch;
+
+    if (updateData.startTime) {
+      const err = validateTime(updateData.startTime, 'startTime');
+      if (err) return res.status(400).json({ success: false, message: err });
+    }
+    if (updateData.endTime) {
+      const err = validateTime(updateData.endTime, 'endTime');
+      if (err) return res.status(400).json({ success: false, message: err });
+    }
+    if (timeToMinutes(checkStart) >= timeToMinutes(checkEnd)) {
+      return res.status(400).json({ success: false, message: 'Giờ bắt đầu phải nhỏ hơn giờ kết thúc' });
+    }
+
+    // ── Check overlap (loại trừ chính row đang sửa) ───────────────
+    const newStart       = timeToMinutes(checkStart);
+    const newEnd         = timeToMinutes(checkEnd);
+    const roomNameRegex  = new RegExp(`^${checkName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+    const branchRegex    = new RegExp(`^${checkBranch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+
+    const toMins = (fieldName) => ({
+      $add: [
+        { $multiply: [{ $toInt: { $arrayElemAt: [{ $split: [fieldName, ':'] }, 0] } }, 60] },
+        { $toInt: { $arrayElemAt: [{ $split: [fieldName, ':'] }, 1] } }
+      ]
+    });
+
+    const overlapping = await TimetableRow.findOne({
+      _id:      { $ne: new mongoose.Types.ObjectId(id) },
+      roomName: roomNameRegex,
+      branch:   branchRegex,
+      $expr: {
+        $and: [
+          { $lt: [{ $literal: newStart }, toMins('$endTime')]   },
+          { $gt: [{ $literal: newEnd },   toMins('$startTime')] },
+        ]
+      }
+    }).lean();
+
+    if (overlapping) {
+      return res.status(409).json({
+        success: false,
+        message: `Không thể cập nhật: "${checkName}" (${checkBranch}) ${checkStart}–${checkEnd} bị trùng với ca đã có ${overlapping.startTime}–${overlapping.endTime}. Vui lòng chọn khung giờ ngoài khoảng này.`
+      });
+    }
+
     const row = await TimetableRow.findByIdAndUpdate(id, updateData, { new: true, runValidators: true });
     if (!row) return res.status(404).json({ success: false, message: 'Row not found' });
 
     await logAdminAction({
-      adminId: req.admin.id,
-      adminName: req.admin.username,
-      action: 'UPDATE_TIMETABLE_ROW',
-      targetType: 'timetable_row',
-      targetId: row._id,
-      description: `Updated row: [${row.branch}] ${row.roomName} - ${row.timeSlot}`,
+      adminId:     req.admin.id,
+      adminName:   req.admin.username,
+      action:      'UPDATE_TIMETABLE_ROW',
+      targetType:  'timetable_row',
+      targetId:    row._id,
+      description: `Updated row: [${row.branch}] ${row.roomName} ${row.startTime}–${row.endTime}`,
       req
     });
 
     res.json({ success: true, data: row, message: 'Row updated successfully' });
   } catch (error) {
     console.error('[Timetable] updateRow error:', error.message);
+    if (error.code === 11000) {
+      return res.status(409).json({ success: false, message: 'Phòng này đã tồn tại (trùng dữ liệu). Vui lòng kiểm tra lại.' });
+    }
     res.status(400).json({ success: false, message: error.message });
   }
 };
@@ -227,7 +360,7 @@ exports.deleteRow = async (req, res, next) => {
       action: 'DELETE_TIMETABLE_ROW',
       targetType: 'timetable_row',
       targetId: row._id,
-      description: `Deleted row and ${deleteResult.deletedCount} related cells: [${row.branch}] ${row.roomName} - ${row.timeSlot}`,
+      description: `Deleted row and ${deleteResult.deletedCount} related cells: [${row.branch}] ${row.roomName} - ${row.startTime}–${row.endTime}`,
       req
     });
 
@@ -287,7 +420,7 @@ exports.upsertCell = async (req, res) => {
       action: 'UPDATE_TIMETABLE_CELL',
       targetType: 'timetable_cell',
       targetId: cell._id,
-      description: `Updated cell: ${DAY_NAMES[day]} / [${row.branch}] ${row.roomName} / ${row.timeSlot}`,
+      description: `Updated cell: ${DAY_NAMES[day]} / [${row.branch}] ${row.roomName} / ${row.startTime}–${row.endTime}`,
       req
     });
 
@@ -352,7 +485,7 @@ exports.exportTimetable = async (req, res, next) => {
         branchMap.set(b, { AM: [], PM: [], OTHER: [] });
         branchOrder.push(b);
       }
-      const session = detectSession(row.timeSlot);
+      const session = detectSession(row.startTime);
       branchMap.get(b)[session].push(row);
     }
 
@@ -510,7 +643,7 @@ exports.exportTimetable = async (req, res, next) => {
             notes.push(cellMap.get(`${row._id}-${day}`) || '');
           }
 
-          const label = `${row.roomName}  •  ${row.timeSlot}`;
+          const label = `${row.roomName}  •  ${row.startTime}–${row.endTime}`;
           const dataRow = ws.addRow([label, ...notes]);
           dataRow.height = 50;
 

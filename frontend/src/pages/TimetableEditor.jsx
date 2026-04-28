@@ -18,16 +18,9 @@ const BRAND        = '#1C695C';
 const BRAND_BG     = '#E8F5F3';
 const BRAND_BORDER = '#B2DFDB';
 
-// AM / PM detection — mirrors backend logic
-const detectSession = (timeSlot) => {
-  if (!timeSlot) return 'OTHER';
-  const match = timeSlot.match(/(\d{1,2})[:h]/i);
-  if (!match) {
-    const amPm = timeSlot.match(/(\d{1,2})\s*(am|pm)/i);
-    if (amPm) return amPm[2].toLowerCase() === 'am' ? 'AM' : 'PM';
-    return 'OTHER';
-  }
-  const hour = parseInt(match[1], 10);
+const detectSession = (startTime) => {
+  if (!startTime) return 'OTHER';
+  const hour = parseInt(startTime.split(':')[0], 10);
   if (hour >= 0 && hour < 12) return 'AM';
   if (hour >= 12 && hour < 24) return 'PM';
   return 'OTHER';
@@ -115,7 +108,7 @@ const TimetableEditor = () => {
         branchOrder.push(b);
         colorIdx++;
       }
-      const session = detectSession(row.timeSlot);
+      const session = detectSession(row.startTime);
       branchMap.get(b)[session].push(row);
     }
 
@@ -408,7 +401,9 @@ const TimetableEditor = () => {
                                     className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md w-fit border"
                                     style={{ background: BRAND_BG, color: BRAND, borderColor: BRAND_BORDER }}
                                   >
-                                    {row?.timeSlot || '--:--'}
+                                    {row?.startTime && row?.endTime
+                                      ? `${row.startTime}–${row.endTime}`
+                                      : '--:--'}
                                   </div>
                                 </td>
 

@@ -12,7 +12,8 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
   const [items, setItems] = useState([]);
   const [newRow, setNewRow] = useState({ 
     roomName: '', 
-    timeSlot: '',
+    startTime: '',
+    endTime: '',
     branch: '',
     order: 0 
   });
@@ -41,7 +42,7 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
 
   const handleAddRow = async (e) => {
     e.preventDefault();
-    if (!newRow?.roomName || !newRow?.timeSlot) return;
+    if (!newRow?.roomName || !newRow?.startTime || !newRow?.endTime) return;
     
     setIsLoading(true);
     try {
@@ -50,10 +51,11 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
         branch: newRow.branch.trim() || 'Cơ sở 1',
       });
       showToast.success('Tadaa! Đã lưu thành công! 🎉');
-      setNewRow({ roomName: '', timeSlot: '', branch: '', order: items.length + 2 });
+      setNewRow({ roomName: '', startTime: '', endTime: '', branch: '', order: items.length + 2 });
       onRowsUpdated?.();
     } catch (err) {
-      showToast.error('Không thể cập nhật trạng thái 😢');
+      const msg = err?.response?.data?.message || 'Không thể thêm phòng 😢';
+      showToast.error(msg);
     } finally {
       setIsLoading(false);
     }
@@ -61,20 +63,22 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
 
   const handleUpdateRow = async (e) => {
     e.preventDefault();
-    if (!editingRow?._id || !editingRow?.roomName || !editingRow?.timeSlot) return;
+    if (!editingRow?._id || !editingRow?.roomName || !editingRow?.startTime || !editingRow?.endTime) return;
 
     setIsLoading(true);
     try {
       await timetableService.updateRow(editingRow._id, {
-        roomName: editingRow.roomName,
-        timeSlot: editingRow.timeSlot,
-        branch: editingRow.branch?.trim() || 'Cơ sở 1',
+        roomName:  editingRow.roomName,
+        startTime: editingRow.startTime,
+        endTime:   editingRow.endTime,
+        branch:    editingRow.branch?.trim() || 'Cơ sở 1',
       });
       showToast.success('Tuyệt vời! Cập nhật hoàn tất! ✨');
       setEditingRow(null);
       onRowsUpdated?.();
     } catch (err) {
-      showToast.error('Cập nhật thất bại 😢');
+      const msg = err?.response?.data?.message || 'Cập nhật thất bại 😢';
+      showToast.error(msg);
     } finally {
       setIsLoading(false);
     }
@@ -144,8 +148,8 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
 
                 <div className="flex-1 flex flex-col md:flex-row md:items-center justify-between gap-4">
                   {editingRow?._id === row._id ? (
-                    /* ── Edit mode: 3 fields ── */
-                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
+                    /* ── Edit mode: 4 fields ── */
+                    <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-3 items-center">
                       <input
                         type="text"
                         value={editingRow.roomName}
@@ -154,10 +158,15 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
                         className="px-4 py-2 border border-blue-200 rounded-xl outline-none focus:ring-4 ring-blue-50 text-sm font-bold"
                       />
                       <input
-                        type="text"
-                        value={editingRow.timeSlot}
-                        onChange={(e) => setEditingRow({ ...editingRow, timeSlot: e.target.value })}
-                        placeholder="Khung giờ"
+                        type="time"
+                        value={editingRow.startTime}
+                        onChange={(e) => setEditingRow({ ...editingRow, startTime: e.target.value })}
+                        className="px-4 py-2 border border-blue-200 rounded-xl outline-none focus:ring-4 ring-blue-50 text-sm font-bold"
+                      />
+                      <input
+                        type="time"
+                        value={editingRow.endTime}
+                        onChange={(e) => setEditingRow({ ...editingRow, endTime: e.target.value })}
                         className="px-4 py-2 border border-blue-200 rounded-xl outline-none focus:ring-4 ring-blue-50 text-sm font-bold"
                       />
                       <input
@@ -173,8 +182,8 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
                     <div>
                       <div className="font-black text-gray-800 text-lg">{row?.roomName || 'Unnamed Room'}</div>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        <div className="text-[10px] font-black uppercase text-gray-400 tracking-widest bg-gray-50 px-2 py-0.5 rounded-lg">
-                          {row?.timeSlot || '--:--'}
+                      <div className="text-[10px] font-black uppercase text-gray-400 tracking-widest bg-gray-50 px-2 py-0.5 rounded-lg">
+                          {row?.startTime && row?.endTime ? `${row.startTime}–${row.endTime}` : '--:--'}
                         </div>
                         {row?.branch && (
                           <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg"
@@ -227,26 +236,35 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
         {/* Sticky Footer Form */}
         <div className="p-8 bg-gray-50/80 border-t border-gray-100 backdrop-blur-sm">
           <form onSubmit={handleAddRow} className="flex flex-col gap-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="space-y-1">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="space-y-1 col-span-2 sm:col-span-1">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Room Name</label>
                 <input
                   type="text"
                   value={newRow.roomName}
                   onChange={(e) => setNewRow({ ...newRow, roomName: e.target.value })}
                   className="w-full px-6 py-3 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-4 ring-blue-50 text-sm font-bold shadow-sm transition-all"
-                  placeholder="e.g., Room A"
+                  placeholder="e.g., Sunny"
                   required
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Time Slot</label>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Giờ bắt đầu</label>
                 <input
-                  type="text"
-                  value={newRow.timeSlot}
-                  onChange={(e) => setNewRow({ ...newRow, timeSlot: e.target.value })}
-                  className="w-full px-6 py-3 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-4 ring-blue-50 text-sm font-bold shadow-sm transition-all"
-                  placeholder="e.g., 08:00 - 10:00"
+                  type="time"
+                  value={newRow.startTime}
+                  onChange={(e) => setNewRow({ ...newRow, startTime: e.target.value })}
+                  className="w-full px-4 py-3 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-4 ring-blue-50 text-sm font-bold shadow-sm transition-all"
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Giờ kết thúc</label>
+                <input
+                  type="time"
+                  value={newRow.endTime}
+                  onChange={(e) => setNewRow({ ...newRow, endTime: e.target.value })}
+                  className="w-full px-4 py-3 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-4 ring-blue-50 text-sm font-bold shadow-sm transition-all"
                   required
                 />
               </div>
@@ -258,8 +276,8 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
                   type="text"
                   value={newRow.branch}
                   onChange={(e) => setNewRow({ ...newRow, branch: e.target.value })}
-                  className="w-full px-6 py-3 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-4 ring-blue-50 text-sm font-bold shadow-sm transition-all"
-                  placeholder="e.g., Cơ sở 1, Quận 7..."
+                  className="w-full px-4 py-3 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-4 ring-blue-50 text-sm font-bold shadow-sm transition-all"
+                  placeholder="e.g., Cơ sở 1"
                 />
               </div>
             </div>
