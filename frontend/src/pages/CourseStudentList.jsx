@@ -142,7 +142,6 @@ const TransferModal = ({ student, currentCourse, onClose, onTransferred }) => {
       try {
         const res = await api.get('/courses');
         if (res.data.success) {
-          // Lọc bỏ khóa học hiện tại
           setCourses(res.data.data.filter(c => c._id !== currentCourse?._id));
         }
       } catch (err) {
@@ -316,8 +315,6 @@ const TransferBadge = ({ transferHistory, allCourses }) => {
     return found?.name || id?.toString?.()?.slice(-4)?.toUpperCase() || '—';
   };
 
-  const latest = transferHistory[transferHistory.length - 1];
-
   return (
     <div className="relative inline-block">
       <button
@@ -393,7 +390,6 @@ const AttendanceBadge = ({ status, onClick, disabled }) => {
       </button>
     );
   }
-  // Chưa điểm danh
   return (
     <button onClick={onClick}
       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-gray-100 text-gray-500 hover:bg-blue-50 hover:text-blue-600 transition-all active:scale-95 border border-dashed border-gray-300 select-none">
@@ -404,6 +400,7 @@ const AttendanceBadge = ({ status, onClick, disabled }) => {
 
 // ─────────────────────────────────────────────
 // 📝 Note Cell — inline edit ghi chú / link
+// Dùng endpoint /note riêng — cho phép cả admin và teacher
 // ─────────────────────────────────────────────
 const NoteCell = ({ studentId, initialNote, onSaved }) => {
   const [editing, setEditing]   = useState(false);
@@ -411,7 +408,13 @@ const NoteCell = ({ studentId, initialNote, onSaved }) => {
   const [saving, setSaving]     = useState(false);
   const inputRef                = useRef(null);
 
-  // Detect URL để render dạng link
+  // Sync khi note được poll từ bên ngoài cập nhật (chỉ khi không đang edit)
+  useEffect(() => {
+    if (!editing) {
+      setValue(initialNote || '');
+    }
+  }, [initialNote, editing]);
+
   const isUrl = (str) => {
     try { return Boolean(new URL(str)); } catch { return false; }
   };
@@ -421,8 +424,6 @@ const NoteCell = ({ studentId, initialNote, onSaved }) => {
   }, [editing]);
 
   const MAX_NOTE = 500;
-
-  // Strip tất cả thẻ HTML/script trước khi lưu
   const sanitize = (str) => str.replace(/<[^>]*>/gi, '');
 
   const handleSave = async () => {
@@ -433,12 +434,13 @@ const NoteCell = ({ studentId, initialNote, onSaved }) => {
     }
     setSaving(true);
     try {
-      await api.put(`/registrations/${studentId}`, { note: cleaned });
+      // ✅ Dùng endpoint /note riêng — hoạt động cho cả admin và teacher
+      await api.put(`/registrations/${studentId}/note`, { note: cleaned });
       onSaved(studentId, cleaned);
       setValue(cleaned);
       setEditing(false);
     } catch (err) {
-      showToast.error(err?.message || 'Lưu ghi chú thất bại');
+      showToast.error(err?.response?.data?.message || err?.message || 'Lưu ghi chú thất bại');
     } finally {
       setSaving(false);
     }
@@ -459,7 +461,7 @@ const NoteCell = ({ studentId, initialNote, onSaved }) => {
             ref={inputRef}
             value={value}
             onChange={e => {
-              const raw = e.target.value.replace(/<[^>]*>/gi, ''); // strip HTML ngay khi gõ
+              const raw = e.target.value.replace(/<[^>]*>/gi, '');
               setValue(raw);
             }}
             onKeyDown={handleKeyDown}
@@ -543,25 +545,29 @@ const CourseStudentList = () => {
 
     const [students, setStudents]               = useState([]);
     const [course, setCourse]                   = useState(null);
-    const [allCourses, setAllCourses]            = useState([]); // cho TransferBadge resolve tên
+    const [allCourses, setAllCourses]            = useState([]);
     const [loading, setLoading]                 = useState(true);
     const [search, setSearch]                   = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [filter, setFilter]                   = useState('all');
     const [showConfirm, setShowConfirm]         = useState(null);
     const [rankingStudent, setRankingStudent]   = useState(null);
-    const [transferStudent, setTransferStudent] = useState(null); // học viên đang chuyển lớp
+    const [transferStudent, setTransferStudent] = useState(null);
 
     // ── Column visibility (mobile) ───────────────────────────────────────
     const ALL_COLUMNS = isTeacher
-        ? ['age', 'parent', 'status']                  // teacher: ẩn SĐT hoàn toàn
-        : ['age', 'parent', 'phone', 'status'];        // admin: đủ cột
+        ? ['age', 'parent', 'status']
+        : ['age', 'parent', 'phone', 'status'];
     const COLUMN_LABELS = { age: 'Tuổi', parent: 'Phụ huynh', phone: 'SĐT', status: 'Trạng thái' };
-    // Mặc định ẩn tuổi + phụ huynh; teacher còn ẩn thêm phone
     const [hiddenColumns, setHiddenColumns] = useState(
         isTeacher ? new Set(['age', 'parent', 'phone']) : new Set(['age', 'parent'])
     );
     const [showColPicker, setShowColPicker] = useState(false);
+
+    // ── Track các note đang được edit (để không overwrite khi polling) ────
+    // Key = studentId, value = true khi NoteCell đang mở editing
+    // Dùng ref thay vì state để không gây re-render khi poll
+    const editingNoteIds = useRef(new Set());
 
     const toggleColumn = (col) => {
         setHiddenColumns(prev => {
@@ -572,7 +578,6 @@ const CourseStudentList = () => {
     };
     const isColVisible = (col) => !hiddenColumns.has(col);
 
-    // Đóng dropdown khi click ra ngoài
     useEffect(() => {
         if (!showColPicker) return;
         const handler = (e) => {
@@ -585,7 +590,7 @@ const CourseStudentList = () => {
     // ── Attendance state ─────────────────────────────────────────────────
     const todayStr = new Date().toISOString().split('T')[0];
     const [selectedDate, setSelectedDate]           = useState(todayStr);
-    const [attendanceMap, setAttendanceMap]          = useState({}); // { studentId: 'present'|'absent' }
+    const [attendanceMap, setAttendanceMap]          = useState({});
     const [attendanceLoading, setAttendanceLoading]  = useState(false);
     const [savingAttendance, setSavingAttendance]    = useState(false);
     const [attendanceDirty, setAttendanceDirty]      = useState(false);
@@ -603,9 +608,7 @@ const CourseStudentList = () => {
         if (isTeacher && courseId) fetchAttendance(selectedDate);
     }, [selectedDate, courseId, isTeacher]);
 
-    // ── Polling đồng bộ điểm danh mỗi 5s ───────────────────────────────────
-    // Tự động fetch lại để đồng bộ khi giáo viên phụ đã lưu điểm danh
-    // Không overwrite khi đang có thay đổi chưa lưu (attendanceDirty = true)
+    // ── Polling điểm danh mỗi 5s (chỉ teacher, không overwrite khi dirty) ──
     useEffect(() => {
         if (!isTeacher || !courseId) return;
 
@@ -623,7 +626,7 @@ const CourseStudentList = () => {
                     setAttendanceMap(map);
                 }
             } catch {
-                // poll thất bại thì im lặng, không hiện toast
+                // poll thất bại thì im lặng
             }
         };
 
@@ -631,7 +634,36 @@ const CourseStudentList = () => {
         return () => clearInterval(intervalId);
     }, [isTeacher, courseId, selectedDate, attendanceDirty]);
 
-    // Fetch danh sách tất cả courses để TransferBadge resolve tên (chỉ admin cần)
+    // ── Polling ghi chú mỗi 5s — đồng bộ note giữa admin và các giáo viên ──
+    // Không overwrite note của học sinh đang được edit
+    useEffect(() => {
+        if (!courseId) return;
+
+        const pollNotes = async () => {
+            try {
+                const res = await api.get(`/courses/${courseId}/students`);
+                if (!res.data.success) return;
+
+                const freshStudents = res.data.data;
+                setStudents(prev => prev.map(s => {
+                    // Bỏ qua học sinh đang được edit note
+                    if (editingNoteIds.current.has(s._id)) return s;
+
+                    const fresh = freshStudents.find(f => f._id === s._id);
+                    if (!fresh) return s;
+                    // Chỉ update nếu note thực sự thay đổi (tránh re-render thừa)
+                    if (fresh.note === s.note) return s;
+                    return { ...s, note: fresh.note };
+                }));
+            } catch {
+                // poll thất bại thì im lặng
+            }
+        };
+
+        const intervalId = setInterval(pollNotes, 5000);
+        return () => clearInterval(intervalId);
+    }, [courseId]);
+
     useEffect(() => {
         if (!isTeacher) {
             api.get('/courses').then(res => {
@@ -709,7 +741,6 @@ const CourseStudentList = () => {
         }
     };
 
-    // ── Xuất danh sách học sinh lớp này ra Excel ─────────────────────────
     const handleExportStudents = async () => {
         if (exportingStudents) return;
         setExportingStudents(true);
@@ -765,7 +796,6 @@ const CourseStudentList = () => {
         }
     };
 
-    // Callback khi chuyển lớp thành công — xóa học viên khỏi danh sách lớp hiện tại
     const handleTransferred = useCallback((studentId, toCourseId, responseData) => {
         setStudents(prev => prev.filter(s => s._id !== studentId));
     }, []);
@@ -773,6 +803,15 @@ const CourseStudentList = () => {
     // Callback cập nhật note local sau khi lưu thành công
     const handleNoteSaved = useCallback((studentId, newNote) => {
         setStudents(prev => prev.map(s => s._id === studentId ? { ...s, note: newNote } : s));
+    }, []);
+
+    // Callback để NoteCell báo trạng thái đang edit — ngăn polling overwrite
+    const handleNoteEditingChange = useCallback((studentId, isEditing) => {
+        if (isEditing) {
+            editingNoteIds.current.add(studentId);
+        } else {
+            editingNoteIds.current.delete(studentId);
+        }
     }, []);
 
     const filteredStudents = useMemo(() => students.filter(s => {
@@ -815,7 +854,6 @@ const CourseStudentList = () => {
                         <GraduationCap size={13} /> Chế độ giáo viên
                     </span>
                 )}
-                {/* Nút xuất danh sách học sinh — chỉ admin */}
                 {!isTeacher && (
                     <button
                         onClick={handleExportStudents}
@@ -845,7 +883,6 @@ const CourseStudentList = () => {
                             className="border-2 border-gray-200 rounded-xl px-3 py-2 text-sm font-medium outline-none focus:border-blue-400 transition-colors shrink-0" />
                     </div>
 
-                    {/* Thống kê nhanh */}
                     {!attendanceLoading && (
                         <div className="flex gap-2 flex-wrap">
                             <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full text-xs font-black text-emerald-700">
@@ -862,7 +899,6 @@ const CourseStudentList = () => {
                         </div>
                     )}
 
-                    {/* Actions */}
                     <div className="flex gap-2 flex-wrap items-center">
                         <button onClick={markAllPresent}
                             className="text-xs font-bold px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-all active:scale-95 flex items-center gap-1.5">
@@ -911,7 +947,6 @@ const CourseStudentList = () => {
                             );
                         })}
 
-                        {/* ── Nút ẩn/hiện cột (mobile) ── */}
                         <div className="relative ml-auto" data-col-picker>
                             <button
                                 onClick={() => setShowColPicker(v => !v)}
@@ -1006,7 +1041,6 @@ const CourseStudentList = () => {
                                         <td className="py-5 px-4">
                                             <div className="flex flex-col gap-1">
                                                 <span className="font-bold text-gray-800">{s.childName}</span>
-                                                {/* Badge hiện khi học viên có lịch sử chuyển lớp */}
                                                 <TransferBadge
                                                     transferHistory={s.transferHistory}
                                                     allCourses={allCourses}
@@ -1042,6 +1076,7 @@ const CourseStudentList = () => {
                                                         studentId={s._id}
                                                         initialNote={s.note}
                                                         onSaved={handleNoteSaved}
+                                                        onEditingChange={handleNoteEditingChange}
                                                     />
                                                 </td>
                                             </>
@@ -1062,11 +1097,11 @@ const CourseStudentList = () => {
                                                         studentId={s._id}
                                                         initialNote={s.note}
                                                         onSaved={handleNoteSaved}
+                                                        onEditingChange={handleNoteEditingChange}
                                                     />
                                                 </td>
                                                 <td className="py-5 px-4">
                                                     <div className="flex justify-center items-center gap-1.5">
-                                                        {/* Nút chuyển lớp 🔄 */}
                                                         <motion.button
                                                             disabled={!s.isActive}
                                                             onClick={() => s.isActive && setTransferStudent(s)}
@@ -1081,7 +1116,6 @@ const CourseStudentList = () => {
                                                             title="Chuyển lớp">
                                                             <ArrowRightLeft size={16} />
                                                         </motion.button>
-                                                        {/* Nút cho nghỉ ❌ */}
                                                         <button
                                                             disabled={!s.isActive}
                                                             onClick={() => setShowConfirm(s)}

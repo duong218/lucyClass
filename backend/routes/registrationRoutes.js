@@ -21,4 +21,8 @@ router.put('/:id', auth, isAdmin, catchAsync(registrationController.update));
 router.put('/:id/remove', auth, isAdmin, catchAsync(registrationController.removeStudent));
 router.delete('/:id', auth, isAdmin, catchAsync(registrationController.remove));
 
+// ✅ Route ghi chú: cho phép cả admin và teacher truy cập
+// Teacher chỉ được sửa note học sinh thuộc lớp mình phụ trách (kiểm tra trong controller)
+router.put('/:id/note', auth, catchAsync(registrationController.updateNote));
+
 module.exports = router;

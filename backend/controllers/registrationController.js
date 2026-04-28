@@ -657,3 +657,63 @@ exports.transferStudent = async (req, res, next) => {
     session.endSession();
   }
 };
+
+// PUT /api/registrations/:id/note
+// Cho phép cả admin và teacher chỉnh sửa ghi chú học sinh.
+// Teacher chỉ được sửa note của học sinh thuộc lớp mình phụ trách.
+//
+exports.updateNote = async (req, res, next) => {
+  try {
+    const { note } = req.body;
+ 
+    // Validate note
+    if (note === undefined) {
+      return res.status(400).json({ success: false, message: 'Thiếu trường note' });
+    }
+    if (typeof note !== 'string') {
+      return res.status(400).json({ success: false, message: 'note phải là chuỗi' });
+    }
+ 
+    const MAX_NOTE = 500;
+    const cleaned = cleanInput(note.trim());
+    if (cleaned.length > MAX_NOTE) {
+      return res.status(400).json({ success: false, message: `Ghi chú tối đa ${MAX_NOTE} ký tự` });
+    }
+ 
+    // Tải registration
+    const reg = await Registration.findById(req.params.id).populate('courseId', 'name teacherId');
+    if (!reg) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy học viên' });
+    }
+ 
+    // Kiểm tra quyền: admin qua isAdmin middleware, teacher kiểm tra courseId
+    const isAdmin = req.user?.role === 'admin';
+    const isTeacher = req.user?.role === 'teacher';
+ 
+    if (!isAdmin && !isTeacher) {
+      return res.status(403).json({ success: false, message: 'Không có quyền truy cập' });
+    }
+ 
+    if (isTeacher) {
+      // Dùng lại checkCourseAccess để kiểm tra teacher có phụ trách lớp này không
+      const access = await checkCourseAccess(reg.courseId._id || reg.courseId, req);
+      if (access === null) {
+        return res.status(404).json({ success: false, message: 'Khóa học không tồn tại' });
+      }
+      if (access === false) {
+        return res.status(403).json({ success: false, message: 'Bạn không phụ trách lớp học này' });
+      }
+    }
+ 
+    reg.note = cleaned;
+    await reg.save();
+ 
+    return res.json({
+      success: true,
+      message: 'Cập nhật ghi chú thành công',
+      data: { _id: reg._id, note: reg.note }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
