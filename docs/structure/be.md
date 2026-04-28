@@ -112,13 +112,15 @@ backend/
 - Đăng nhập, đăng xuất, refresh token, quên mật khẩu, đặt lại mật khẩu, lấy user hiện tại, kiểm tra xung đột session.
 
 ### `courseRoutes.js`
-- CRUD khóa học, dữ liệu điểm danh theo khóa, danh sách học sinh theo lớp, chuyển lớp.
+- CRUD khóa học, gán giáo viên chính/phụ, dữ liệu điểm danh theo khóa, export attendance, danh sách học sinh theo lớp và chuyển lớp.
 
 ### `teacherRoutes.js`
 - Public read cho website và admin CRUD cho giáo viên.
 
 ### `registrationRoutes.js`
 - Quản lý đăng ký học, export Excel, cập nhật trạng thái, xóa hoặc chuyển đổi dữ liệu học viên.
+- Được mount ở cả `/api/registrations` và `/api/students`.
+- Có thêm route cập nhật `note` cho học sinh, cho phép `admin` và `teacher` thao tác trong phạm vi controller kiểm tra quyền.
 
 ### `feedbackRoutes.js`
 - Public read và admin CRUD cho phản hồi.
@@ -158,6 +160,7 @@ backend/
 
 ### `attendanceRoutes.js`
 - Chấm công staff, lịch sử chấm công, chỉnh sửa và export.
+- Được mount ở cả `/api/attendance` và `/api/staff-attendance`.
 
 ## Điều phối nghiệp vụ `controllers/`
 
@@ -170,8 +173,8 @@ backend/
 - `statsController.js`: widget và dữ liệu dashboard admin.
 
 ### Nhóm học vụ
-- `courseController.js`: khóa học, điểm danh, phân quyền teacher theo lớp, export attendance.
-- `registrationController.js`: tạo và quản lý đơn đăng ký, chống trùng, đồng bộ dữ liệu học viên.
+- `courseController.js`: khóa học, gán giáo viên chính/phụ, điểm danh, phân quyền teacher theo lớp, export attendance.
+- `registrationController.js`: tạo và quản lý đơn đăng ký, chống trùng, đồng bộ dữ liệu học viên, export Excel, cập nhật ghi chú học sinh.
 - `teacherController.js`: CRUD giáo viên, avatar Cloudinary, liên kết `StaffAccount`.
 - `timetableController.js`: lưới thời khóa biểu theo tuần.
 
@@ -194,6 +197,7 @@ backend/
 - `rateLimiter.js`: bộ limiter cho API chung, login, đăng ký, thống kê, forgot/reset password, streak, backup/restore.
 - `checkBlockedIP.js`: chặn IP bị khóa trước khi cho login.
 - `phoneLimiter.js`: chống spam theo phone/IP cho streak.
+- `streakAuth.js`: xác thực JWT riêng cho một số luồng streak cần token độc lập với auth staff/admin.
 - `userIdentifier.js`: nhận diện user hiện tại để hỗ trợ limiter và logging.
 - `upload.js`: upload ảnh qua `multer`, kiểm tra extension, MIME, magic number, kích thước, pixel và re-encode ảnh.
 - `cacheMiddleware.js`: cache GET response bằng Redis và hỗ trợ xóa cache theo prefix.
@@ -231,6 +235,14 @@ backend/
 ### `deepCleanService.js`
 - Các tác vụ dọn dữ liệu sâu, xử lý ranking orphan và nghiệp vụ dọn dẹp định kỳ.
 
+## Validators `validators/`
+
+### `registrationValidator.js`
+- Bộ rule `express-validator` cho dữ liệu đăng ký học khi cần tách validate theo schema.
+
+### `streakValidator.js`
+- Bộ rule validate cho luồng streak như đăng ký tham gia, check-in và revive theo số điện thoại.
+
 ## Tiện ích `utils/`
 - `catchAsync.js`: wrapper cho controller async.
 - `cloudinary.js`: upload/xóa ảnh trên Cloudinary.
@@ -240,10 +252,13 @@ backend/
 - `logger.js`, `systemLogger.js`: logging nghiệp vụ và hệ thống.
 - `normalizePhone.js`, `sanitize.js`: chuẩn hóa dữ liệu đầu vào.
 - `scheduledTasks.js`: các tác vụ nền phụ trợ ngoài cron.
+- `test-encryption.js`: file hỗ trợ kiểm tra luồng mã hóa/giải mã backup khi cần debug nội bộ.
 
 ## Script và file gốc
+- `.dockerignore`: loại trừ file không cần thiết khi build image backend.
 - `googleSheets.js`: ghi dữ liệu đăng ký sang Google Sheets.
 - `migrate-childAge.js`: script migrate trường `childAge`.
+- `scripts/backup.js`: script backup MongoDB thủ công bằng `mongodump`.
 - `scripts/cleanRestoreTmp.js`: dọn artifact restore tạm.
 - `Dockerfile`: build image backend.
 - `nodemon.json`: cấu hình chạy dev.

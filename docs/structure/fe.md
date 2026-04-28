@@ -6,7 +6,7 @@
 - Không liệt kê chi tiết toàn bộ asset tĩnh nhỏ lẻ hoặc `node_modules`.
 
 ## Tổng quan
-- Stack chính: `React 18`, `Vite`, `React Router`, `Tailwind CSS`, `Axios`, `react-toastify`, `framer-motion`, `chart.js`.
+- Stack chính: `React 18`, `Vite`, `React Router`, `Tailwind CSS`, `Axios`, `react-toastify`, `framer-motion`, `chart.js`, `ExcelJS`, `file-saver`.
 - Entry point: `frontend/src/main.jsx`.
 - Frontend là một codebase dùng chung cho:
   - website public,
@@ -174,7 +174,7 @@ frontend/
 - `FeedbackManagement.jsx`: quản lý phản hồi public.
 - `Statistics.jsx`: thống kê chi tiết.
 - `StudentManagement.jsx`: quản lý học viên/dữ liệu học.
-- `CourseStudentList.jsx`: danh sách học sinh theo khóa.
+- `CourseStudentList.jsx`: danh sách học sinh theo khóa, dùng chung cho admin và teacher, có export Excel và cập nhật ghi chú học sinh.
 - `AnnouncementManagement.jsx`: quản lý và duyệt thông báo.
 - `TimetableEditor.jsx`: chỉnh sửa thời khóa biểu.
 - `AccountManagement.jsx`: quản lý tài khoản staff.
@@ -261,6 +261,7 @@ frontend/
 - `getImageUrl.js`: chuẩn hóa URL ảnh.
 - `dateUtils.js`: format ngày giờ và thời gian tương đối.
 - `draggableStreak.js`: logic tương tác cho UI streak.
+- `exportStudentExcel.js`: helper xuất Excel danh sách học sinh theo từng lớp hoặc toàn bộ khóa học.
 - `modalScrollLock.js`: hỗ trợ khóa scroll nền.
 - `popupActivityData.js`: dữ liệu cấu hình cho popup hoạt động.
 - `toastUtils.jsx`: helper toast dùng chung.
@@ -310,7 +311,7 @@ frontend/
 
 ### Khu vực teacher/marketing
 - Dùng chung `StaffLayout`.
-- Teacher có dashboard và truy cập danh sách học sinh theo lớp phụ trách.
+- Teacher có dashboard và truy cập danh sách học sinh theo lớp phụ trách bằng chính page `CourseStudentList`.
 - Marketing có dashboard và trang tạo thông báo chờ duyệt.
 
 ### Attendance staff
