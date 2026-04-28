@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
-import { Search, BookOpen, AlertTriangle, Ban, ArrowRight, Users } from 'lucide-react';
+import { showToast } from '../utils/toastUtils';
+import { exportAllStudentsExcel } from '../utils/exportStudentExcel';
+import { Search, BookOpen, AlertTriangle, Ban, ArrowRight, Users, FileSpreadsheet, Loader2 } from 'lucide-react';
 
 const StudentManagement = () => {
     const { t } = useTranslation();
@@ -10,6 +12,7 @@ const StudentManagement = () => {
     const [courses, setCourses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
+    const [exporting, setExporting] = useState(false);
 
     useEffect(() => {
         fetchCourses();
@@ -29,6 +32,37 @@ const StudentManagement = () => {
         }
     };
 
+    // ── Xuất Excel tất cả khóa học ─────────────────────────────────────────
+    const handleExportAll = async () => {
+        if (exporting) return;
+        setExporting(true);
+        showToast.info('Đang tải dữ liệu, vui lòng chờ...');
+        try {
+            // Lấy danh sách học sinh cho từng khóa học song song
+            const coursesWithStudents = await Promise.all(
+                courses.map(async (course) => {
+                    try {
+                        const res = await api.get(`/courses/${course._id}/students`);
+                        return {
+                            ...course,
+                            students: res.data.success ? res.data.data : [],
+                        };
+                    } catch {
+                        return { ...course, students: [] };
+                    }
+                })
+            );
+
+            await exportAllStudentsExcel(coursesWithStudents);
+            showToast.success(`Xuất Excel thành công! ${courses.length} lớp học 🎉`);
+        } catch (err) {
+            console.error('Export error:', err);
+            showToast.error('Xuất file thất bại, vui lòng thử lại');
+        } finally {
+            setExporting(false);
+        }
+    };
+
     const getStatusColor = (current, max) => {
         const percent = (current / max) * 100;
         if (percent >= 100) return 'bg-gradient-to-r from-rose-500 to-pink-600 shadow-sm shadow-rose-200 text-white border-0';
@@ -43,7 +77,7 @@ const StudentManagement = () => {
         return t('admin.courseStatus.available');
     };
 
-    const filteredCourses = courses.filter(course => 
+    const filteredCourses = courses.filter(course =>
         course.name.toLowerCase().includes(search.toLowerCase())
     );
 
@@ -63,18 +97,41 @@ const StudentManagement = () => {
                     </h1>
                     <div className="h-1.5 w-20 bg-gradient-to-r from-[#1C695C] to-[#3FA48F] rounded-full"></div>
                 </div>
-                
-                <div className="relative w-full md:w-80 group">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#1C695C] transition-colors">
-                        <Search size={16} />
-                    </span>
-                    <input 
-                        type="text" 
-                        placeholder={t('admin.search')}
-                        className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-400 focus:bg-white outline-none transition-all shadow-sm font-medium"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />
+
+                {/* Search + nút xuất Excel */}
+                <div className="flex items-center gap-3 w-full md:w-auto">
+                    <div className="relative flex-1 md:w-80 group">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#1C695C] transition-colors">
+                            <Search size={16} />
+                        </span>
+                        <input
+                            type="text"
+                            placeholder={t('admin.search')}
+                            className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-400 focus:bg-white outline-none transition-all shadow-sm font-medium"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                        />
+                    </div>
+
+                    {/* ── Nút xuất tất cả Excel ── */}
+                    <button
+                        onClick={handleExportAll}
+                        disabled={exporting || courses.length === 0}
+                        title="Xuất Excel toàn bộ học sinh tất cả lớp"
+                        className="shrink-0 flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-[#1C695C] to-[#3FA48F] hover:from-[#134d44] hover:to-[#1C695C] disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-2xl font-black text-sm shadow-lg shadow-[#1C695C]/20 hover:scale-[1.03] active:scale-95 transition-all duration-300"
+                    >
+                        {exporting ? (
+                            <>
+                                <Loader2 size={15} className="animate-spin" />
+                                <span className="hidden sm:inline">Đang xuất...</span>
+                            </>
+                        ) : (
+                            <>
+                                <FileSpreadsheet size={15} />
+                                <span className="hidden sm:inline">Xuất tất cả</span>
+                            </>
+                        )}
+                    </button>
                 </div>
             </div>
 
@@ -89,10 +146,10 @@ const StudentManagement = () => {
                     {filteredCourses.map(course => {
                         const percent = Math.min(100, Math.round((course.activeStudentCount / course.classSize) * 100));
                         const statusStyles = getStatusColor(course.activeStudentCount, course.classSize);
-                        
+
                         return (
-                            <div 
-                                key={course._id} 
+                            <div
+                                key={course._id}
                                 className="bg-gradient-to-br from-white to-blue-50/40 rounded-[2rem] p-8 shadow-sm border border-slate-100 hover:shadow-2xl hover:shadow-blue-200/50 hover:border-blue-200 hover:-translate-y-2 transition-all duration-500 group relative overflow-hidden"
                             >
                                 {/* Decorative background accent */}
@@ -110,7 +167,7 @@ const StudentManagement = () => {
                                 <h3 className="text-xl font-extrabold text-slate-800 mb-4 truncate group-hover:text-blue-600 transition-colors tracking-tight leading-none uppercase">
                                     {course.name}
                                 </h3>
-                                
+
                                 <div className="space-y-6 relative z-10">
                                     <div className="flex justify-between items-end mb-1">
                                         <div className="flex flex-col">
@@ -126,19 +183,18 @@ const StudentManagement = () => {
                                             </span>
                                         </div>
                                     </div>
-                                    
+
                                     <div className="w-full bg-slate-100/80 h-3.5 rounded-full overflow-hidden shadow-inner p-0.5 border border-slate-100">
-                                        <div 
+                                        <div
                                             className={`h-full rounded-full transition-all duration-1000 cubic-bezier(0.4, 0, 0.2, 1) relative ${
-                                                percent >= 100 
-                                                    ? 'bg-gradient-to-r from-rose-500 to-pink-500 shadow-[0_0_12px_rgba(244,63,94,0.4)]' 
-                                                    : percent >= 80 
-                                                        ? 'bg-gradient-to-r from-amber-400 to-orange-500 shadow-[0_0_12px_rgba(251,191,36,0.3)]' 
+                                                percent >= 100
+                                                    ? 'bg-gradient-to-r from-rose-500 to-pink-500 shadow-[0_0_12px_rgba(244,63,94,0.4)]'
+                                                    : percent >= 80
+                                                        ? 'bg-gradient-to-r from-amber-400 to-orange-500 shadow-[0_0_12px_rgba(251,191,36,0.3)]'
                                                         : 'bg-gradient-to-r from-blue-400 to-indigo-600 shadow-[0_0_12px_rgba(59,130,246,0.3)]'
                                             }`}
                                             style={{ width: `${percent}%` }}
                                         >
-                                            {/* Shine effect */}
                                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent w-full h-full -skew-x-12 translate-x-[-100%] animate-[shimmer_2s_infinite]"></div>
                                         </div>
                                     </div>
@@ -156,11 +212,11 @@ const StudentManagement = () => {
                                         )}
                                     </div>
 
-                                    <button 
+                                    <button
                                         onClick={() => navigate(`/admin/students/course/${course._id}`)}
                                         className="w-full mt-4 py-3.5 bg-gradient-to-r from-[#1C695C] to-[#3FA48F] text-white rounded-full font-black text-sm uppercase tracking-widest hover:from-[#134d44] hover:to-[#1C695C] transition-all duration-300 flex items-center justify-center gap-3 shadow-lg shadow-[#1C695C]/20 hover:scale-[1.03] active:scale-95"
                                     >
-                                        <Users size={14} /> {t('admin.viewStudents')} 
+                                        <Users size={14} /> {t('admin.viewStudents')}
                                         <ArrowRight size={14} className="group-hover:translate-x-1.5 transition-transform duration-300" />
                                     </button>
                                 </div>

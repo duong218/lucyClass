@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { showToast } from '../utils/toastUtils';
+import { exportSingleCourseExcel } from '../utils/exportStudentExcel';
 import ConfirmModal from '../components/common/ConfirmModal';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
@@ -589,6 +590,7 @@ const CourseStudentList = () => {
     const [savingAttendance, setSavingAttendance]    = useState(false);
     const [attendanceDirty, setAttendanceDirty]      = useState(false);
     const [exportingExcel, setExportingExcel]         = useState(false);
+    const [exportingStudents, setExportingStudents]   = useState(false);
 
     useEffect(() => {
         const timer = setTimeout(() => setDebouncedSearch(search), 300);
@@ -707,6 +709,22 @@ const CourseStudentList = () => {
         }
     };
 
+    // ── Xuất danh sách học sinh lớp này ra Excel ─────────────────────────
+    const handleExportStudents = async () => {
+        if (exportingStudents) return;
+        setExportingStudents(true);
+        showToast.info('Đang chuẩn bị file Excel...');
+        try {
+            await exportSingleCourseExcel({ ...course, students });
+            showToast.success(`Xuất Excel lớp "${course?.name}" thành công! 🎉`);
+        } catch (err) {
+            console.error('Export error:', err);
+            showToast.error('Xuất file thất bại, vui lòng thử lại');
+        } finally {
+            setExportingStudents(false);
+        }
+    };
+
     const markAllPresent = () => {
         const map = {};
         students.filter(s => s.isActive).forEach(s => { map[s._id] = 'present'; });
@@ -796,6 +814,21 @@ const CourseStudentList = () => {
                     <span className="shrink-0 text-xs font-bold bg-[#1C695C]/10 text-[#1C695C] px-3 py-1.5 rounded-full flex items-center gap-1.5">
                         <GraduationCap size={13} /> Chế độ giáo viên
                     </span>
+                )}
+                {/* Nút xuất danh sách học sinh — chỉ admin */}
+                {!isTeacher && (
+                    <button
+                        onClick={handleExportStudents}
+                        disabled={exportingStudents || students.length === 0}
+                        title="Xuất danh sách học sinh lớp này ra Excel"
+                        className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#1C695C] to-[#3FA48F] hover:from-[#134d44] hover:to-[#1C695C] disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-2xl font-black text-sm shadow-lg shadow-[#1C695C]/20 hover:scale-[1.02] active:scale-95 transition-all duration-300"
+                    >
+                        {exportingStudents ? (
+                            <><Loader2 size={14} className="animate-spin" /><span className="hidden sm:inline">Đang xuất...</span></>
+                        ) : (
+                            <><Download size={14} /><span className="hidden sm:inline">Xuất Excel</span></>
+                        )}
+                    </button>
                 )}
             </div>
 
@@ -945,7 +978,10 @@ const CourseStudentList = () => {
                                 {isColVisible('phone') && <th className="pb-4 px-4">{t('admin.phone')}</th>}
                                 {isColVisible('status') && <th className="pb-4 px-4">{t('admin.status')}</th>}
                                 {isTeacher ? (
-                                    <th className="pb-4 px-4 text-center">Điểm danh</th>
+                                    <>
+                                        <th className="pb-4 px-4 text-center">Điểm danh</th>
+                                        <th className="pb-4 px-4">Ghi chú</th>
+                                    </>
                                 ) : (
                                     <>
                                         <th className="pb-4 px-4 text-center">{t('ranking.column')}</th>
@@ -991,15 +1027,24 @@ const CourseStudentList = () => {
                                         )}
 
                                         {isTeacher ? (
-                                            <td className="py-5 px-4">
-                                                <div className="flex justify-center">
-                                                    <AttendanceBadge
-                                                        status={s.isActive ? attendanceMap[s._id] : null}
-                                                        disabled={!s.isActive}
-                                                        onClick={() => s.isActive && toggleAttendance(s._id)}
+                                            <>
+                                                <td className="py-5 px-4">
+                                                    <div className="flex justify-center">
+                                                        <AttendanceBadge
+                                                            status={s.isActive ? attendanceMap[s._id] : null}
+                                                            disabled={!s.isActive}
+                                                            onClick={() => s.isActive && toggleAttendance(s._id)}
+                                                        />
+                                                    </div>
+                                                </td>
+                                                <td className="py-5 px-4">
+                                                    <NoteCell
+                                                        studentId={s._id}
+                                                        initialNote={s.note}
+                                                        onSaved={handleNoteSaved}
                                                     />
-                                                </div>
-                                            </td>
+                                                </td>
+                                            </>
                                         ) : (
                                             <>
                                                 <td className="py-5 px-4">
