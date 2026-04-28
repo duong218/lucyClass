@@ -746,7 +746,12 @@ const CourseStudentList = () => {
         setExportingStudents(true);
         showToast.info('Đang chuẩn bị file Excel...');
         try {
-            await exportSingleCourseExcel({ ...course, students });
+            // Teacher: ẩn số điện thoại phụ huynh trước khi xuất
+            const exportStudents = isTeacher
+                ? students.map(s => ({ ...s, phone: '***' }))
+                : students;
+
+            await exportSingleCourseExcel({ ...course, students: exportStudents });
             showToast.success(`Xuất Excel lớp "${course?.name}" thành công! 🎉`);
         } catch (err) {
             console.error('Export error:', err);
@@ -854,20 +859,18 @@ const CourseStudentList = () => {
                         <GraduationCap size={13} /> Chế độ giáo viên
                     </span>
                 )}
-                {!isTeacher && (
-                    <button
-                        onClick={handleExportStudents}
-                        disabled={exportingStudents || students.length === 0}
-                        title="Xuất danh sách học sinh lớp này ra Excel"
-                        className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#1C695C] to-[#3FA48F] hover:from-[#134d44] hover:to-[#1C695C] disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-2xl font-black text-sm shadow-lg shadow-[#1C695C]/20 hover:scale-[1.02] active:scale-95 transition-all duration-300"
-                    >
-                        {exportingStudents ? (
-                            <><Loader2 size={14} className="animate-spin" /><span className="hidden sm:inline">Đang xuất...</span></>
-                        ) : (
-                            <><Download size={14} /><span className="hidden sm:inline">Xuất Excel</span></>
-                        )}
-                    </button>
-                )}
+                <button
+                    onClick={handleExportStudents}
+                    disabled={exportingStudents || students.length === 0}
+                    title="Xuất danh sách học sinh lớp này ra Excel"
+                    className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#1C695C] to-[#3FA48F] hover:from-[#134d44] hover:to-[#1C695C] disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-2xl font-black text-sm shadow-lg shadow-[#1C695C]/20 hover:scale-[1.02] active:scale-95 transition-all duration-300"
+                >
+                    {exportingStudents ? (
+                        <><Loader2 size={14} className="animate-spin" /><span className="hidden sm:inline">Đang xuất...</span></>
+                    ) : (
+                        <><Download size={14} /><span className="hidden sm:inline">Xuất Excel</span></>
+                    )}
+                </button>
             </div>
 
             {/* ── Panel điểm danh (chỉ teacher) ── */}

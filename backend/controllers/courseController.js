@@ -459,12 +459,12 @@ exports.exportAttendanceExcel = async (req, res, next) => {
     const course = await Course.findOne({ _id: id, isDeleted: { $ne: true } }).lean();
     if (!course) return res.status(404).json({ success: false, message: 'Course not found' });
 
-    // 2. Lấy danh sách học sinh đang active của lớp
+    // 2. Lấy danh sách học sinh đang active của lớp (bao gồm note)
     const registrations = await Registration.find({
       courseId: id,
       status: 'registered',
       isActive: true
-    }).lean();
+    }).select('childName childAge parentName phone note').lean();
 
     // 3. Lấy bản ghi điểm danh theo ngày
     const targetDate = date ? new Date(date) : new Date();
@@ -492,15 +492,19 @@ exports.exportAttendanceExcel = async (req, res, next) => {
     const ABSENT_BG   = 'FEE2E2'; // đỏ nhạt
     const PENDING_BG  = 'F3F4F6'; // xám nhạt
 
-    // ── Tiêu đề file (merge 6 cột) ──────────────────────────────────────────
-    worksheet.mergeCells('A1:F1');
+    // Kiểm tra role: teacher thì ẩn SĐT
+    const isTeacher = req.user?.role === 'teacher';
+    const TOTAL_COLS = 7; // STT, Tên, Tuổi, Phụ huynh, SĐT (ẩn với teacher), Ghi chú, Trạng thái
+
+    // ── Tiêu đề file (merge 7 cột) ──────────────────────────────────────────
+    worksheet.mergeCells('A1:G1');
     const titleCell = worksheet.getCell('A1');
     titleCell.value         = `BẢNG ĐIỂM DANH — ${course.name.toUpperCase()}`;
     titleCell.font          = { bold: true, size: 14, color: { argb: '1D4ED8' } };
     titleCell.alignment     = { horizontal: 'center', vertical: 'middle' };
     worksheet.getRow(1).height = 30;
 
-    worksheet.mergeCells('A2:F2');
+    worksheet.mergeCells('A2:G2');
     const subCell = worksheet.getCell('A2');
     subCell.value       = `Ngày: ${dateStr}   |   Sĩ số: ${registrations.length} học sinh`;
     subCell.font        = { size: 11, italic: true, color: { argb: '6B7280' } };
@@ -516,7 +520,8 @@ exports.exportAttendanceExcel = async (req, res, next) => {
       'Họ và tên học sinh',
       'Tuổi',
       'Tên phụ huynh',
-      'Số điện thoại',
+      isTeacher ? '—' : 'Số điện thoại',
+      'Ghi chú',
       'Trạng thái điểm danh'
     ]);
     headerRow.height = 28;
@@ -547,7 +552,8 @@ exports.exportAttendanceExcel = async (req, res, next) => {
         reg.childName  || '',
         reg.childAge   || '',
         reg.parentName || '',
-        reg.phone      || '',
+        isTeacher ? '***' : (reg.phone || ''),
+        reg.note       || '',
         statusLabel
       ]);
 
@@ -556,7 +562,8 @@ exports.exportAttendanceExcel = async (req, res, next) => {
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBg } };
         cell.alignment = {
           horizontal: colNumber === 1 || colNumber === 3 ? 'center' : 'left',
-          vertical: 'middle'
+          vertical: 'middle',
+          wrapText: colNumber === 6, // wrap cột ghi chú
         };
         cell.border = {
           top:    { style: 'thin', color: { argb: 'D1D5DB' } },
@@ -567,7 +574,7 @@ exports.exportAttendanceExcel = async (req, res, next) => {
         // In đậm cột tên học sinh
         if (colNumber === 2) cell.font = { bold: true };
         // Màu chữ cột trạng thái
-        if (colNumber === 6) {
+        if (colNumber === 7) {
           cell.font = {
             bold: true,
             color: {
@@ -590,6 +597,7 @@ exports.exportAttendanceExcel = async (req, res, next) => {
       `Có mặt: ${presentCount}`,
       `Vắng: ${absentCount}`,
       `Chưa điểm danh: ${pendingCount}`,
+      '',
       `Tổng: ${registrations.length}`
     ]);
     summaryRow.height = 24;
@@ -609,8 +617,9 @@ exports.exportAttendanceExcel = async (req, res, next) => {
     worksheet.getColumn(2).width = 25;  // Tên học sinh
     worksheet.getColumn(3).width = 8;   // Tuổi
     worksheet.getColumn(4).width = 22;  // Tên phụ huynh
-    worksheet.getColumn(5).width = 16;  // SĐT
-    worksheet.getColumn(6).width = 20;  // Trạng thái
+    worksheet.getColumn(5).width = 16;  // SĐT (hoặc ẩn với teacher)
+    worksheet.getColumn(6).width = 30;  // Ghi chú
+    worksheet.getColumn(7).width = 20;  // Trạng thái
 
     // ── Gửi file ─────────────────────────────────────────────────────────────
     const safeName = course.name.replace(/[^a-zA-Z0-9_\-]/g, '_');
