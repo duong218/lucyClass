@@ -36,7 +36,7 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
       onRowsUpdated?.();
     } catch (err) {
       console.error('[RowManager] Reorder sync failed:', err);
-      showToast.error('Vui lòng thử lại sau 😢');
+      showToast.error('Vui lòng thử lại sau');
     }
   };
 
@@ -54,7 +54,7 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
       setNewRow({ roomName: '', startTime: '', endTime: '', branch: '', order: items.length + 2 });
       onRowsUpdated?.();
     } catch (err) {
-      const msg = err?.response?.data?.message || 'Không thể thêm phòng 😢';
+      const msg = err?.response?.data?.message || 'Không thể thêm phòng';
       showToast.error(msg);
     } finally {
       setIsLoading(false);
@@ -77,7 +77,7 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
       setEditingRow(null);
       onRowsUpdated?.();
     } catch (err) {
-      const msg = err?.response?.data?.message || 'Cập nhật thất bại 😢';
+      const msg = err?.response?.data?.message || 'Cập nhật thất bại';
       showToast.error(msg);
     } finally {
       setIsLoading(false);
@@ -93,10 +93,10 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
     setIsLoading(true);
     try {
       await timetableService.deleteRow(confirmModal.id);
-      showToast.success('Xoá thành công! 🌪️');
+      showToast.success('Xoá thành công!');
       onRowsUpdated?.();
     } catch (err) {
-      showToast.error('Xoá thất bại 😢');
+      showToast.error('Xoá thất bại');
     } finally {
       setIsLoading(false);
       setConfirmModal({ isOpen: false, id: null });
@@ -122,8 +122,8 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
         {/* Header */}
         <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
           <div>
-            <h2 className="text-3xl font-black text-gray-800 uppercase tracking-tight">Manage Rows</h2>
-            <p className="text-xs font-bold text-gray-400 mt-1 uppercase tracking-widest">Rooms & Time Slots</p>
+            <h2 className="text-3xl font-black text-gray-800 uppercase tracking-tight">Quản lý thời khóa biểu</h2>
+            <p className="text-xs font-bold text-gray-400 mt-1 uppercase tracking-widest">Phòng và Khung giờ</p>
           </div>
           <button onClick={onClose} className="p-3 hover:bg-gray-200 rounded-full transition-colors text-gray-400">
             <HiX className="text-2xl" />
@@ -228,7 +228,7 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
               <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 2 }}>
                 <HiDotsVertical className="text-4xl" />
               </motion.div>
-              <p className="text-xs font-black uppercase tracking-widest">No rows to display</p>
+              <p className="text-xs font-black uppercase tracking-widest">Chưa tạo bất kì thời khóa biểu </p>
             </div>
           )}
         </div>
@@ -238,7 +238,7 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
           <form onSubmit={handleAddRow} className="flex flex-col gap-4">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="space-y-1 col-span-2 sm:col-span-1">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Room Name</label>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tên phòng</label>
                 <input
                   type="text"
                   value={newRow.roomName}
@@ -287,7 +287,7 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
                 disabled={isLoading}
                 className="h-[52px] px-8 bg-gray-800 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-black transition-all hover:shadow-2xl active:scale-95 disabled:opacity-50"
               >
-                <HiPlus className="text-lg" /> Add Row
+                <HiPlus className="text-lg" />Thêm vào
               </button>
             </div>
           </form>
@@ -298,8 +298,8 @@ const RowManager = ({ rows = [], onRowsUpdated, onClose }) => {
         isOpen={confirmModal.isOpen}
         onClose={() => setConfirmModal({ isOpen: false, id: null })}
         onConfirm={confirmDelete}
-        title="Xoá dòng dữ liệu này? 🤔"
-        message="Các dữ liệu trên lịch của dòng này sẽ bị xoá luôn đó. Chắc chắn chứ? 🌪️"
+        title="Xoá dòng dữ liệu này?"
+        message="Các dữ liệu trên lịch của dòng này sẽ bị xoá luôn đó. Chắc chắn chứ?"
       />
     </div>
   );
