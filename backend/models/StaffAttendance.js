@@ -34,6 +34,10 @@ const staffAttendanceSchema = new mongoose.Schema(
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       default: null
+    },
+    adminEdited: {
+      type: Boolean,
+      default: false
     }
   },
   { timestamps: true }

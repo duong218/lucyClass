@@ -288,6 +288,7 @@ exports.updateAttendance = async (req, res, next) => {
       time: l.time
     }));
     record.updatedBy = req.user?.id || null;
+    record.adminEdited = true;
     record.updatedAt = new Date();
     await record.save();
 
@@ -348,6 +349,7 @@ exports.upsertAttendanceByDate = async (req, res, next) => {
         date,
         logs: normalized.normalizedLogs,
         updatedBy: req.user?.id || null,
+        adminEdited: true,
         updatedAt: new Date()
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
@@ -397,7 +399,7 @@ exports.exportAttendance = async (req, res, next) => {
 
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('Attendance');
-    const headers = ['Nhân viên', 'Vai trò', 'Ngày', 'Check-in', 'Check-out', 'Số ca'];
+    const headers = ['Nhân viên', 'Vai trò', 'Ngày', 'Check-in', 'Check-out', 'Số ca', 'Ghi chú'];
     sheet.addRow(headers);
 
     const headerRow = sheet.getRow(1);
@@ -416,6 +418,7 @@ exports.exportAttendance = async (req, res, next) => {
         .filter((l) => l.type === 'checkout')
         .map((l) => formatTimeVN(l.time));
       const sessions = Math.min(checkins.length, checkouts.length);
+      const note = record.adminEdited ? '*Đã được Admin chỉnh sửa' : '';
 
       const row = sheet.addRow([
         record.staffId?.displayName || record.staffId?.username || 'N/A',
@@ -423,7 +426,8 @@ exports.exportAttendance = async (req, res, next) => {
         record.date,
         checkins.join(', '),
         checkouts.join(', '),
-        sessions
+        sessions,
+        note
       ]);
 
       if (idx % 2 === 1) {
@@ -434,6 +438,9 @@ exports.exportAttendance = async (req, res, next) => {
 
       row.getCell(4).font = { color: { argb: 'FF1B8F3A' } };
       row.getCell(5).font = { color: { argb: 'FFC96A3D' } };
+      if (note) {
+        row.getCell(7).font = { color: { argb: 'FFCC0000' }, bold: true, italic: true };
+      }
       row.eachCell((cell) => {
         cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
       });
@@ -496,7 +503,7 @@ exports.exportAttendanceByMonth = async (req, res, next) => {
       const checkins = (rec.logs || []).filter(l => l.type === 'checkin').map(l => formatTimeVN(l.time));
       const checkouts = (rec.logs || []).filter(l => l.type === 'checkout').map(l => formatTimeVN(l.time));
       const sessions = Math.min(checkins.length, checkouts.length);
-      const note = rec.updatedBy ? 'Đã chỉnh sửa' : '';
+      const note = rec.adminEdited ? '*Đã được Admin chỉnh sửa' : '';
 
       if (!byStaff[sid]) byStaff[sid] = { name, role, days: [] };
       byStaff[sid].days.push({ date: rec.date, checkins, checkouts, sessions, note });
@@ -557,6 +564,9 @@ exports.exportAttendanceByMonth = async (req, res, next) => {
         styleData(row, alt1);
         row.getCell(3).font = { color: { argb: COLOR_CHECKIN }, name: 'Arial', size: 10 };
         row.getCell(4).font = { color: { argb: COLOR_CHECKOUT }, name: 'Arial', size: 10 };
+        if (day.note) {
+          row.getCell(6).font = { color: { argb: 'FFCC0000' }, bold: true, italic: true, name: 'Arial', size: 10 };
+        }
         alt1 = !alt1;
       });
       const totalSessions = staff.days.reduce((s, d) => s + d.sessions, 0);
@@ -584,6 +594,9 @@ exports.exportAttendanceByMonth = async (req, res, next) => {
         styleData(row, alt2);
         row.getCell(3).font = { color: { argb: COLOR_CHECKIN }, name: 'Arial', size: 10 };
         row.getCell(4).font = { color: { argb: COLOR_CHECKOUT }, name: 'Arial', size: 10 };
+        if (entry.note) {
+          row.getCell(6).font = { color: { argb: 'FFCC0000' }, bold: true, italic: true, name: 'Arial', size: 10 };
+        }
         alt2 = !alt2;
       });
       s2.addRow([]);

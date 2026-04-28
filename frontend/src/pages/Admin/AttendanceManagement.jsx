@@ -732,9 +732,10 @@ const AttendanceManagement = () => {
                   filtered.map((item) => {
                     const status = getStaffStatus(item);
                     const logCount = item.attendance?.logs?.length || 0;
+                    const wasEdited = item.attendance?.adminEdited === true;
 
                     return (
-                      <tr key={item.staff._id} className="hover:bg-gray-50/50 transition-colors">
+                      <tr key={item.staff._id} className={`transition-colors ${wasEdited ? 'bg-red-50 hover:bg-red-100/60' : 'hover:bg-gray-50/50'}`}>
                         {/* Name */}
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
@@ -744,9 +745,18 @@ const AttendanceManagement = () => {
                             >
                               {(item.staff.displayName || item.staff.username || 'S').charAt(0).toUpperCase()}
                             </div>
-                            <span className="font-bold text-gray-800 text-sm">
-                              {item.staff.displayName || item.staff.username}
-                            </span>
+                            <div>
+                              <span className="font-bold text-gray-800 text-sm">
+                                {item.staff.displayName || item.staff.username}
+                              </span>
+                              {wasEdited && (
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  <span className="text-[10px] font-bold text-red-500 bg-red-100 px-2 py-0.5 rounded-full">
+                                    ✏️ Admin đã chỉnh sửa
+                                  </span>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </td>
 
