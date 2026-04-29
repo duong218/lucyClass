@@ -8,10 +8,7 @@ const BlockedIP = require('../models/BlockedIP');
  */
 const checkBlockedIP = async (req, res, next) => {
   try {
-    const ip =
-      req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
-      req.socket?.remoteAddress ||
-      'unknown';
+    const ip = req.ip || req.socket?.remoteAddress || 'unknown';
 
     req.clientIP = ip;
 

@@ -22,7 +22,7 @@ const escapeStringRegexp = (string) => {
 // ─── Hàm tiện ích lấy IP từ request ─────────────────────────────────────────
 const getClientIP = (req) =>
   req.clientIP || // đã được middleware checkBlockedIP gắn sẵn
-  req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+  req.ip ||
   req.socket?.remoteAddress ||
   'unknown';
 
@@ -293,7 +293,7 @@ exports.refreshToken = async (req, res) => {
 
     const options = getCookieOptions();
     res.cookie('refreshToken', newRefreshToken, options);
-    res.cookie('sessionId', cookieSessionId, { ...options });
+    res.cookie('sessionId', cookieSessionId, { ...options, httpOnly: true });
 
     console.log(`[Refresh] Success for ${user.username} (${user.role})`);
     res.json({ success: true, accessToken });
