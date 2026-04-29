@@ -40,14 +40,14 @@ Các finding đã được xử lý sau audit:
 ### 2.1 Điểm danh dùng chung cho giáo viên chính và giáo viên phụ
 
 **Accepted business rule:**
-- 1 khóa học có 1 giáo viên chính, tối đa 4 giáo viên phụ
-- Cả 5 người đều được xem danh sách lớp và điểm danh thay nhau
+- 1 khóa học có 1 giáo viên chính, tối đa 15 giáo viên phụ
+- Cả 16 người đều được xem danh sách lớp và điểm danh thay nhau
 - Dữ liệu điểm danh đồng bộ real-time giữa các giáo viên của cùng khóa
 
 **Kết luận:**
 - `checkCourseAccess()` trong `courseController.js` xác nhận đúng logic này: admin luôn được phép, teacher phải là `teacher` chính hoặc nằm trong `additionalTeachers` của khóa
-- Việc 5 giáo viên cùng xem và điểm danh không bị tính là broken access control
-- Audit chỉ xem là vấn đề nếu vượt quá 1 chính + 4 phụ, hoặc cho người ngoài khóa truy cập
+- Việc 16 giáo viên cùng xem và điểm danh không bị tính là broken access control
+- Audit chỉ xem là vấn đề nếu vượt quá 1 chính + 15 phụ, hoặc cho người ngoài khóa truy cập
 
 ### 2.2 Streak cho phép check-in hộ
 
