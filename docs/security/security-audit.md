@@ -1,253 +1,330 @@
 # Security Audit
 
 - Audit date: 2026-04-29
-- Scope: `backend`, `frontend`, `docs`
-- Method: static code review FE/BE, route-controller-role flow review, config example review
-- Basis used for config intent: `backend/.env.example`, `frontend/.env.example`
-- Explicit exclusion: did not read `env.production`, real `.env`, or real secrets
+- Scope: `backend`, `frontend`
+- Method:
+  - static code review FE/BE
+  - route-controller-role flow review
+  - auth/session/CSRF/CORS/rate-limit review
+  - upload/export/attendance/streak/backup-restore review
+  - dependency audit bằng `npm audit --omit=dev --json` cho cả FE và BE
+- Config basis allowed to read:
+  - `backend/.env.example`
+  - `frontend/.env.example`
+- Explicit exclusion:
+  - không đọc `backend/.env`
+  - không đọc `frontend/.env`
+  - không đọc `*.env.production`
+  - không đọc secret thật hay key thật
 
 ## 1. Kết luận nhanh
 
-Mức bảo mật hiện tại của hệ thống: **Trung bình khá**.
+Mức bảo mật hiện tại của hệ thống: **Khá / Trung bình khá**.
 
-Đánh giá sau lần scan lại này:
+Đánh giá tổng quan sau lần scan này:
 
-- phần ẩn số điện thoại cho `teacher` ở giao diện và file export là **cải thiện đúng hướng**;
-- tuy nhiên mức an toàn **chưa tăng tương ứng ở tầng API/backend**, vì payload cho `teacher` vẫn còn chứa dữ liệu nhạy cảm hơn mức cần thiết;
-- không thấy dấu hiệu lỗi `Critical` kiểu takeover không cần auth, RCE, hay public upload nguy hiểm trong phạm vi review tĩnh này;
-- vẫn còn 3 việc nên ưu tiên cao: giảm PII trả về cho `teacher`, kéo rule số lượng giáo viên phụ về đúng mô tả nghiệp vụ, và nâng `multer` khỏi 1.x.
+- không thấy lỗ hổng `Critical` kiểu RCE, public file upload tùy ý, auth bypass không cần đăng nhập, hay lộ secret hardcode trong phạm vi đã đọc;
+- `npm audit --omit=dev --json` hiện trả về `0 vulnerabilities` cho cả `backend` và `frontend` tại thời điểm scan;
+- hệ thống đã có nhiều lớp nền tảng tốt:
+  - `helmet`
+  - `CORS` allowlist
+  - CSRF check theo `Origin` + `X-Requested-With`
+  - `httpOnly` refresh cookie
+  - access token in-memory ở FE
+  - rate limit
+  - reCAPTCHA cho form nhạy cảm
+  - sanitize input
+  - upload ảnh có kiểm tra magic bytes + re-encode
+- tuy nhiên vẫn còn một số rủi ro logic và hardening ở mức `Medium` cần xử lý, chủ yếu nằm ở:
+  - lệch rule phân quyền giáo viên phụ so với nghiệp vụ đã chốt
+  - cơ chế chống abuse/log IP đang tin vào `x-forwarded-for` theo cách có thể bị giả mạo
+  - điểm danh lớp cho phép ghi đè dữ liệu lịch sử quá rộng, thiếu audit/versioning phù hợp
 
-Điểm tham chiếu nội bộ: **6.9/10**.
+Điểm tham chiếu nội bộ: **7.6/10**.
 
-## 2. Phạm vi loại trừ theo mô tả hệ thống
+## 2. Loại trừ theo mô tả hệ thống
 
-Các điểm dưới đây **không tính là lỗ hổng** trong audit này vì đúng với mô hình nghiệp vụ bạn đã mô tả.
+Các điểm dưới đây không bị coi là lỗ hổng trong audit này vì bạn đã mô tả rõ đây là chủ đích nghiệp vụ.
 
-### 2.1 Điểm danh dùng chung giữa giáo viên chính và giáo viên phụ
+### 2.1 Điểm danh dùng chung cho giáo viên chính và giáo viên phụ
 
-Mô hình nghiệp vụ được chấp nhận:
+Accepted business rule:
 
-- 1 khóa học có 1 giáo viên chính;
-- tối đa 4 giáo viên phụ;
-- các giáo viên thuộc cùng khóa được cùng xem lớp và đồng bộ điểm danh để thay nhau thao tác khi cần.
+- 1 khóa học có 1 giáo viên chính
+- tối đa 4 giáo viên phụ
+- các giáo viên của khóa học được cùng xem lớp và thay nhau điểm danh
+- dữ liệu điểm danh được đồng bộ giữa các giáo viên của cùng khóa
 
 Kết luận:
 
-- đây **không phải broken access control** nếu người dùng thực sự thuộc khóa học đó;
-- audit không ghi lỗi chỉ vì giáo viên phụ được xem lớp hoặc điểm danh thay giáo viên chính.
-
-Lưu ý:
-
-- phần loại trừ này bám theo **mô tả nghiệp vụ mong muốn** của bạn;
-- nếu code cho phép vượt quá giới hạn đó thì đó là một finding riêng về lệch rule, không phải bác bỏ mô hình nghiệp vụ.
+- việc 5 giáo viên cùng có quyền xem danh sách lớp và điểm danh cho cùng khóa **không bị tính là broken access control**;
+- audit chỉ xem đây là vấn đề nếu code cho phép vượt quá phạm vi 1 chính + 4 phụ, hoặc cho người ngoài khóa truy cập.
 
 ### 2.2 Streak cho phép check-in hộ
 
-Bạn đã xác nhận đây là mini game marketing, có chủ đích nới lỏng để giữ chân user.
+Accepted business rule:
+
+- streak là mini game marketing
+- có chủ đích nới lỏng để giữ chân user
+- cho phép check-in hộ
 
 Kết luận:
 
-- audit **không coi đây là lỗi auth của hệ lõi**;
-- nhưng vẫn ghi nhận đây là khu vực low-trust về privacy và abuse nếu sau này gắn với phần thưởng có giá trị.
+- audit không coi riêng việc “check-in hộ” là lỗi auth của hệ thống lõi;
+- phần này vẫn được xem là khu vực `low-trust` về privacy và abuse, nhưng là **accepted risk** theo mô tả hiện tại.
 
-### 2.3 Excel chủ yếu là export, không có upload công khai
+### 2.3 Excel chủ yếu là export, không có upload Excel công khai
 
-Theo mô tả hiện tại:
+Accepted business rule:
 
-- hệ thống chủ yếu xuất file;
-- không có role public upload Excel vào server.
+- hệ thống chủ yếu xuất file Excel
+- không có role public upload Excel lên server
 
 Kết luận:
 
-- audit không đưa rủi ro malware từ upload Excel vào findings;
-- phần Excel chỉ được xem theo góc độ lộ dữ liệu khi export.
+- audit không đưa nhóm rủi ro “malicious spreadsheet upload” vào findings chính;
+- phần Excel được đánh giá chủ yếu theo hướng lộ dữ liệu khi export.
 
-## 3. Cải thiện đã ghi nhận từ lần scan trước
+## 3. Điểm mạnh hiện có
 
-Các thay đổi tốt đã có:
+### 3.1 Authentication và session
 
-- `teacher` không còn hiện số điện thoại phụ huynh mặc định ở danh sách học sinh trên FE:
-  - `frontend/src/pages/CourseStudentList.jsx:558`
-  - `frontend/src/pages/CourseStudentList.jsx:996`
-- export danh sách học sinh phía FE đã mask `phone` cho `teacher`:
-  - `frontend/src/pages/CourseStudentList.jsx:749`
-- export điểm danh phía backend đã mask số điện thoại cho `teacher`:
-  - `backend/controllers/courseController.js:523`
-  - `backend/controllers/courseController.js:555`
+- FE không lưu access token vào `localStorage`; token đang giữ in-memory tại `frontend/src/services/api.js`.
+- Refresh token dùng cookie `httpOnly`, `withCredentials: true`, có session conflict check.
+- Có cơ chế single-session thực tế qua `activeSessionId`.
 
-Kết luận phần này:
+File tham chiếu:
 
-- đây là **giảm rò rỉ ở tầng hiển thị/output**;
-- nhưng chưa phải bản vá hoàn chỉnh vì dữ liệu gốc vẫn còn đi xuống client của `teacher`.
+- `frontend/src/services/api.js`
+- `frontend/src/contexts/AuthContext.jsx`
+- `backend/controllers/authController.js`
+- `backend/middlewares/auth.js`
+
+### 3.2 Bảo vệ request và trình duyệt
+
+- Có `helmet` và CSP cơ bản trong `backend/server.js`.
+- Có kiểm tra CSRF cho request thay đổi dữ liệu dựa trên `Origin` và header `X-Requested-With`.
+- CORS dùng danh sách origin cho phép, không mở `*`.
+
+File tham chiếu:
+
+- `backend/server.js`
+- `backend/middlewares/securityMiddleware.js`
+
+### 3.3 Upload ảnh
+
+- Chỉ cho phép ảnh `jpeg/png/webp`
+- kiểm tra extension + MIME + magic bytes
+- dùng `sharp` để re-encode, strip metadata, hạn chế pixel bomb
+- giới hạn kích thước file và số part
+
+File tham chiếu:
+
+- `backend/middlewares/upload.js`
+
+### 3.4 Dependency audit
+
+Kết quả runtime dependency audit tại thời điểm scan:
+
+- `backend`: `0 vulnerabilities`
+- `frontend`: `0 vulnerabilities`
+
+Lưu ý:
+
+- đây là kết quả của `npm audit` trên dependency tree hiện có trong workspace ở ngày 2026-04-29;
+- nó không thay thế cho code review logic nghiệp vụ.
 
 ## 4. Findings còn tồn tại
 
-### F1. Medium - API vẫn trả raw `phone` và `email` cho `teacher`
+### F1. Medium - Rule “tối đa 4 giáo viên phụ” chưa được khóa đúng ở backend
 
 - Mức độ: `Medium`
-- Nhóm ảnh hưởng: privacy / least privilege / data minimization
+- Nhóm ảnh hưởng: access surface / privacy / policy drift
 - File ảnh hưởng:
-  - `backend/controllers/registrationController.js:448`
-  - `frontend/src/pages/CourseStudentList.jsx:826`
-  - `frontend/src/pages/CourseStudentList.jsx:1055`
+  - `backend/controllers/courseController.js`
+  - `backend/models/Course.js`
 
 Mô tả:
 
-- API danh sách học sinh theo khóa vẫn `.select('childName childAge parentName phone email isActive courseId note transferHistory')`.
-- FE của `teacher` đã ẩn cột `phone`, nhưng dữ liệu `phone` vẫn nằm trong payload client và còn được dùng cho tìm kiếm.
-- Điều này nghĩa là người dùng role `teacher` vẫn có thể lấy `phone/email` qua DevTools, network tab, hoặc các luồng FE khác dùng lại state.
+- nghiệp vụ bạn mô tả đã chốt rõ: 1 giáo viên chính và tối đa 4 giáo viên phụ;
+- nhưng backend hiện cho phép tới `15` `additionalTeachers` trong `parseAdditionalTeachers`;
+- model `Course` cũng chưa thấy giới hạn mảng giáo viên phụ bám theo rule 4.
 
-Đánh giá:
+Rủi ro:
 
-- thay đổi mới của bạn **đã giảm lộ lọt ở UI**, nhưng **chưa đóng lỗ hổng ở tầng dữ liệu**;
-- đây vẫn là finding ưu tiên cao nhất vì liên quan trực tiếp đến PII phụ huynh.
+- khi số giáo viên phụ vượt quá rule nghiệp vụ, phạm vi tài khoản được xem danh sách học sinh, note, điểm danh và export attendance cũng bị mở rộng theo;
+- đây không phải lỗi ở ý tưởng “5 giáo viên cùng khóa được xem lớp”, mà là lỗi ở chỗ code đang cho phép **nhiều hơn 5 người** nếu dữ liệu bị cấu hình sai hoặc bị lạm dụng.
 
-Hướng xử lý:
+Hướng giải quyết:
 
-- tách payload `admin` và payload `teacher`;
-- với `teacher`, chỉ trả các trường thực sự cần cho điểm danh và quản lý lớp:
-  - `childName`
-  - `childAge`
-  - `parentName` nếu thực sự cần
-  - `isActive`
-  - dữ liệu điểm danh/liên quan khóa học
-- bỏ `phone` và `email` khỏi API teacher-facing;
-- đồng thời bỏ logic tìm kiếm theo `s.phone` ở FE cho `teacher`.
+- đổi hard limit backend từ `15` về `4`;
+- thêm validate ở model/schema hoặc validator để chặn từ tầng dữ liệu;
+- rà lại FE form tạo/sửa khóa học để đồng bộ cùng giới hạn;
+- thêm test cho 3 case:
+  - `0-4` giáo viên phụ được phép
+  - `5+` giáo viên phụ bị từ chối
+  - không cho trùng giữa giáo viên chính và giáo viên phụ
 
-### F2. Medium - Code đang cho tối đa 15 giáo viên phụ, lệch với rule nghiệp vụ tối đa 4
+### F2. Medium - Logic chống abuse và audit IP đang tin vào `x-forwarded-for` theo cách có thể bị giả mạo
 
 - Mức độ: `Medium`
-- Nhóm ảnh hưởng: access surface / policy drift / privacy
+- Nhóm ảnh hưởng: brute-force protection / audit integrity / IP blocking
 - File ảnh hưởng:
-  - `backend/controllers/courseController.js:222`
-  - `backend/controllers/courseController.js:223`
+  - `backend/middlewares/checkBlockedIP.js`
+  - `backend/controllers/authController.js`
+  - `backend/utils/logAdminAction.js`
 
 Mô tả:
 
-- mô tả hệ thống của bạn chốt rõ: 1 giáo viên chính và tối đa 4 giáo viên phụ;
-- nhưng backend hiện cho phép tới `15` additional teachers.
+- một số chỗ đang lấy IP bằng cách đọc trực tiếp `req.headers['x-forwarded-for']`;
+- cách này bỏ qua logic proxy trust chuẩn của Express ở `req.ip`;
+- nếu header này bị giả mạo hoặc proxy chain không được chuẩn hóa đúng, attacker có thể:
+  - làm sai log audit
+  - né chặn IP
+  - làm lệch thống kê login fail theo IP
 
-Vì sao đây là vấn đề:
+Rủi ro:
 
-- nó làm tăng số tài khoản được truy cập dữ liệu lớp, học sinh và điểm danh vượt quá phạm vi nghiệp vụ đã chốt;
-- với finding `F1` còn mở, bề mặt lộ PII thực tế cũng tăng theo số lượng giáo viên phụ được gán.
+- đây không phải auth bypass trực tiếp;
+- nhưng nó làm yếu các lớp phòng thủ phụ thuộc vào IP, nhất là login abuse protection và điều tra incident sau này.
 
-Hướng xử lý:
+Hướng giải quyết:
 
-- kéo rule backend về đúng `4` additional teachers;
-- rà lại FE form tạo/sửa khóa học để dùng cùng một giới hạn;
-- nếu business đã đổi thật sự lên hơn 4 thì cần cập nhật lại tài liệu nghiệp vụ, ma trận quyền, và đánh giá privacy tương ứng.
+- chuẩn hóa toàn bộ code sang dùng `req.ip` hoặc một helper thống nhất bám theo `trust proxy`;
+- không đọc `x-forwarded-for` raw ở nhiều nơi;
+- nếu cần lưu full chain proxy thì log riêng raw header, nhưng **không dùng raw header làm nguồn quyết định security**;
+- thêm test hoặc tài liệu deploy cho môi trường reverse proxy thực tế.
 
-### F3. Medium - Backend vẫn dùng `multer` 1.x đã có cảnh báo upstream
+### F3. Medium - Điểm danh lớp cho phép sửa/ghi đè lịch sử quá rộng, thiếu audit trail tương xứng
 
 - Mức độ: `Medium`
-- Nhóm ảnh hưởng: dependency risk / upload surface
+- Nhóm ảnh hưởng: data integrity / insider misuse / forensic visibility
 - File ảnh hưởng:
-  - `backend/package.json`
-  - `backend/package-lock.json:3886`
-  - `backend/routes/announcementRoutes.js`
+  - `backend/controllers/courseController.js`
+  - `backend/models/Attendance.js`
   - `backend/routes/courseRoutes.js`
-  - `backend/routes/feedbackRoutes.js`
-  - `backend/routes/teacherRoutes.js`
 
 Mô tả:
 
-- dependency hiện tại là `multer: ^1.4.5-lts.1`;
-- `package-lock` ghi rõ bản 1.x bị ảnh hưởng bởi nhiều lỗ hổng đã được vá trong 2.x.
+- giáo viên thuộc khóa được phép `POST /api/courses/:id/attendance`;
+- backend hiện upsert attendance theo `courseId + date` và ghi đè toàn bộ `records`;
+- chưa thấy:
+  - giới hạn chỉ cho ngày hiện tại hoặc phạm vi ngày hợp lệ theo nghiệp vụ
+  - audit log ai sửa trước/sau
+  - version history để truy vết lần ghi đè
+  - khóa mềm để tránh sửa lịch sử sau khi buổi học đã chốt
 
-Đánh giá:
+Điểm cần lưu ý theo mô tả nghiệp vụ:
 
-- đây là technical security debt;
-- các lớp filter MIME, size, re-encode ảnh đang giúp giảm rủi ro, nhưng không thay thế được việc nâng bản parser multipart gốc.
+- việc nhiều giáo viên của cùng khóa cùng nhìn thấy điểm danh là hợp lệ;
+- vấn đề ở đây là **một giáo viên hợp lệ có thể ghi đè attendance của ngày khác hoặc sửa lại lịch sử mà không có audit đủ mạnh**.
 
-Hướng xử lý:
+Rủi ro:
 
-- ưu tiên nâng `multer` lên 2.x;
-- test lại toàn bộ flow upload ảnh ở:
-  - announcement
-  - course
-  - feedback
-  - teacher
+- dữ liệu điểm danh có thể bị sửa ngoài ý muốn hoặc bị lạm dụng nội bộ;
+- sau sự cố sẽ khó xác định:
+  - ai là người sửa sau cùng
+  - bản ghi trước đó là gì
+  - việc sửa có nằm trong khung thời gian hợp lệ hay không
 
-### F4. Low - Module streak vẫn là khu vực low-trust theo số điện thoại
+Hướng giải quyết:
 
-- Mức độ: `Low`
-- Nhóm ảnh hưởng: privacy / abuse surface
-- File ảnh hưởng:
-  - `backend/controllers/streakController.js`
-  - `frontend/src/services/streakService.js`
-  - `frontend/src/components/FlameButton.jsx`
+- validate chặt `date` theo format `YYYY-MM-DD`;
+- quyết định rõ policy:
+  - chỉ cho giáo viên sửa ngày hiện tại
+  - hoặc cho phép sửa trong cửa sổ ngắn, ví dụ cùng ngày / hết ngày
+  - các ngày cũ chỉ admin mới sửa
+- ghi audit log cho mỗi lần save attendance:
+  - actor
+  - courseId
+  - date
+  - diff trước/sau
+- nếu cần đồng bộ nhiều giáo viên, cân nhắc optimistic locking hoặc field `updatedAt/updatedBy` rõ hơn ở response để FE cảnh báo ghi đè.
 
-Mô tả:
-
-- streak vẫn vận hành theo `phone`;
-- phía FE còn lưu dấu vết dùng cho streak ở client;
-- ai biết số điện thoại vẫn có thể tác động hoặc dò trạng thái theo mô hình nới lỏng hiện tại.
-
-Đánh giá:
-
-- theo mô tả nghiệp vụ của bạn, đây là **accepted risk**;
-- vẫn nên giữ nhãn low-trust và không mở rộng module này sang reward có giá trị thật nếu chưa thêm lớp xác thực mạnh hơn.
-
-Hướng xử lý:
-
-- nếu streak chỉ là mini game marketing thì có thể giữ nguyên;
-- nếu sau này gắn voucher, quà, quyền lợi thật, cần thêm OTP hoặc cơ chế xác minh có chữ ký.
-
-### F5. Low - CSP vẫn chứa `'unsafe-inline'`
+### F4. Low - CSP vẫn còn `unsafe-inline`
 
 - Mức độ: `Low`
 - Nhóm ảnh hưởng: defense in depth
 - File ảnh hưởng:
-  - `backend/server.js:120`
+  - `backend/server.js`
 
 Mô tả:
 
-- CSP đã có, nhưng `script-src` vẫn cho phép `'unsafe-inline'`.
+- CSP hiện có, nhưng `script-src` vẫn chứa `'unsafe-inline'`;
+- điều này không tự tạo XSS mới, nhưng làm giảm sức phòng thủ nếu sau này xuất hiện sink XSS ở FE.
 
-Đánh giá:
+Hướng giải quyết:
 
-- mục này không tự tạo ra XSS mới;
-- nhưng nó làm yếu đi lớp giảm thiểu thiệt hại nếu một sink XSS xuất hiện ở nơi khác.
+- rà lại script inline thực sự cần thiết;
+- nếu khả thi, chuyển sang nonce/hash-based CSP;
+- ưu tiên xử lý sau các finding `Medium`.
 
-Hướng xử lý:
-
-- rà lại nhu cầu script inline hiện có;
-- nếu khả thi, chuyển sang nonce/hash CSP để bỏ `'unsafe-inline'`.
-
-### F6. Low - Một số trang React vẫn dùng `innerHTML` cho fallback logo
+### F5. Low - Frontend vẫn còn một vài chỗ mutation DOM bằng `innerHTML`
 
 - Mức độ: `Low`
-- Nhóm ảnh hưởng: frontend hardening
+- Nhóm ảnh hưởng: frontend hardening / XSS hygiene
 - File ảnh hưởng:
-  - `frontend/src/pages/AdminLogin.jsx:124`
-  - `frontend/src/pages/ForgotPassword.jsx:138`
-  - `frontend/src/pages/ResetPassword.jsx:125`
+  - `frontend/src/pages/AdminLogin.jsx`
+  - `frontend/src/pages/ForgotPassword.jsx`
+  - `frontend/src/pages/ResetPassword.jsx`
 
 Mô tả:
 
-- các trang này vẫn chèn HTML trực tiếp bằng `innerHTML` khi ảnh logo lỗi.
+- các trang trên dùng `innerHTML` để render fallback logo khi ảnh lỗi;
+- chuỗi hiện tại là hard-coded nên chưa tạo thành XSS thực tế ở trạng thái code hiện nay.
 
-Đánh giá:
+Rủi ro:
 
-- chuỗi hiện tại đang hard-coded nên chưa phải XSS thực tế;
-- nhưng đây là sink không nên giữ trong code React vì dễ biến thành điểm tiêm XSS nếu sau này sửa bất cẩn.
+- đây là sink không nên giữ lâu trong code React;
+- về sau nếu ai đó thay chuỗi hard-coded bằng dữ liệu động mà quên sanitize, nguy cơ XSS sẽ tăng lên ngay.
 
-Hướng xử lý:
+Hướng giải quyết:
 
-- thay fallback này bằng JSX/state render bình thường;
-- tránh mutation DOM thủ công bằng `innerHTML`.
+- thay fallback này bằng state/JSX thuần;
+- tránh mutation DOM thủ công trong component React.
 
-## 5. Thứ tự ưu tiên xử lý
+## 5. Những điểm đã đúng theo trạng thái code hiện tại
 
-1. Đóng `F1` ở tầng API: bỏ `phone/email` khỏi payload của `teacher`.
-2. Đóng `F2`: đưa giới hạn giáo viên phụ từ `15` về đúng `4` nếu business không đổi.
-3. Đóng `F3`: nâng `multer` lên 2.x và test lại upload.
-4. Siết `F5` và `F6` để tăng hardening frontend/backend.
-5. Giữ `F4` ở trạng thái accepted risk nhưng không mở rộng quyền lợi cho streak nếu chưa tăng xác thực.
+Các điểm sau đã được kiểm tra lại và hiện **không còn là finding chính** trong bản audit này:
 
-## 6. Đánh giá cuối
+- payload danh sách học sinh cho `teacher` hiện đã bỏ `phone/email` ở backend:
+  - `backend/controllers/registrationController.js`
+- export attendance cho `teacher` đang mask số điện thoại:
+  - `backend/controllers/courseController.js`
+- external link mở tab mới ở các vị trí đã thấy đều có `rel="noopener noreferrer"`:
+  - `frontend/src/components/CreatorPopup.jsx`
+  - `frontend/src/layouts/Footer.jsx`
+  - `frontend/src/pages/CourseStudentList.jsx`
 
-Phần ẩn số điện thoại cho `teacher` mà bạn vừa thêm là **một bước cải thiện tốt**, nhưng hiện mới chặn ở lớp hiển thị và export. Về bảo mật thực chất, hệ thống vẫn chưa đạt nguyên tắc least privilege cho role `teacher` vì API còn trả raw PII xuống client.
+## 6. Accepted risk cần giữ nguyên nhãn
 
-Nếu xử lý xong `F1`, `F2`, và `F3`, mức an toàn thực tế của hệ thống sẽ tăng rõ rệt và phù hợp hơn với mô hình vận hành dài hạn cho web custom có nhiều giáo viên cùng truy cập dữ liệu lớp.
+### 6.1 Streak theo số điện thoại
+
+Trạng thái:
+
+- accepted risk theo mô tả nghiệp vụ marketing hiện tại
+
+File liên quan:
+
+- `backend/controllers/streakController.js`
+- `frontend/src/services/streakService.js`
+- `frontend/src/components/FlameButton.jsx`
+- `frontend/src/utils/deviceId.js`
+
+Khuyến nghị:
+
+- nếu streak tiếp tục chỉ là mini game giữ chân user, có thể chấp nhận;
+- nếu sau này gắn với phần thưởng có giá trị thật, cần nâng cấp sang xác minh mạnh hơn như OTP hoặc token ký server-side.
+
+## 7. Thứ tự ưu tiên xử lý
+
+1. Đóng `F1`: khóa đúng rule tối đa 4 giáo viên phụ ở backend và validator.
+2. Đóng `F2`: chuẩn hóa toàn bộ lấy IP theo `req.ip`/proxy helper thống nhất.
+3. Đóng `F3`: siết quyền sửa attendance theo ngày và thêm audit/versioning.
+4. Đóng `F4` và `F5` để tăng hardening tổng thể.
+
+## 8. Đánh giá cuối
+
+So với mặt bằng web custom nội bộ, hệ thống của bạn hiện đang ở mức **khá** vì đã có đủ nhiều lớp bảo vệ nền tảng và không lộ ra lỗi `Critical` trong phạm vi scan lần này. Điểm yếu còn lại chủ yếu là ở tầng logic quyền và integrity hơn là lỗi thư viện hay lỗi cấu hình quá thô.
+
+Nếu xử lý xong 3 finding `Medium` ở trên, mức an toàn thực tế của hệ thống sẽ tăng rõ nhất, đặc biệt với các vùng nhạy cảm đúng theo mô hình vận hành của bạn: lớp học, điểm danh, phân vai giáo viên và kiểm soát abuse ở login.

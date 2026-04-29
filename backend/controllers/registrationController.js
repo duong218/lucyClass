@@ -440,12 +440,18 @@ exports.getStudentsByCourse = async (req, res, next) => {
     if (access === null) return res.status(404).json({ success: false, message: 'Course not found' });
     if (access === false) return res.status(403).json({ success: false, message: 'Bạn không có quyền truy cập lớp học này' });
 
+    // Tách payload theo role: teacher không nhận phone/email (least privilege / PII protection)
+    const isTeacher = req.user?.role === 'teacher';
+    const selectFields = isTeacher
+      ? 'childName childAge parentName isActive courseId note transferHistory'
+      : 'childName childAge parentName phone email isActive courseId note transferHistory';
+
     const students = await Registration.find({
       courseId: id,
       status: 'registered'
     })
       .populate('courseId', 'name')
-      .select('childName childAge parentName phone email isActive courseId note transferHistory')
+      .select(selectFields)
       .sort({ isActive: -1, createdAt: -1 })
       .lean();
 

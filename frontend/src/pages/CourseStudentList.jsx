@@ -820,13 +820,14 @@ const CourseStudentList = () => {
     }, []);
 
     const filteredStudents = useMemo(() => students.filter(s => {
+        // Teacher không nhận phone từ API nên không search theo phone (tránh crash + least privilege)
         const matchesSearch =
             s.childName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
             s.parentName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-            s.phone.includes(debouncedSearch);
+            (!isTeacher && (s.phone || '').includes(debouncedSearch));
         const matchesFilter = filter === 'all' || (filter === 'active' && s.isActive) || (filter === 'inactive' && !s.isActive);
         return matchesSearch && matchesFilter;
-    }), [students, debouncedSearch, filter]);
+    }), [students, debouncedSearch, filter, isTeacher]);
 
     const attendanceSummary = useMemo(() => {
         const active  = students.filter(s => s.isActive);
