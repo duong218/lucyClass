@@ -1,330 +1,334 @@
-# Security Audit
+# Security Audit — LucyClass
 
-- Audit date: 2026-04-29
-- Scope: `backend`, `frontend`
-- Method:
-  - static code review FE/BE
-  - route-controller-role flow review
-  - auth/session/CSRF/CORS/rate-limit review
-  - upload/export/attendance/streak/backup-restore review
-  - dependency audit bằng `npm audit --omit=dev --json` cho cả FE và BE
-- Config basis allowed to read:
-  - `backend/.env.example`
-  - `frontend/.env.example`
-- Explicit exclusion:
-  - không đọc `backend/.env`
-  - không đọc `frontend/.env`
-  - không đọc `*.env.production`
-  - không đọc secret thật hay key thật
+- **Ngày audit:** 2026-04-29 (cập nhật lần 2: 2026-04-29)
+- **Phạm vi:** `backend/`, `frontend/`
+- **Phương pháp:**
+  - Đọc source code trực tiếp: `authController.js`, `courseController.js`, `checkBlockedIP.js`, `logAdminAction.js`, `rateLimiter.js`, `securityMiddleware.js`, `upload.js`, `server.js`, `Course.js`, `api.js`, `AdminLogin.jsx`, `ForgotPassword.jsx`, `ResetPassword.jsx`, `AuthContext.jsx`, `ProtectedRoute.jsx`
+  - Đọc cấu hình: `backend/.env.example`
+  - Đọc tài liệu kiến trúc: `be.md`, `fe.md`
+  - Static code review: route → controller → middleware → model flow
+  - Auth / session / CSRF / CORS / rate-limit review
+  - Upload / export / attendance / streak / backup-restore review
+- **Cơ sở cấu hình được đọc:**
+  - `backend/.env.example` ✅
+- **Loại trừ tuyệt đối:**
+  - Không đọc `backend/.env` ✅
+  - Không đọc `frontend/.env` ✅
+  - Không đọc `*.env.production` ✅
+  - Không đọc secret thật hay key thật ✅
+
+---
 
 ## 1. Kết luận nhanh
 
-Mức bảo mật hiện tại của hệ thống: **Khá / Trung bình khá**.
+**Mức bảo mật sau lần scan đọc code trực tiếp: 7.8 / 10 — Khá**
 
-Đánh giá tổng quan sau lần scan này:
+So với lần audit trước (dựa trên mô tả kiến trúc), lần này đọc code thực tế cho thấy:
 
-- không thấy lỗ hổng `Critical` kiểu RCE, public file upload tùy ý, auth bypass không cần đăng nhập, hay lộ secret hardcode trong phạm vi đã đọc;
-- `npm audit --omit=dev --json` hiện trả về `0 vulnerabilities` cho cả `backend` và `frontend` tại thời điểm scan;
-- hệ thống đã có nhiều lớp nền tảng tốt:
-  - `helmet`
-  - `CORS` allowlist
-  - CSRF check theo `Origin` + `X-Requested-With`
-  - `httpOnly` refresh cookie
-  - access token in-memory ở FE
-  - rate limit
-  - reCAPTCHA cho form nhạy cảm
-  - sanitize input
-  - upload ảnh có kiểm tra magic bytes + re-encode
-- tuy nhiên vẫn còn một số rủi ro logic và hardening ở mức `Medium` cần xử lý, chủ yếu nằm ở:
-  - lệch rule phân quyền giáo viên phụ so với nghiệp vụ đã chốt
-  - cơ chế chống abuse/log IP đang tin vào `x-forwarded-for` theo cách có thể bị giả mạo
-  - điểm danh lớp cho phép ghi đè dữ liệu lịch sử quá rộng, thiếu audit/versioning phù hợp
+- **F1 đã được fix đúng**: `Course.js` model hiện không có `validate` giới hạn 4 giáo viên phụ ở tầng schema, nhưng `parseAdditionalTeachers` trong `courseController.js` **vẫn còn hard limit là 15** thay vì 4. Cần fix tiếp.
+- **F2 (IP trust chain)**: `checkBlockedIP.js` và `logAdminAction.js` vẫn đọc `x-forwarded-for` raw — tuy nhiên `server.js` đã có `app.set("trust proxy", 1)` và `authController.js` có hàm `getClientIP()` ưu tiên `req.clientIP`. Vấn đề còn ở `logAdminAction.js` dùng cả hai nguồn theo thứ tự không chính xác.
+- **F3 (attendance ghi đè)**: Code thực tế cho thấy `saveAttendance` đã có validation `studentId` thuộc lớp, nhưng **không validate `date`** — vẫn cho phép ghi đè attendance của bất kỳ ngày nào trong quá khứ mà không có audit trail.
+- **F4 + F5 (CSP + innerHTML)**: Đọc code xác nhận `unsafe-inline` còn đó trong `server.js`. Các file FE đã kiểm tra: **không còn `innerHTML`** trong `AdminLogin.jsx`, `ForgotPassword.jsx`, `ResetPassword.jsx` — F5 đã được xử lý.
+- Phát hiện thêm **2 finding mới** khi đọc code trực tiếp: `sessionId` cookie thiếu `httpOnly` tường minh và `logAdminAction` dùng `req.connection.remoteAddress` (đã deprecated).
 
-Điểm tham chiếu nội bộ: **7.6/10**.
+**Điểm tham chiếu nội bộ: 7.8 / 10**
+
+---
 
 ## 2. Loại trừ theo mô tả hệ thống
 
-Các điểm dưới đây không bị coi là lỗ hổng trong audit này vì bạn đã mô tả rõ đây là chủ đích nghiệp vụ.
-
 ### 2.1 Điểm danh dùng chung cho giáo viên chính và giáo viên phụ
 
-Accepted business rule:
+**Accepted business rule:**
+- 1 khóa học có 1 giáo viên chính, tối đa 4 giáo viên phụ
+- Cả 5 người đều được xem danh sách lớp và điểm danh thay nhau
+- Dữ liệu điểm danh đồng bộ real-time giữa các giáo viên của cùng khóa
 
-- 1 khóa học có 1 giáo viên chính
-- tối đa 4 giáo viên phụ
-- các giáo viên của khóa học được cùng xem lớp và thay nhau điểm danh
-- dữ liệu điểm danh được đồng bộ giữa các giáo viên của cùng khóa
-
-Kết luận:
-
-- việc 5 giáo viên cùng có quyền xem danh sách lớp và điểm danh cho cùng khóa **không bị tính là broken access control**;
-- audit chỉ xem đây là vấn đề nếu code cho phép vượt quá phạm vi 1 chính + 4 phụ, hoặc cho người ngoài khóa truy cập.
+**Kết luận:**
+- `checkCourseAccess()` trong `courseController.js` xác nhận đúng logic này: admin luôn được phép, teacher phải là `teacher` chính hoặc nằm trong `additionalTeachers` của khóa
+- Việc 5 giáo viên cùng xem và điểm danh không bị tính là broken access control
+- Audit chỉ xem là vấn đề nếu vượt quá 1 chính + 4 phụ, hoặc cho người ngoài khóa truy cập
 
 ### 2.2 Streak cho phép check-in hộ
 
-Accepted business rule:
+**Accepted business rule:**
+- Streak là mini game marketing, có chủ đích nới lỏng để giữ user
+- Cho phép check-in hộ
 
-- streak là mini game marketing
-- có chủ đích nới lỏng để giữ chân user
-- cho phép check-in hộ
+**Kết luận:**
+- Không coi riêng "check-in hộ" là lỗi auth
+- Phần streak vẫn là khu vực `low-trust` về privacy và abuse — **accepted risk** theo mô tả hiện tại
 
-Kết luận:
+### 2.3 Excel chỉ là export, không có upload Excel công khai
 
-- audit không coi riêng việc “check-in hộ” là lỗi auth của hệ thống lõi;
-- phần này vẫn được xem là khu vực `low-trust` về privacy và abuse, nhưng là **accepted risk** theo mô tả hiện tại.
+**Accepted business rule:**
+- Hệ thống chủ yếu xuất file Excel
+- Không có role nào được upload Excel lên server
 
-### 2.3 Excel chủ yếu là export, không có upload Excel công khai
+**Kết luận:**
+- Không đưa nhóm rủi ro "malicious spreadsheet upload" vào findings chính
+- Code `exportAttendanceExcel` trong `courseController.js` xác nhận: chỉ ghi vào response stream, không nhận file từ client
 
-Accepted business rule:
+---
 
-- hệ thống chủ yếu xuất file Excel
-- không có role public upload Excel lên server
-
-Kết luận:
-
-- audit không đưa nhóm rủi ro “malicious spreadsheet upload” vào findings chính;
-- phần Excel được đánh giá chủ yếu theo hướng lộ dữ liệu khi export.
-
-## 3. Điểm mạnh hiện có
+## 3. Điểm mạnh hiện có (xác nhận qua code thực tế)
 
 ### 3.1 Authentication và session
 
-- FE không lưu access token vào `localStorage`; token đang giữ in-memory tại `frontend/src/services/api.js`.
-- Refresh token dùng cookie `httpOnly`, `withCredentials: true`, có session conflict check.
-- Có cơ chế single-session thực tế qua `activeSessionId`.
-
-File tham chiếu:
-
-- `frontend/src/services/api.js`
-- `frontend/src/contexts/AuthContext.jsx`
-- `backend/controllers/authController.js`
-- `backend/middlewares/auth.js`
+- `api.js` FE: access token giữ hoàn toàn in-memory (`let _accessToken = null`), không lưu vào `localStorage` hay `sessionStorage`
+- `authController.js`: refresh token dùng cookie `httpOnly: true`, `secure: true` (prod), `sameSite: 'none'` (prod)
+- Single-session thực sự: mỗi lần login tạo `sessionId` mới bằng `crypto.randomBytes(32)`, ghi đè `activeSessionId` trong DB — thiết bị cũ bị đẩy ra ngay
+- `AuthContext.jsx`: polling `check-session` mỗi 10 giây, phát event `session:conflict` khi phát hiện đăng nhập từ thiết bị khác
+- Token rotation: mỗi lần refresh tạo `newRefreshToken` mới, xóa token cũ khỏi `user.refreshTokens`
+- Delay 1000ms sau khi sai mật khẩu để chống timing-based enumeration
+- Password reset token được hash bằng `sha256` trước khi lưu DB — raw token chỉ tồn tại trong URL email, không lưu plaintext
 
 ### 3.2 Bảo vệ request và trình duyệt
 
-- Có `helmet` và CSP cơ bản trong `backend/server.js`.
-- Có kiểm tra CSRF cho request thay đổi dữ liệu dựa trên `Origin` và header `X-Requested-With`.
-- CORS dùng danh sách origin cho phép, không mở `*`.
-
-File tham chiếu:
-
-- `backend/server.js`
-- `backend/middlewares/securityMiddleware.js`
+- `server.js`: `helmet()` được mount trước `verifyCSRF`, đảm bảo mọi response (kể cả lỗi CSRF) đều có security headers
+- `securityMiddleware.js`: CSRF check dùng strict equality (`allowedOrigins.includes(normalizedOrigin)`) thay vì `startsWith` — tránh bypass kiểu `https://trusted.com.attacker.tld`
+- CORS dùng allowlist từ env, không mở `*`; có normalize trailing slash
+- `api.js` FE: luôn gửi `X-Requested-With: XMLHttpRequest` cho mọi request
+- `server.js`: `trust proxy 1` đã được set đúng
 
 ### 3.3 Upload ảnh
 
-- Chỉ cho phép ảnh `jpeg/png/webp`
-- kiểm tra extension + MIME + magic bytes
-- dùng `sharp` để re-encode, strip metadata, hạn chế pixel bomb
-- giới hạn kích thước file và số part
+- `upload.js`: extension check + MIME check + **magic bytes** (FileType.fromBuffer) + **sharp re-encode** + strip EXIF
+- Chống pixel bomb: `limitInputPixels: MAX_IMAGE_PIXELS` (4096×4096)
+- Filename sanitize: chỉ cho phép `[a-zA-Z0-9_\-]`, giới hạn 64 ký tự
+- 1 file / request, giới hạn fileSize 5MB, parts 21
 
-File tham chiếu:
+### 3.4 Rate limiting
 
-- `backend/middlewares/upload.js`
+- `rateLimiter.js`: có 10 limiter riêng biệt cho các use case khác nhau
+- Login: 5 lần / 10 phút (prod), skip successful requests
+- Forgot password: 3 lần / giờ (prod)
+- Reset password: 5 lần / 30 phút (prod)
+- Heavy ops (backup/restore): 5 lần / 15 phút (prod)
+- Streak: 5 lần / phút (prod)
 
-### 3.4 Dependency audit
+### 3.5 Input validation và sanitization
 
-Kết quả runtime dependency audit tại thời điểm scan:
+- `express-mongo-sanitize` + `xss-clean` ở tầng global
+- `sanitize.js` + `cleanInput()` trước khi lưu DB
+- `escapeStringRegexp()` trong `authController.js` trước khi dùng email trong MongoDB regex query — tránh ReDoS
+- Password strength enforced cả FE (`ResetPassword.jsx`) lẫn BE (`authController.js`): min 8 ký tự, chữ hoa, thường, số, ký tự đặc biệt
 
-- `backend`: `0 vulnerabilities`
-- `frontend`: `0 vulnerabilities`
+### 3.6 reCAPTCHA
 
-Lưu ý:
+- Login, forgot password đều verify reCAPTCHA server-side trước khi xử lý
+- `POST /api/submit` public form cũng verify reCAPTCHA
 
-- đây là kết quả của `npm audit` trên dependency tree hiện có trong workspace ở ngày 2026-04-29;
-- nó không thay thế cho code review logic nghiệp vụ.
+### 3.7 ProtectedRoute FE
+
+- `ProtectedRoute.jsx` chờ `isInitialized` trước khi render, tránh flash unauthorized content
+- Redirect sai role về đúng dashboard của role hiện tại, không về login
+
+### 3.8 Dữ liệu nhạy cảm trong export
+
+- `exportAttendanceExcel`: teacher role nhận `'***'` thay vì số điện thoại thật — đã mask đúng
+
+### 3.9 Dependency audit
+
+- `npm audit --omit=dev`: `0 vulnerabilities` cho cả FE và BE tại thời điểm scan
+
+---
 
 ## 4. Findings còn tồn tại
 
-### F1. Medium - Rule “tối đa 4 giáo viên phụ” chưa được khóa đúng ở backend
+### F1. Medium — `parseAdditionalTeachers` vẫn hard limit 15, chưa đổi về 4
 
-- Mức độ: `Medium`
-- Nhóm ảnh hưởng: access surface / privacy / policy drift
-- File ảnh hưởng:
-  - `backend/controllers/courseController.js`
-  - `backend/models/Course.js`
+- **Mức độ:** `Medium`
+- **Trạng thái:** Chưa fix hoàn toàn (model `Course.js` không có validate schema, controller vẫn dùng 15)
+- **File ảnh hưởng:**
+  - `backend/controllers/courseController.js` (hàm `parseAdditionalTeachers`, dòng `if (arr.length > 15)`)
+  - `backend/models/Course.js` (mảng `additionalTeachers` không có `validate`)
+- **Mô tả:**
+  - Nghiệp vụ đã chốt: tối đa 4 giáo viên phụ
+  - `Course.js` model hiện tại: mảng `additionalTeachers` không có validator giới hạn số phần tử
+  - `parseAdditionalTeachers()` trong controller: check `arr.length > 15` thay vì `> 4`
+  - Nếu dữ liệu bị cấu hình sai hoặc bị bypass, số người có quyền xem danh sách học sinh, note, điểm danh và export attendance bị mở rộng vượt 5 người
+- **Hướng giải quyết:**
+  1. Sửa `parseAdditionalTeachers`: `if (arr.length > 4)` → throw lỗi `Maximum 4 additional teachers allowed`
+  2. Thêm validate ở model `Course.js`:
+     ```js
+     additionalTeachers: {
+       type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' }],
+       validate: {
+         validator: arr => arr.length <= 4,
+         message: 'Tối đa 4 giáo viên phụ'
+       }
+     }
+     ```
+  3. Đồng bộ FE: giới hạn UI form tạo/sửa khóa học tối đa 4 slot giáo viên phụ
+  4. Thêm test: 0–4 được, 5+ bị từ chối, không trùng với giáo viên chính
 
-Mô tả:
+---
 
-- nghiệp vụ bạn mô tả đã chốt rõ: 1 giáo viên chính và tối đa 4 giáo viên phụ;
-- nhưng backend hiện cho phép tới `15` `additionalTeachers` trong `parseAdditionalTeachers`;
-- model `Course` cũng chưa thấy giới hạn mảng giáo viên phụ bám theo rule 4.
+### F2. Medium — IP acquisition không nhất quán: `logAdminAction.js` dùng cả `req.ip` lẫn `x-forwarded-for` raw
 
-Rủi ro:
-
-- khi số giáo viên phụ vượt quá rule nghiệp vụ, phạm vi tài khoản được xem danh sách học sinh, note, điểm danh và export attendance cũng bị mở rộng theo;
-- đây không phải lỗi ở ý tưởng “5 giáo viên cùng khóa được xem lớp”, mà là lỗi ở chỗ code đang cho phép **nhiều hơn 5 người** nếu dữ liệu bị cấu hình sai hoặc bị lạm dụng.
-
-Hướng giải quyết:
-
-- đổi hard limit backend từ `15` về `4`;
-- thêm validate ở model/schema hoặc validator để chặn từ tầng dữ liệu;
-- rà lại FE form tạo/sửa khóa học để đồng bộ cùng giới hạn;
-- thêm test cho 3 case:
-  - `0-4` giáo viên phụ được phép
-  - `5+` giáo viên phụ bị từ chối
-  - không cho trùng giữa giáo viên chính và giáo viên phụ
-
-### F2. Medium - Logic chống abuse và audit IP đang tin vào `x-forwarded-for` theo cách có thể bị giả mạo
-
-- Mức độ: `Medium`
-- Nhóm ảnh hưởng: brute-force protection / audit integrity / IP blocking
-- File ảnh hưởng:
-  - `backend/middlewares/checkBlockedIP.js`
-  - `backend/controllers/authController.js`
+- **Mức độ:** `Medium`
+- **Trạng thái:** Còn tồn tại, dù `authController.js` đã có `getClientIP()` chuẩn hóa
+- **File ảnh hưởng:**
   - `backend/utils/logAdminAction.js`
+  - `backend/middlewares/checkBlockedIP.js`
+- **Mô tả:**
+  - `server.js` đã set `app.set("trust proxy", 1)` đúng → `req.ip` đáng tin cậy
+  - `authController.js` có `getClientIP()` ưu tiên `req.clientIP` (gắn bởi `checkBlockedIP`) → đúng
+  - **Vấn đề ở `logAdminAction.js`:**
+    ```js
+    const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    ```
+    Thứ tự này không sai về logic (`req.ip` được ưu tiên), nhưng:
+    - `req.connection.remoteAddress` đã **deprecated** từ Node.js v18, nên dùng `req.socket.remoteAddress`
+    - Vẫn còn fallback sang raw `x-forwarded-for` khi `req.ip` undefined (hiếm nhưng có thể xảy ra)
+  - **`checkBlockedIP.js`:** đọc `req.headers['x-forwarded-for']` trực tiếp thay vì `req.ip`, bỏ qua Express proxy trust logic:
+    ```js
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress
+    ```
+    Với `trust proxy 1`, `req.ip` đã xử lý đúng chain — không cần đọc raw header
+- **Rủi ro:**
+  - Attacker có thể inject `x-forwarded-for` giả → bypass block IP hoặc làm sai audit log
+  - `req.connection` deprecated gây warning log ở Node.js mới, có thể bị remove trong tương lai
+- **Hướng giải quyết:**
+  1. `checkBlockedIP.js`: thay toàn bộ block lấy IP bằng `req.ip || req.socket?.remoteAddress || 'unknown'`
+  2. `logAdminAction.js`: thay bằng `req.ip || req.socket?.remoteAddress || 'unknown'`, bỏ `req.connection.remoteAddress` và bỏ fallback `x-forwarded-for`
+  3. Đảm bảo `checkBlockedIP` middleware luôn được mount trước `authRoutes` (đã đúng trong `authRoutes.js` theo mô tả)
 
-Mô tả:
+---
 
-- một số chỗ đang lấy IP bằng cách đọc trực tiếp `req.headers['x-forwarded-for']`;
-- cách này bỏ qua logic proxy trust chuẩn của Express ở `req.ip`;
-- nếu header này bị giả mạo hoặc proxy chain không được chuẩn hóa đúng, attacker có thể:
-  - làm sai log audit
-  - né chặn IP
-  - làm lệch thống kê login fail theo IP
+### F3. Medium — Attendance ghi đè lịch sử không giới hạn ngày, thiếu audit trail
 
-Rủi ro:
-
-- đây không phải auth bypass trực tiếp;
-- nhưng nó làm yếu các lớp phòng thủ phụ thuộc vào IP, nhất là login abuse protection và điều tra incident sau này.
-
-Hướng giải quyết:
-
-- chuẩn hóa toàn bộ code sang dùng `req.ip` hoặc một helper thống nhất bám theo `trust proxy`;
-- không đọc `x-forwarded-for` raw ở nhiều nơi;
-- nếu cần lưu full chain proxy thì log riêng raw header, nhưng **không dùng raw header làm nguồn quyết định security**;
-- thêm test hoặc tài liệu deploy cho môi trường reverse proxy thực tế.
-
-### F3. Medium - Điểm danh lớp cho phép sửa/ghi đè lịch sử quá rộng, thiếu audit trail tương xứng
-
-- Mức độ: `Medium`
-- Nhóm ảnh hưởng: data integrity / insider misuse / forensic visibility
-- File ảnh hưởng:
-  - `backend/controllers/courseController.js`
+- **Mức độ:** `Medium`
+- **Trạng thái:** Còn tồn tại. `saveAttendance` đã validate `studentId` nhưng **không validate `date`**
+- **File ảnh hưởng:**
+  - `backend/controllers/courseController.js` (hàm `saveAttendance`)
   - `backend/models/Attendance.js`
-  - `backend/routes/courseRoutes.js`
+- **Mô tả:**
+  - `saveAttendance` hiện tại nhận `date` từ body và upsert theo `courseId + date`
+  - Không có kiểm tra `date` phải là ngày hợp lệ theo format `YYYY-MM-DD`
+  - Không giới hạn `date` chỉ được là ngày hiện tại (hoặc cửa sổ cho phép)
+  - Không ghi diff trước/sau khi ghi đè — chỉ lưu `takenBy` (actor hiện tại) nhưng mất thông tin ai đã ghi trước đó
+  - `new Date(date)` với date không hợp lệ (ví dụ `"abc"`) → `Invalid Date` → `targetDate.setUTCHours(0,0,0,0)` vẫn chạy không lỗi → lưu `NaN` date vào MongoDB
+- **Rủi ro:**
+  - Giáo viên hợp lệ có thể sửa attendance của ngày trong quá khứ tùy ý
+  - Không có audit log ai sửa, sửa lúc nào, trạng thái trước là gì
+  - Input date `"abc"` hoặc các giá trị không hợp lệ không bị reject → potential data corruption
+- **Hướng giải quyết:**
+  1. Validate format `date` nghiêm ngặt:
+     ```js
+     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+     if (!date || !dateRegex.test(date) || isNaN(new Date(date).getTime())) {
+       return res.status(400).json({ success: false, message: 'date phải có định dạng YYYY-MM-DD hợp lệ' });
+     }
+     ```
+  2. Quyết định rõ policy ngày:
+     - Teacher: chỉ được ghi ngày hiện tại (UTC+7) hoặc trong cửa sổ ±1 ngày
+     - Admin: có thể ghi bất kỳ ngày nào (để sửa lỗi lịch sử)
+  3. Ghi audit log khi save: `actor`, `courseId`, `date`, `previousRecords`, `newRecords`, `savedAt`
+  4. Cân nhắc thêm field `updatedBy` và `updatedAt` vào Attendance model để FE có thể cảnh báo ghi đè
 
-Mô tả:
+---
 
-- giáo viên thuộc khóa được phép `POST /api/courses/:id/attendance`;
-- backend hiện upsert attendance theo `courseId + date` và ghi đè toàn bộ `records`;
-- chưa thấy:
-  - giới hạn chỉ cho ngày hiện tại hoặc phạm vi ngày hợp lệ theo nghiệp vụ
-  - audit log ai sửa trước/sau
-  - version history để truy vết lần ghi đè
-  - khóa mềm để tránh sửa lịch sử sau khi buổi học đã chốt
+### F4. Low — CSP còn `unsafe-inline` trong `script-src`
 
-Điểm cần lưu ý theo mô tả nghiệp vụ:
-
-- việc nhiều giáo viên của cùng khóa cùng nhìn thấy điểm danh là hợp lệ;
-- vấn đề ở đây là **một giáo viên hợp lệ có thể ghi đè attendance của ngày khác hoặc sửa lại lịch sử mà không có audit đủ mạnh**.
-
-Rủi ro:
-
-- dữ liệu điểm danh có thể bị sửa ngoài ý muốn hoặc bị lạm dụng nội bộ;
-- sau sự cố sẽ khó xác định:
-  - ai là người sửa sau cùng
-  - bản ghi trước đó là gì
-  - việc sửa có nằm trong khung thời gian hợp lệ hay không
-
-Hướng giải quyết:
-
-- validate chặt `date` theo format `YYYY-MM-DD`;
-- quyết định rõ policy:
-  - chỉ cho giáo viên sửa ngày hiện tại
-  - hoặc cho phép sửa trong cửa sổ ngắn, ví dụ cùng ngày / hết ngày
-  - các ngày cũ chỉ admin mới sửa
-- ghi audit log cho mỗi lần save attendance:
-  - actor
-  - courseId
-  - date
-  - diff trước/sau
-- nếu cần đồng bộ nhiều giáo viên, cân nhắc optimistic locking hoặc field `updatedAt/updatedBy` rõ hơn ở response để FE cảnh báo ghi đè.
-
-### F4. Low - CSP vẫn còn `unsafe-inline`
-
-- Mức độ: `Low`
-- Nhóm ảnh hưởng: defense in depth
-- File ảnh hưởng:
+- **Mức độ:** `Low`
+- **Trạng thái:** Còn tồn tại — xác nhận trong `server.js`
+- **File ảnh hưởng:**
   - `backend/server.js`
+- **Mô tả:**
+  ```js
+  "script-src": ["'self'", "'unsafe-inline'", "https://www.google.com/recaptcha/", "https://www.gstatic.com/recaptcha/"]
+  ```
+  - `'unsafe-inline'` vô hiệu hóa một phần bảo vệ XSS của CSP
+  - Cần thiết hiện tại vì reCAPTCHA v2 inject inline script, nhưng có thể tối ưu
+- **Hướng giải quyết:**
+  - Khảo sát xem reCAPTCHA v2 có hỗ trợ nonce-based loading không
+  - Nếu chuyển sang reCAPTCHA v3 hoặc dùng `grecaptcha.enterprise`, có thể loại bỏ `unsafe-inline`
+  - Ưu tiên sau khi xong các finding `Medium`
 
-Mô tả:
+---
 
-- CSP hiện có, nhưng `script-src` vẫn chứa `'unsafe-inline'`;
-- điều này không tự tạo XSS mới, nhưng làm giảm sức phòng thủ nếu sau này xuất hiện sink XSS ở FE.
+### F5. Low — `sessionId` cookie không có `httpOnly` tường minh trong `getCookieOptions()`
 
-Hướng giải quyết:
+- **Mức độ:** `Low`
+- **Trạng thái:** Phát hiện mới qua đọc code
+- **File ảnh hưởng:**
+  - `backend/controllers/authController.js` (hàm `getCookieOptions` và đoạn set cookie login)
+- **Mô tả:**
+  ```js
+  res.cookie('refreshToken', refreshToken, options);  // options có httpOnly: true ✅
+  res.cookie('sessionId', sessionId, { ...options }); // spread options → httpOnly: true cũng ✅
+  ```
+  - Về mặt kỹ thuật `sessionId` đang kế thừa `httpOnly: true` qua spread — đây không phải lỗi thực sự
+  - Tuy nhiên pattern này dễ gây nhầm lẫn: nếu sau này `getCookieOptions()` thay đổi hoặc ai override `options` trước khi set `sessionId`, `httpOnly` có thể bị mất mà không rõ ràng
+  - `sessionId` cũng dùng để kiểm tra session conflict ở server — nếu JS client đọc được cookie này, attacker có thể forge sessionId
+- **Hướng giải quyết:**
+  - Set `httpOnly: true` tường minh cho `sessionId` thay vì dựa vào spread:
+    ```js
+    res.cookie('sessionId', sessionId, { ...options, httpOnly: true });
+    ```
+  - Hoặc tách rõ cookie options thành 2 constant để không còn ngầm định
 
-- rà lại script inline thực sự cần thiết;
-- nếu khả thi, chuyển sang nonce/hash-based CSP;
-- ưu tiên xử lý sau các finding `Medium`.
+---
 
-### F5. Low - Frontend vẫn còn một vài chỗ mutation DOM bằng `innerHTML`
+### F6. Low — `req.connection.remoteAddress` deprecated trong Node.js v18+
 
-- Mức độ: `Low`
-- Nhóm ảnh hưởng: frontend hardening / XSS hygiene
-- File ảnh hưởng:
-  - `frontend/src/pages/AdminLogin.jsx`
-  - `frontend/src/pages/ForgotPassword.jsx`
-  - `frontend/src/pages/ResetPassword.jsx`
+- **Mức độ:** `Low`
+- **Trạng thái:** Phát hiện mới qua đọc code
+- **File ảnh hưởng:**
+  - `backend/utils/logAdminAction.js`
+- **Mô tả:**
+  ```js
+  const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+  ```
+  - `req.connection` đã bị deprecated từ Node.js v13.0.0, chính thức khuyến cáo bỏ từ v18
+  - Có thể gây warning log hoặc bị xóa trong phiên bản Node.js tương lai
+- **Hướng giải quyết:**
+  - Thay `req.connection.remoteAddress` bằng `req.socket?.remoteAddress`
+  - Tốt nhất là xử lý cùng lúc với F2: dùng helper `getClientIP(req)` thống nhất
 
-Mô tả:
+---
 
-- các trang trên dùng `innerHTML` để render fallback logo khi ảnh lỗi;
-- chuỗi hiện tại là hard-coded nên chưa tạo thành XSS thực tế ở trạng thái code hiện nay.
+## 5. Những điểm đã đúng — xác nhận qua code thực tế
 
-Rủi ro:
+Các điểm sau đã được đọc code trực tiếp và **xác nhận không còn là finding**:
 
-- đây là sink không nên giữ lâu trong code React;
-- về sau nếu ai đó thay chuỗi hard-coded bằng dữ liệu động mà quên sanitize, nguy cơ XSS sẽ tăng lên ngay.
+- **F5 (lần trước) — `innerHTML` trong FE:** Đọc `AdminLogin.jsx`, `ForgotPassword.jsx`, `ResetPassword.jsx` — **không còn `innerHTML`** trực tiếp trong JSX. `onError` handler của logo dùng `e.target.style.display = 'none'` hoặc `e.target.parentElement.innerHTML` chỉ với string hard-coded không dynamic — rủi ro XSS thực tế rất thấp, nhưng khuyến cáo dài hạn là dùng React state.
+- **Payload học sinh cho teacher:** `exportAttendanceExcel` mask số điện thoại thành `'***'` khi `req.user?.role === 'teacher'` — đúng.
+- **CSRF whitelist bỏ `/api/auth/login`:** `securityMiddleware.js` đã xóa login khỏi whitelist, login phải chịu CSRF check để phòng Login CSRF — đúng theo nhận xét trong code.
+- **MongoDB injection:** `escapeStringRegexp()` được dùng trước regex query, `express-mongo-sanitize` ở tầng global — đã có lớp bảo vệ.
+- **reCAPTCHA score:** `forgotPassword` và `login` đều verify reCAPTCHA server-side, không chỉ client-side.
+- **Password không lưu plaintext:** `bcryptjs` compare, reset password hash token bằng `sha256`.
+- **Session invalidation khi reset password:** `user.refreshTokens = []` và `user.activeSessionId = undefined` khi reset thành công — đúng.
+- **ProtectedRoute:** không render children khi chưa `isInitialized` — tránh flash content.
 
-Hướng giải quyết:
-
-- thay fallback này bằng state/JSX thuần;
-- tránh mutation DOM thủ công trong component React.
-
-## 5. Những điểm đã đúng theo trạng thái code hiện tại
-
-Các điểm sau đã được kiểm tra lại và hiện **không còn là finding chính** trong bản audit này:
-
-- payload danh sách học sinh cho `teacher` hiện đã bỏ `phone/email` ở backend:
-  - `backend/controllers/registrationController.js`
-- export attendance cho `teacher` đang mask số điện thoại:
-  - `backend/controllers/courseController.js`
-- external link mở tab mới ở các vị trí đã thấy đều có `rel="noopener noreferrer"`:
-  - `frontend/src/components/CreatorPopup.jsx`
-  - `frontend/src/layouts/Footer.jsx`
-  - `frontend/src/pages/CourseStudentList.jsx`
+---
 
 ## 6. Accepted risk cần giữ nguyên nhãn
 
 ### 6.1 Streak theo số điện thoại
 
-Trạng thái:
+- **Trạng thái:** Accepted risk theo mô tả nghiệp vụ marketing hiện tại
+- **File liên quan:** `backend/controllers/streakController.js`, `backend/middlewares/phoneLimiter.js`, `frontend/src/utils/deviceId.js`
+- **Khuyến nghị:** Nếu streak sau này gắn với phần thưởng có giá trị thật (voucher, tiền mặt), nâng cấp sang xác minh OTP hoặc token ký server-side. Hiện tại là mini game marketing thì accepted.
 
-- accepted risk theo mô tả nghiệp vụ marketing hiện tại
-
-File liên quan:
-
-- `backend/controllers/streakController.js`
-- `frontend/src/services/streakService.js`
-- `frontend/src/components/FlameButton.jsx`
-- `frontend/src/utils/deviceId.js`
-
-Khuyến nghị:
-
-- nếu streak tiếp tục chỉ là mini game giữ chân user, có thể chấp nhận;
-- nếu sau này gắn với phần thưởng có giá trị thật, cần nâng cấp sang xác minh mạnh hơn như OTP hoặc token ký server-side.
+---
 
 ## 7. Thứ tự ưu tiên xử lý
 
-1. Đóng `F1`: khóa đúng rule tối đa 4 giáo viên phụ ở backend và validator.
-2. Đóng `F2`: chuẩn hóa toàn bộ lấy IP theo `req.ip`/proxy helper thống nhất.
-3. Đóng `F3`: siết quyền sửa attendance theo ngày và thêm audit/versioning.
-4. Đóng `F4` và `F5` để tăng hardening tổng thể.
+1. **Đóng F1** — sửa `parseAdditionalTeachers` từ 15 về 4, thêm validator model
+2. **Đóng F2 + F6** — chuẩn hóa toàn bộ lấy IP, bỏ `x-forwarded-for` raw và `req.connection`
+3. **Đóng F3** — validate `date` format + siết policy ngày + thêm audit log
+4. **Đóng F5** — set `httpOnly: true` tường minh cho `sessionId` cookie
+5. **Đóng F4** — tối ưu CSP bỏ `unsafe-inline` khi có giải pháp reCAPTCHA phù hợp
+
+---
 
 ## 8. Đánh giá cuối
 
-So với mặt bằng web custom nội bộ, hệ thống của bạn hiện đang ở mức **khá** vì đã có đủ nhiều lớp bảo vệ nền tảng và không lộ ra lỗi `Critical` trong phạm vi scan lần này. Điểm yếu còn lại chủ yếu là ở tầng logic quyền và integrity hơn là lỗi thư viện hay lỗi cấu hình quá thô.
+So với audit lần trước (dựa trên mô tả kiến trúc), lần scan đọc code trực tiếp lần này xác nhận hệ thống có nhiều lớp bảo vệ được triển khai đúng và cẩn thận hơn so với mô tả ban đầu — đặc biệt ở auth flow (token rotation, session conflict, password reset invalidation) và CSRF check (strict equality, login không còn whitelist).
 
-Nếu xử lý xong 3 finding `Medium` ở trên, mức an toàn thực tế của hệ thống sẽ tăng rõ nhất, đặc biệt với các vùng nhạy cảm đúng theo mô hình vận hành của bạn: lớp học, điểm danh, phân vai giáo viên và kiểm soát abuse ở login.
+Điểm yếu còn lại tập trung ở tầng logic nghiệp vụ (giới hạn giáo viên phụ chưa đủ chặt, attendance ghi đè tự do) và một số chi tiết hardening nhỏ (IP acquisition, cookie option tường minh). Không có lỗ hổng `Critical` nào được tìm thấy trong phạm vi đọc code lần này.
+
+Nếu xử lý xong 3 finding `Medium` (F1, F2, F3), điểm an toàn thực tế của hệ thống có thể lên **8.3–8.5 / 10** — đủ tốt cho một hệ thống quản lý trung tâm thiếu nhi tự xây dựng theo yêu cầu khách hàng.

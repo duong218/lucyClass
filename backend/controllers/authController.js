@@ -222,7 +222,7 @@ exports.login = async (req, res) => {
 
     const options = getCookieOptions();
     res.cookie('refreshToken', refreshToken, options);
-    res.cookie('sessionId', sessionId, { ...options });
+    res.cookie('sessionId', sessionId, { ...options, httpOnly: true });
 
     console.log(`[Login] Success: ${user.username} (${user.role})`);
 
