@@ -40,7 +40,7 @@ const auditLogSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Auto-delete logs after 90 days to save space on Atlas Free Tier
-auditLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: 90 * 24 * 60 * 60 });
+// Auto-delete logs after 180 days to save space on Atlas Free Tier
+auditLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: 180 * 24 * 60 * 60 });
 
 module.exports = mongoose.model('AuditLog', auditLogSchema);

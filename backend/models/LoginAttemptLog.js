@@ -21,10 +21,10 @@ const loginAttemptLogSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Tự dọn log cũ sau 90 ngày (đồng bộ với AuditLog)
+// Tự dọn log cũ sau 180 ngày (đồng bộ với AuditLog)
 loginAttemptLogSchema.index(
   { createdAt: 1 },
-  { expireAfterSeconds: 90 * 24 * 60 * 60 }
+  { expireAfterSeconds: 180 * 24 * 60 * 60 }
 );
 
 module.exports = mongoose.model('LoginAttemptLog', loginAttemptLogSchema);
