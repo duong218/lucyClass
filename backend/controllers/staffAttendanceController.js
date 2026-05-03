@@ -94,6 +94,22 @@ const normalizeAndValidateLogs = (logs, date) => {
     return { valid: false, message: 'Log time không hợp lệ' };
   }
 
+  const VN_TIMEZONE = 'Asia/Ho_Chi_Minh';
+  const mismatchedLog = normalizedLogs.find((log) => {
+    const logDateStr = new Intl.DateTimeFormat('en-CA', {
+      timeZone: VN_TIMEZONE,
+      year: 'numeric', month: '2-digit', day: '2-digit'
+    }).format(log.time);
+    return logDateStr !== date;
+  });
+
+  if (mismatchedLog) {
+    return { 
+      valid: false, 
+      message: `Thời gian điểm danh (${new Intl.DateTimeFormat('vi-VN', { timeZone: VN_TIMEZONE, hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }).format(mismatchedLog.time)}) không khớp với ngày của bản ghi (${date}). Vui lòng chọn đúng ngày trên lịch.`
+    };
+  }
+
   const { logs: normalizedWithAutoCheckout, autoAdded } = appendAutoCheckoutIfMissing(normalizedLogs, date);
 
   if (!validateAlternatingLogs(normalizedWithAutoCheckout)) {

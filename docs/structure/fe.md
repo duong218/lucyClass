@@ -30,6 +30,7 @@ frontend/
 |   |-- layouts/
 |   |-- pages/
 |   |-- services/
+|   |-- theme/
 |   |-- utils/
 |   |-- App.jsx
 |   |-- i18n.js
@@ -90,6 +91,8 @@ frontend/
 - `/admin/accounts`
 - `/admin/history`
 - `/admin/attendance`
+- `/admin/salary-config`
+- `/admin/salary-report`
 
 ### Teacher
 - `/teacher/dashboard`
@@ -180,6 +183,8 @@ frontend/
 - `AccountManagement.jsx`: quản lý tài khoản staff.
 - `AdminHistory.jsx`: lịch sử thao tác admin.
 - `Admin/AttendanceManagement.jsx`: quản lý chấm công staff.
+- `Admin/SalaryConfig.jsx`: cấu hình hệ thống lương.
+- `Admin/SalaryReport.jsx`: tính toán và xuất báo cáo lương.
 
 ### Teacher
 - `Teacher/TeacherDashboard.jsx`: dashboard giáo viên.
@@ -246,6 +251,9 @@ frontend/
 - API cho tính năng streak public.
 - Dùng `fetch` riêng và gửi kèm `deviceId`.
 
+### `salaryService.js`
+- API cho quản lý lương: cấu hình, bonus, báo cáo và tính toán lương.
+
 ### `api.js`
 - Client Axios dùng chung toàn app.
 
@@ -262,6 +270,7 @@ frontend/
 - `dateUtils.js`: format ngày giờ và thời gian tương đối.
 - `draggableStreak.js`: logic tương tác cho UI streak.
 - `exportStudentExcel.js`: helper xuất Excel danh sách học sinh theo từng lớp hoặc toàn bộ khóa học.
+- `exportTimetableExcel.js`: helper xuất Excel thời khóa biểu.
 - `modalScrollLock.js`: hỗ trợ khóa scroll nền.
 - `popupActivityData.js`: dữ liệu cấu hình cho popup hoạt động.
 - `toastUtils.jsx`: helper toast dùng chung.
@@ -272,6 +281,9 @@ frontend/
 - `vi.json`, `en.json`, `zh.json`: resource đa ngôn ngữ.
 - `src/i18n/index.js`: export resource và cấu hình nội bộ.
 - `src/i18n.js`: khởi tạo i18n cho toàn app.
+
+### `src/theme/`
+- `lucyBrand.js`: Định nghĩa các token màu sắc và style cốt lõi theo nhận diện thương hiệu Lucy.
 
 ### `tailwind.config.js`
 - Dùng palette màu riêng theo phong cách trung tâm thiếu nhi.

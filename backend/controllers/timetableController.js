@@ -431,6 +431,49 @@ exports.upsertCell = async (req, res) => {
   }
 };
 
+/**
+ * DELETE /api/timetable/cells/:id
+ * Xóa một ô lịch và các giáo viên gán cho ô đó.
+ */
+exports.deleteCell = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid cell ID format' });
+    }
+
+    const cell = await TimetableCell.findById(id).lean();
+    if (!cell) {
+      return res.status(404).json({ success: false, message: 'Cell not found' });
+    }
+
+    // Lấy thông tin row để log
+    const row = await TimetableRow.findById(cell.rowId).lean();
+
+    // Xóa tất cả giáo viên được gán vào session (cell) này
+    const SessionTeacher = require('../models/SessionTeacher');
+    await SessionTeacher.deleteMany({ sessionId: id });
+
+    // Xóa cell
+    await TimetableCell.findByIdAndDelete(id);
+
+    await logAdminAction({
+      adminId: req.admin.id,
+      adminName: req.admin.username,
+      action: 'DELETE_TIMETABLE_CELL',
+      targetType: 'timetable_cell',
+      targetId: id,
+      description: `Deleted cell: Day ${cell.dayOfWeek} / [${row?.branch || 'Unknown'}] ${row?.roomName || ''}`,
+      req
+    });
+
+    res.json({ success: true, message: 'Cell deleted successfully' });
+  } catch (error) {
+    console.error('[Timetable] deleteCell error:', error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // --- 📥 EXPORT TIMETABLE TO EXCEL ---
 
 /**

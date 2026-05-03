@@ -4,6 +4,12 @@ const mongoose = require('mongoose');
  * StaffAttendance — chấm công nhân viên (teacher / marketing)
  * Mỗi document = 1 ngày chấm công của 1 nhân viên
  * logs: mảng checkin/checkout theo thứ tự thời gian
+ *
+ * source — nguồn gốc bản ghi checkin:
+ *   device          — GV tự bấm checkin/checkout trên thiết bị
+ *   auto_checkout   — hệ thống tự checkout lúc 23:59 khi GV quên
+ *   auto_by_admin   — hệ thống tự checkin khi admin xác nhận đổi GV
+ *   manual_by_admin — admin sửa/thêm chấm công thủ công
  */
 const staffAttendanceSchema = new mongoose.Schema(
   {
@@ -28,6 +34,12 @@ const staffAttendanceSchema = new mongoose.Schema(
         time: {
           type: Date,
           required: true
+        },
+        // Nguồn gốc của từng log entry
+        source: {
+          type: String,
+          enum: ['device', 'auto_checkout', 'auto_by_admin', 'manual_by_admin'],
+          default: 'device'
         }
       }
     ],
@@ -38,6 +50,12 @@ const staffAttendanceSchema = new mongoose.Schema(
     adminEdited: {
       type: Boolean,
       default: false
+    },
+    // Nguồn tổng thể của bản ghi (lấy source của log cuối cùng để hiển thị nhanh)
+    source: {
+      type: String,
+      enum: ['device', 'auto_checkout', 'auto_by_admin', 'manual_by_admin'],
+      default: 'device'
     }
   },
   { timestamps: true }

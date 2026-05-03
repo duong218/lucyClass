@@ -115,16 +115,9 @@ const TimetableEditor = () => {
     return { branchMap, branchOrder };
   }, [timetable.rows]);
 
-  const handleCellSave = async (cellData) => {
-    try {
-      await timetableService.upsertCell(cellData);
-      showToast.success('Lưu hoàn tất nhé! 🎉');
-      setActiveCell(null);
-      fetchTimetable();
-    } catch (err) {
-      showToast.error(err.message || 'Error saving cell 😢');
-      throw err;
-    }
+  /** CellPopover tự gọi API lưu ô + session_teachers; chỉ cần refetch khi đóng. */
+  const handleCellSaved = () => {
+    fetchTimetable();
   };
 
   const handleExportExcel = async () => {
@@ -530,7 +523,7 @@ const TimetableEditor = () => {
             row={activeCell?.row}
             dayIndex={activeCell?.dayIndex}
             weekDate={selectedDate}
-            onSave={handleCellSave}
+            onSaved={handleCellSaved}
             onClose={() => setActiveCell(null)}
           />
         )}

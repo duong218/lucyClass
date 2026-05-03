@@ -16,6 +16,8 @@ import {
   Clock,
   UserCog,
   ScrollText,
+  Banknote,
+  FileSpreadsheet,
   Settings,
   X,
   Menu,
@@ -23,6 +25,7 @@ import {
   AlertTriangle,
   LogOut,
 } from 'lucide-react';
+import { LUCY_BRAND } from '../theme/lucyBrand';
 
 const AdminLayout = () => {
   const { t } = useTranslation();
@@ -45,15 +48,13 @@ const AdminLayout = () => {
     { path: '/admin/announcements',label: t('announcements.manage_title'),   icon: Megaphone },
     { path: '/admin/timetable',    label: t('admin.timetable'),              icon: CalendarDays },
     { path: '/admin/attendance',   label: 'Quản lý chấm công',               icon: Clock },
+    { path: '/admin/salary-config', label: 'Cấu hình lương',                 icon: Banknote },
+    { path: '/admin/salary-report', label: 'Báo cáo lương',                 icon: FileSpreadsheet },
     { path: '/admin/accounts',     label: t('admin.accounts_management'),    icon: UserCog },
     { path: '/admin/history',      label: t('history.title'),                icon: ScrollText },
   ];
 
-  const BRAND = {
-    primary: '#1C695C',
-    primaryLight: '#3FA48F',
-    primaryDeep: '#1C6970'
-  };
+  const BRAND = LUCY_BRAND;
 
   return (
     <div className="min-h-screen bg-gray-50 flex relative overflow-x-hidden">

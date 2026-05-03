@@ -83,6 +83,11 @@ const timetableService = {
     return response.data;
   },
 
+  deleteCell: async (id) => {
+    const response = await api.delete(`/timetable/cells/${id}`);
+    return response.data;
+  },
+
   // Export to Excel
   exportTimetable: async (weekDate) => {
     // We respond with a blob for file download

@@ -60,9 +60,16 @@ const Dashboard = () => {
       setBackups(res.data?.data || res.data?.backups || res.data || []);
       setGoogleNotConnected(false);
     } catch (err) {
-      const status = err?.response?.status;
-      const message = err?.response?.data?.message || '';
-      if (status === 401 && message.toLowerCase().includes('google')) {
+      // Interceptor có thể reject thẳng body JSON (không có err.response) khi lỗi Google OAuth
+      const status = err?.response?.status ?? err?.status;
+      const rawMsg = err?.response?.data?.message ?? err?.message ?? '';
+      const message = String(rawMsg).toLowerCase();
+      const isGoogleNeedReconnect =
+        (status === 401 && (message.includes('google') || message.includes('reconnect'))) ||
+        message.includes('google token') ||
+        message.includes('please reconnect');
+
+      if (isGoogleNeedReconnect) {
         setBackups([]);
         setGoogleNotConnected(true);
         return;

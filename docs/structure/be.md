@@ -37,6 +37,7 @@ backend/
 |-- migrate-childAge.js
 |-- nodemon.json
 |-- package.json
+|-- readme1.txt
 `-- server.js
 ```
 
@@ -72,6 +73,7 @@ backend/
   - `/api/sync`
   - `/api/attendance`
   - `/api/staff-attendance`
+  - `/api/salary`
 - Có thêm 2 endpoint được định nghĩa trực tiếp:
   - `POST /api/submit`: form đăng ký public có reCAPTCHA, lưu MongoDB và đồng bộ Google Sheets.
   - `GET /api/health`: kiểm tra trạng thái dịch vụ.
@@ -162,6 +164,9 @@ backend/
 - Chấm công staff, lịch sử chấm công, chỉnh sửa và export.
 - Được mount ở cả `/api/attendance` và `/api/staff-attendance`.
 
+### `salaryRoutes.js`
+- Quản lý cấu hình lương, tính toán lương, bonus và xuất báo cáo lương.
+
 ## Điều phối nghiệp vụ `controllers/`
 
 ### Nhóm nội bộ
@@ -171,6 +176,7 @@ backend/
 - `attendanceController.js`: lớp bọc route cho attendance staff.
 - `auditController.js`: lấy log và export CSV.
 - `statsController.js`: widget và dữ liệu dashboard admin.
+- `salaryController.js`: quản lý cấu hình lương, tính toán lương, bonus và báo cáo.
 
 ### Nhóm học vụ
 - `courseController.js`: khóa học, gán giáo viên chính/phụ, điểm danh, phân quyền teacher theo lớp, export attendance.
@@ -217,6 +223,8 @@ backend/
 - `AuditLog.js`: log thao tác admin.
 - `Ranking.js`, `Streak.js`, `DeviceUsage.js`: dữ liệu streak/ranking/chống spam.
 - `GoogleToken.js`: token OAuth Google.
+- `SalaryConfig.js`, `SalaryBonus.js`, `SalaryConfigLog.js`, `SalarySystemSettings.js`: cấu hình và dữ liệu lương.
+- `SessionTeacher.js`: dữ liệu buổi dạy của giáo viên hỗ trợ tính lương.
 - `BlockedIP.js`, `LoginAttemptLog.js`, `Log.js`: hỗ trợ bảo mật và logging.
 - `TimetableRow.js`, `TimetableCell.js`: lưới thời khóa biểu.
 

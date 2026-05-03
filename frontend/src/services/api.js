@@ -98,7 +98,10 @@ api.interceptors.response.use(
         message.includes('google') ||
         data?.success === false && message.includes('expired')
       ) {
-        console.warn('[API] Google token expired - skip refresh');
+        // JWT refresh không giúp được OAuth Google Drive — để từng feature (vd. Dashboard) bắt reconnect
+        if (import.meta.env.DEV) {
+          console.debug('[API] Google OAuth issue — skip JWT refresh', data?.message || message);
+        }
         return Promise.reject(data || error);
       }
 

@@ -23,4 +23,7 @@ router.delete('/rows/:id', auth, isAdmin, catchAsync(timetableController.deleteR
 // PUT /api/timetable/cells — upsert a cell
 router.put('/cells', auth, isAdmin, catchAsync(timetableController.upsertCell));
 
+// DELETE /api/timetable/cells/:id — delete a cell
+router.delete('/cells/:id', auth, isAdmin, catchAsync(timetableController.deleteCell));
+
 module.exports = router;

@@ -164,10 +164,13 @@ const EditModal = ({ isOpen, onClose, staffName, record, selectedDate, onSave })
 
   const addLog = () => {
     const now = new Date();
-    const vnNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+    const vnTime = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      hour: '2-digit', minute: '2-digit', hour12: false
+    }).format(now);
     setLogs([...logs, {
       type: logs.length % 2 === 0 ? 'checkin' : 'checkout',
-      time: vnNow.toISOString().slice(0, 16)
+      time: `${selectedDate}T${vnTime}`
     }]);
   };
 
@@ -261,9 +264,13 @@ const EditModal = ({ isOpen, onClose, staffName, record, selectedDate, onSave })
                 <option value="checkout">Check-out</option>
               </select>
               <input
-                type="datetime-local"
-                value={log.time}
-                onChange={e => updateLog(idx, 'time', e.target.value)}
+                type="time"
+                value={log.time.includes('T') ? log.time.split('T')[1] : log.time}
+                onChange={e => {
+                  const newTime = e.target.value;
+                  const newDateTime = `${selectedDate}T${newTime}`;
+                  updateLog(idx, 'time', newDateTime);
+                }}
                 className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200"
               />
               <button

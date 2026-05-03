@@ -30,6 +30,8 @@ import MktAnnouncementPage from './pages/Marketing/MktAnnouncementPage';
 // Attendance
 import StaffAttendance from './pages/Attendance/StaffAttendance';
 import AttendanceManagement from './pages/Admin/AttendanceManagement';
+import SalaryConfig from './pages/Admin/SalaryConfig';
+import SalaryReport from './pages/Admin/SalaryReport';
 
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -81,6 +83,8 @@ function App() {
           <Route path="accounts" element={<AccountManagement />} />
           <Route path="history" element={<AdminHistory />} />
           <Route path="attendance" element={<AttendanceManagement />} />
+          <Route path="salary-config" element={<SalaryConfig />} />
+          <Route path="salary-report" element={<SalaryReport />} />
         </Route>
 
         {/* ─── Teacher routes (chỉ role: teacher) ──────────────────────────────── */}
