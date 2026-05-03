@@ -5,7 +5,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 
 # ---- Stage 2: Runtime ----
-FROM node:20
+FROM node:20-slim
 ENV NODE_ENV=production
 
 RUN apt-get update && apt-get install -y libssl3 ca-certificates curl && \
