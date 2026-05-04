@@ -40,3 +40,7 @@ export const upsertSessionTeachers = (cellId, teachers) =>
 
 export const deleteSessionTeachers = (cellId) =>
   api.delete(`/salary/session-teachers/${encodeURIComponent(cellId)}`);
+
+/** GV đã checkin nhưng không khớp ô TKB — dùng cho cảnh báo admin */
+export const getUnmatchedCheckins = (date) =>
+  api.get('/salary/unmatched-checkins', { params: { date } });

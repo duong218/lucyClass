@@ -33,6 +33,8 @@ const Dashboard = () => {
   const backupProcessed = useRef(false);
   const [visibleBackupCount, setVisibleBackupCount] = useState(5);
   const BACKUP_PAGE_SIZE = 5;
+  const [unmatchedCheckins, setUnmatchedCheckins] = useState([]);
+  const [unmatchedDismissed, setUnmatchedDismissed] = useState(false);
 
   function formatBytes(bytes, decimals = 2) {
     if (!+bytes) return '0 Bytes';
@@ -203,7 +205,14 @@ const Dashboard = () => {
       } catch (err) { console.error(err); }
       finally { setLoading(false); }
     };
+    const fetchUnmatched = async () => {
+      try {
+        const res = await api.get('/salary/unmatched-checkins');
+        setUnmatchedCheckins(res.data?.data || []);
+      } catch (err) { /* non-critical — silently ignore */ }
+    };
     fetchData();
+    fetchUnmatched();
   }, []);
 
   useEffect(() => {
@@ -281,6 +290,41 @@ const Dashboard = () => {
               </div>
             ))}
           </div>
+
+          {/* ⚠️ Cảnh báo GV checkin không khớp TKB */}
+          {unmatchedCheckins.length > 0 && !unmatchedDismissed && (
+            <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4 flex items-start gap-3 animate-fadeInUp">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0 mt-0.5">
+                <AlertTriangle size={20} className="text-amber-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-amber-800 text-sm">
+                  Hôm nay có {unmatchedCheckins.length} GV checkin nhưng không khớp ô TKB nào
+                </p>
+                <ul className="mt-1.5 space-y-0.5">
+                  {unmatchedCheckins.map(item => (
+                    <li key={item.teacher._id} className="text-xs text-amber-700 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                      <span className="font-semibold">{item.teacher.displayName || item.teacher.username}</span>
+                      <span className="text-amber-500">(checkin lúc {item.checkinTime})</span>
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  onClick={() => navigate('/admin/attendance')}
+                  className="mt-2 text-xs font-bold text-amber-700 hover:text-amber-900 underline underline-offset-2 transition-colors"
+                >
+                  Đi đến Quản lý chấm công →
+                </button>
+              </div>
+              <button
+                onClick={() => setUnmatchedDismissed(true)}
+                className="opacity-40 hover:opacity-100 transition-opacity shrink-0 mt-0.5"
+              >
+                <X size={16} className="text-amber-700" />
+              </button>
+            </div>
+          )}
 
           {/* Bảng đăng ký gần đây */}
           <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">

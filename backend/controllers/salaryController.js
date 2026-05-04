@@ -694,6 +694,9 @@ const matchSessionsForTeacher = async (teacherId, dateStr, systemSettings = null
         matchedCellIds.add(cell._id.toString());
         const st = stMap[cell._id.toString()];
         const course = st?.courseId ? courseMap[st.courseId.toString()] : null;
+        if (st?.courseId && !course) {
+          console.warn(`${_tag} ⚠️ courseId=${st.courseId} không tồn tại (có thể đã bị xóa) — tính lương với studentCount=0`);
+        }
         let studentCount = course?.studentCount ?? course?.currentStudents ?? 0;
         if (!['teacher_assistant', 'observe'].includes(st.sessionRole) && studentCount < 1) studentCount = 1;
         const payTier = ['teacher_assistant', 'observe'].includes(st.sessionRole) ? (st.payTier || 'full_time') : null;
@@ -750,6 +753,74 @@ exports.runEngine = async (req, res, next) => {
     }
 
     res.json({ success: true, data: allResults, total: allResults.reduce((s, r) => s + r.sessions.length, 0) });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * GET /api/salary/unmatched-checkins?date=YYYY-MM-DD
+ * Trả về danh sách GV (role=teacher) đã checkin nhưng không khớp ô TKB nào.
+ * Dùng để cảnh báo admin trên Dashboard / Quản lý chấm công.
+ */
+exports.getUnmatchedCheckins = async (req, res, next) => {
+  try {
+    const dateStr = req.query.date || getTodayVN();
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      return res.status(400).json({ success: false, message: 'date phải là YYYY-MM-DD' });
+    }
+
+    // Lấy tất cả staff có chấm công ngày đó
+    const attendanceRecords = await StaffAttendance.find({ date: dateStr }).lean();
+    if (attendanceRecords.length === 0) {
+      return res.json({ success: true, data: [], count: 0 });
+    }
+
+    // Lọc chỉ teacher (marketing không cần khớp TKB)
+    const staffIds = [...new Set(attendanceRecords.map(r => r.staffId.toString()))];
+    const staffAccounts = await StaffAccount.find({
+      _id: { $in: staffIds },
+      role: 'teacher',
+      isActive: true
+    }).select('_id displayName username role').lean();
+
+    const teacherMap = {};
+    for (const s of staffAccounts) teacherMap[s._id.toString()] = s;
+
+    const system = await SalarySystemSettings.getSingleton();
+    const unmatched = [];
+
+    for (const record of attendanceRecords) {
+      const tid = record.staffId.toString();
+      const teacher = teacherMap[tid];
+      if (!teacher) continue; // skip marketing / inactive
+
+      const sessions = await matchSessionsForTeacher(tid, dateStr, system);
+      if (sessions.length === 0) {
+        // Lấy thời gian checkin đầu tiên
+        const firstCheckin = (record.logs || []).find(l => l.type === 'checkin');
+        const checkinTime = firstCheckin
+          ? new Intl.DateTimeFormat('vi-VN', {
+              timeZone: VN_TIMEZONE,
+              hour: '2-digit', minute: '2-digit', hour12: false
+            }).format(new Date(firstCheckin.time))
+          : '--:--';
+
+        unmatched.push({
+          teacher: {
+            _id: teacher._id,
+            displayName: teacher.displayName,
+            username: teacher.username
+          },
+          date: dateStr,
+          checkinTime,
+          logCount: (record.logs || []).length
+        });
+      }
+    }
+
+    res.json({ success: true, data: unmatched, count: unmatched.length });
   } catch (err) {
     next(err);
   }

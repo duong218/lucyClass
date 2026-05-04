@@ -27,6 +27,9 @@ router.post(   '/session-teachers/:cellId/change-teacher', authorizeRoles('admin
 // ─── Engine ghép ca ─────────────────────────────────────────────────────────
 router.post('/run-engine', authorizeRoles('admin'), catchAsync(c.runEngine));
 
+// ─── Cảnh báo GV checkin không khớp TKB ─────────────────────────────────────
+router.get('/unmatched-checkins', authorizeRoles('admin'), catchAsync(c.getUnmatchedCheckins));
+
 // ─── Salary Report ───────────────────────────────────────────────────────────
 router.get('/report', authorizeRoles('admin'), catchAsync(c.getSalaryReport));
 router.get('/export', authorizeRoles('admin'), catchAsync(c.exportSalaryExcel));
