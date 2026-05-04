@@ -9,17 +9,34 @@ export const useRecaptcha = () => useContext(RecaptchaContext);
 export const RecaptchaProvider = ({ children }) => {
   const [isReady, setIsReady] = useState(false);
   const isLoadedRef = useRef(false);
+  const timeoutRef = useRef(null);
+
+  const markReady = useCallback(() => {
+    if (isLoadedRef.current) return;
+    isLoadedRef.current = true;
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setIsReady(true);
+  }, []);
 
   const checkAvailability = useCallback(() => {
     if (window.grecaptcha && typeof window.grecaptcha.execute === 'function') {
       window.grecaptcha.ready(() => {
-        setIsReady(true);
-        isLoadedRef.current = true;
+        markReady();
       });
+
+      // Fallback: nếu ready() không fire sau 5s (domain chưa verify, key mới, v.v.)
+      // thì vẫn cho phép user dùng — token sẽ null và handleSubmit sẽ bắt lỗi bình thường
+      timeoutRef.current = setTimeout(() => {
+        if (!isLoadedRef.current && window.grecaptcha?.execute) {
+          console.warn('[RecaptchaProvider] grecaptcha.ready() timeout — forcing isReady');
+          markReady();
+        }
+      }, 5000);
+
       return true;
     }
     return false;
-  }, []);
+  }, [markReady]);
 
   useEffect(() => {
     // 1. Double mount check
@@ -45,10 +62,11 @@ export const RecaptchaProvider = ({ children }) => {
     script.async = true;
     script.defer = true;
     script.onload = checkAvailability;
-    script.onerror = () => console.error("[RecaptchaProvider] Script load failed");
+    script.onerror = () => console.error('[RecaptchaProvider] Script load failed');
     document.head.appendChild(script);
 
     return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
       // Script stays in head to prevent reload issues
     };
   }, [checkAvailability]);
