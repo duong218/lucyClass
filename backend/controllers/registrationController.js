@@ -116,8 +116,8 @@ exports.create = async (req, res) => {
           timeout: 5000
         }
       );
-      if (!resp.data.success) {
-        console.warn('[Captcha] Failed:', resp.data['error-codes']);
+      if (!resp.data.success || resp.data.score < 0.5) {
+        console.warn('[Captcha] Failed or low score:', resp.data);
         return res.status(400).json({ success: false, message: 'captcha_invalid' });
       }
     } catch (captchaErr) {

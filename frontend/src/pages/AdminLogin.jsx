@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import RecaptchaBox from '../components/RecaptchaBox';
+import { useRecaptcha } from '../components/RecaptchaProvider';
 import { useAuth, getDashboardPath } from '../contexts/AuthContext';
 import {
   Eye,
@@ -18,12 +18,11 @@ const AdminLogin = () => {
   const { t } = useTranslation();
   const { login } = useAuth();
   const navigate = useNavigate();
-  const recaptchaRef = useRef(null);
+  const { executeRecaptcha } = useRecaptcha();
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { user, loading: authLoading, isInitialized } = useAuth();
@@ -37,12 +36,14 @@ const AdminLogin = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!captchaToken) {
-      setError(t('form.captcha_required') || 'Please complete the reCAPTCHA');
-      return;
-    }
     setLoading(true);
     try {
+      const captchaToken = await executeRecaptcha('login');
+      if (!captchaToken) {
+        setError(t('form.captcha_required') || 'Hệ thống bảo mật chưa sẵn sàng, vui lòng thử lại');
+        setLoading(false);
+        return;
+      }
       const loggedInUser = await login({
         username: username.trim(),
         password,
@@ -51,10 +52,6 @@ const AdminLogin = () => {
       window.location.href = getDashboardPath(loggedInUser?.role);
     } catch (err) {
       setError(err.response?.data?.message || err.message || t('admin.invalidCredentials'));
-      if (recaptchaRef.current) {
-        try { recaptchaRef.current.reset(); } catch (e) { }
-      }
-      setCaptchaToken(null);
     } finally {
       setLoading(false);
     }
@@ -268,8 +265,7 @@ const AdminLogin = () => {
                 </div>
               </div>
 
-              {/* Captcha */}
-              <RecaptchaBox ref={recaptchaRef} onVerify={setCaptchaToken} />
+              {/* reCAPTCHA v3 — invisible, no UI needed */}
 
               {/* Error */}
               {error && (

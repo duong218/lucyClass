@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import RecaptchaBox from './RecaptchaBox';
+import { useRecaptcha } from './RecaptchaProvider';
 import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
@@ -38,11 +38,10 @@ const RegistrationForm = () => {
   const [formData, setFormData] = useState({
     parentName: '', phone: '', childName: '', childAge: 'preschool', courseId: '', email: '', message: ''
   });
-  const [captchaToken, setCaptchaToken] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [status, setStatus] = useState({ loading: false });
   const [duplicateConfirm, setDuplicateConfirm] = useState(null);
-  const recaptchaRef = useRef(null);
+  const { executeRecaptcha } = useRecaptcha();
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -71,15 +70,17 @@ const RegistrationForm = () => {
   const handleSubmit = async (e, ignoreDuplicate = false) => {
     if (e) e.preventDefault();
 
-    if (!captchaToken && !ignoreDuplicate) {
-      toast.warning(t("form.captcha_required"));
-      return;
-    }
-
     setStatus({ loading: true });
     setFieldErrors({});
 
     try {
+      const captchaToken = await executeRecaptcha('register');
+      if (!captchaToken) {
+        toast.warning(t("form.captcha_required"));
+        setStatus({ loading: false });
+        return;
+      }
+
       const courseName = selectedCourse ? selectedCourse.name : '';
       const res = await api.post('/registrations', {
         ...formData,
@@ -90,8 +91,6 @@ const RegistrationForm = () => {
 
       if (res.data.warning && res.data.type === 'DUPLICATE_WARN') {
         setDuplicateConfirm({ message: res.data.message, data: formData });
-        if (recaptchaRef.current) recaptchaRef.current.reset();
-        setCaptchaToken(null);
         setStatus({ loading: false });
         return;
       }
@@ -101,8 +100,6 @@ const RegistrationForm = () => {
         style: { borderRadius: '20px', fontWeight: 'bold' }
       });
       setFormData({ parentName: '', phone: '', childName: '', childAge: 'preschool', courseId: '', email: '', message: '' });
-      if (recaptchaRef.current) recaptchaRef.current.reset();
-      setCaptchaToken(null);
       setDuplicateConfirm(null);
       setStatus({ loading: false });
 
@@ -154,8 +151,6 @@ const RegistrationForm = () => {
         }
       }
 
-      if (recaptchaRef.current) recaptchaRef.current.reset();
-      setCaptchaToken(null);
       setStatus({ loading: false });
     }
   };
@@ -393,8 +388,7 @@ const RegistrationForm = () => {
             </div>
           </div>
 
-          {/* ReCAPTCHA */}
-          <RecaptchaBox ref={recaptchaRef} onVerify={(token) => setCaptchaToken(token)} />
+          {/* reCAPTCHA v3 — invisible, no UI needed */}
 
           {/* Submit Button */}
           <div className="flex justify-center flex-col items-center gap-4">
@@ -402,8 +396,8 @@ const RegistrationForm = () => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               type="submit"
-              disabled={status.loading || !captchaToken || isFull}
-              className={`bg-[#4CAF50] text-white px-12 py-4 rounded-full text-xl font-display font-black transition-all shadow-[0_8px_0_#2E7D32] active:shadow-none active:translate-y-2 border-2 border-[#2E7D32] flex items-center justify-center gap-3 ${(status.loading || !captchaToken || isFull) ? 'opacity-60 cursor-not-allowed grayscale pointer-events-none' : ''}`}
+              disabled={status.loading || isFull}
+              className={`bg-[#4CAF50] text-white px-12 py-4 rounded-full text-xl font-display font-black transition-all shadow-[0_8px_0_#2E7D32] active:shadow-none active:translate-y-2 border-2 border-[#2E7D32] flex items-center justify-center gap-3 ${(status.loading || isFull) ? 'opacity-60 cursor-not-allowed grayscale pointer-events-none' : ''}`}
             >
               {status.loading ? (
                 <>
@@ -417,11 +411,7 @@ const RegistrationForm = () => {
                 </>
               )}
             </motion.button>
-            {!captchaToken && !status.loading && (
-              <p className="text-gray-400 text-[10px] font-bold italic animate-pulse flex items-center gap-1">
-                <Lock size={10} /> {t('form.captcha_required')}
-              </p>
-            )}
+
           </div>
         </form>
       </motion.div>
@@ -456,11 +446,6 @@ const RegistrationForm = () => {
                 </button>
                 <button
                   onClick={() => {
-                    if (!captchaToken) {
-                      toast.warning('Vui lòng xác minh captcha trước khi tiếp tục');
-                      setDuplicateConfirm(null);
-                      return;
-                    }
                     handleSubmit(null, true);
                   }}
                   className="flex-1 py-4 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-100 transition-all border-b-4 border-blue-800 active:border-b-0 active:translate-y-1"

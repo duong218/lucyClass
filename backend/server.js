@@ -225,14 +225,18 @@ const verifyCaptcha = async (captchaToken) => {
   }
   const recaptchaRes = await axios.post(
     'https://www.google.com/recaptcha/api/siteverify',
-    new URLSearchParams({
-      secret: process.env.RECAPTCHA_SECRET_KEY,
-      response: captchaToken
-    }),
-    { timeout: 5000 }
+    null,
+    {
+      params: {
+        secret: process.env.RECAPTCHA_SECRET_KEY,
+        response: captchaToken
+      },
+      timeout: 5000
+    }
   );
-  if (!recaptchaRes.data.success) {
-    throw new Error('Xác thực captcha thất bại, vui lòng thử lại');
+  if (!recaptchaRes.data.success || recaptchaRes.data.score < 0.5) {
+    console.warn('[Captcha] Failed or low score:', recaptchaRes.data);
+    throw new Error('Xác thực captcha thất bại (hoặc điểm thấp), vui lòng thử lại');
   }
 };
 

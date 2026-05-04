@@ -144,16 +144,25 @@ exports.login = async (req, res) => {
     const safeUsername = String(username || '').trim();
 
     // Verify CAPTCHA trước
+    if (!captchaToken) {
+      return res.status(400).json({ message: 'Captcha is required' });
+    }
+
     const recaptchaRes = await axios.post(
       'https://www.google.com/recaptcha/api/siteverify',
-      new URLSearchParams({
-        secret: process.env.RECAPTCHA_SECRET_KEY,
-        response: captchaToken,
-      }),
-      { timeout: 5000 }
+      null,
+      {
+        params: {
+          secret: process.env.RECAPTCHA_SECRET_KEY,
+          response: captchaToken
+        },
+        timeout: 5000
+      }
     );
-    if (!recaptchaRes.data.success) {
-      return res.status(400).json({ message: 'reCAPTCHA failed' });
+    
+    if (!recaptchaRes.data.success || recaptchaRes.data.score < 0.7) {
+      console.warn('[Login] reCAPTCHA failed or low score:', recaptchaRes.data);
+      return res.status(400).json({ message: 'reCAPTCHA failed (Low Score)' });
     }
 
     const { user, isStaff } = await findUserByUsername(safeUsername);
@@ -353,15 +362,19 @@ exports.forgotPassword = async (req, res) => {
     }
     const recaptchaRes = await axios.post(
       'https://www.google.com/recaptcha/api/siteverify',
-      new URLSearchParams({
-        secret: process.env.RECAPTCHA_SECRET_KEY,
-        response: recaptchaToken,
-      }),
-      { timeout: 5000 }
+      null,
+      {
+        params: {
+          secret: process.env.RECAPTCHA_SECRET_KEY,
+          response: recaptchaToken
+        },
+        timeout: 5000
+      }
     );
-    if (!recaptchaRes.data.success) {
-      console.warn('[ForgotPassword] reCAPTCHA failed:', recaptchaRes.data['error-codes']);
-      return res.status(400).json({ message: 'reCAPTCHA failed' });
+    
+    if (!recaptchaRes.data.success || recaptchaRes.data.score < 0.5) {
+      console.warn('[ForgotPassword] reCAPTCHA failed or low score:', recaptchaRes.data);
+      return res.status(400).json({ message: 'reCAPTCHA failed (Low Score)' });
     }
 
     const safeEmail = String(email || '').trim();

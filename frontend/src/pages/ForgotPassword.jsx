@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import RecaptchaBox from '../components/RecaptchaBox';
+import { useRecaptcha } from '../components/RecaptchaProvider';
 import {
   ArrowLeft,
   Mail,
@@ -17,13 +17,12 @@ import {
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
+  const { executeRecaptcha } = useRecaptcha();
 
   const [accountType, setAccountType] = useState('admin');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState(null);
-  const recaptchaRef = useRef(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const emailRef = useRef(null);
@@ -42,17 +41,11 @@ const ForgotPassword = () => {
     setMessage('');
     setUsername('');
     setEmail('');
-    if (recaptchaRef.current) { try { recaptchaRef.current.reset(); } catch (_) {} }
-    setCaptchaToken(null);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!captchaToken) {
-      setError('Hệ thống bảo mật chưa sẵn sàng hoặc bạn chưa xác minh captcha');
-      return;
-    }
     if (accountType === 'staff' && !username.trim()) {
       setError('Vui lòng nhập tên đăng nhập');
       return;
@@ -63,6 +56,13 @@ const ForgotPassword = () => {
     setError('');
 
     try {
+      const captchaToken = await executeRecaptcha('forgot_password');
+      if (!captchaToken) {
+        setError('Hệ thống bảo mật chưa sẵn sàng, vui lòng thử lại');
+        setLoading(false);
+        return;
+      }
+
       const payload = { email, accountType, recaptchaToken: captchaToken };
       if (accountType === 'staff') payload.username = username.trim();
 
@@ -76,8 +76,6 @@ const ForgotPassword = () => {
       emailRef.current?.focus();
     } finally {
       setLoading(false);
-      if (recaptchaRef.current) { try { recaptchaRef.current.reset(); } catch (_) {} }
-      setCaptchaToken(null);
     }
   };
 
@@ -278,13 +276,12 @@ const ForgotPassword = () => {
               )}
             </div>
 
-            {/* reCAPTCHA */}
-            <RecaptchaBox ref={recaptchaRef} onVerify={setCaptchaToken} />
+            {/* reCAPTCHA v3 — invisible, no UI needed */}
 
             {/* Submit */}
             <button
               type="submit"
-              disabled={loading || !captchaToken}
+              disabled={loading}
               className="w-full py-3.5 rounded-2xl font-black text-white flex items-center justify-center gap-2.5 transition-all duration-200 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
               style={{
                 background: loading
