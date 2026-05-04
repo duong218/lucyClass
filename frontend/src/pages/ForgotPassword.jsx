@@ -17,7 +17,7 @@ import {
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
-  const { executeRecaptcha } = useRecaptcha();
+  const { executeRecaptcha, isReady: recaptchaReady } = useRecaptcha();
 
   const [accountType, setAccountType] = useState('admin');
   const [email, setEmail] = useState('');
@@ -281,13 +281,13 @@ const ForgotPassword = () => {
             {/* Submit */}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !recaptchaReady}
               className="w-full py-3.5 rounded-2xl font-black text-white flex items-center justify-center gap-2.5 transition-all duration-200 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
               style={{
-                background: loading
+                background: (loading || !recaptchaReady)
                   ? '#3FA48F'
                   : 'linear-gradient(135deg, #1C695C 0%, #1C6970 100%)',
-                boxShadow: loading ? 'none' : '0 8px 24px rgba(28,105,92,0.35)',
+                boxShadow: (loading || !recaptchaReady) ? 'none' : '0 8px 24px rgba(28,105,92,0.35)',
                 fontFamily: "'Nunito', system-ui",
                 fontSize: '15px',
               }}
@@ -296,6 +296,11 @@ const ForgotPassword = () => {
                 <>
                   <Loader2 size={18} className="animate-spin" />
                   Đang gửi yêu cầu...
+                </>
+              ) : !recaptchaReady ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  Đang tải bảo mật...
                 </>
               ) : (
                 <>

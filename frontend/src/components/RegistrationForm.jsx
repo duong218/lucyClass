@@ -41,7 +41,7 @@ const RegistrationForm = () => {
   const [fieldErrors, setFieldErrors] = useState({});
   const [status, setStatus] = useState({ loading: false });
   const [duplicateConfirm, setDuplicateConfirm] = useState(null);
-  const { executeRecaptcha } = useRecaptcha();
+  const { executeRecaptcha, isReady: recaptchaReady } = useRecaptcha();
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -396,13 +396,18 @@ const RegistrationForm = () => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               type="submit"
-              disabled={status.loading || isFull}
-              className={`bg-[#4CAF50] text-white px-12 py-4 rounded-full text-xl font-display font-black transition-all shadow-[0_8px_0_#2E7D32] active:shadow-none active:translate-y-2 border-2 border-[#2E7D32] flex items-center justify-center gap-3 ${(status.loading || isFull) ? 'opacity-60 cursor-not-allowed grayscale pointer-events-none' : ''}`}
+              disabled={status.loading || isFull || !recaptchaReady}
+              className={`bg-[#4CAF50] text-white px-12 py-4 rounded-full text-xl font-display font-black transition-all shadow-[0_8px_0_#2E7D32] active:shadow-none active:translate-y-2 border-2 border-[#2E7D32] flex items-center justify-center gap-3 ${(status.loading || isFull || !recaptchaReady) ? 'opacity-60 cursor-not-allowed grayscale pointer-events-none' : ''}`}
             >
               {status.loading ? (
                 <>
                   <Loader2 size={20} className="animate-spin" />
                   {t('admin.redirecting')}
+                </>
+              ) : !recaptchaReady ? (
+                <>
+                  <Loader2 size={20} className="animate-spin" />
+                  Đang tải bảo mật...
                 </>
               ) : (
                 <>
