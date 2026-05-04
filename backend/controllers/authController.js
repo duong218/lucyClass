@@ -80,6 +80,18 @@ const getCookieOptions = () => {
   };
 };
 
+// ─── Cookie config cho clearCookie — không có maxAge (Express v5 deprecated) ──
+const getClearCookieOptions = () => {
+  const isProd = process.env.NODE_ENV === 'production';
+  return {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
+    path: '/',
+    domain: isProd ? process.env.COOKIE_DOMAIN : undefined,
+  };
+};
+
 // ─── generateTokens ───────────────────────────────────────────────────────────
 const generateTokens = (user) => {
   const jwtSecret = process.env.JWT_SECRET;
@@ -277,18 +289,18 @@ exports.refreshToken = async (req, res) => {
 
     if (!user || (user.refreshTokens ? !user.refreshTokens.includes(token) : true)) {
       console.error(`[Refresh] Invalid/Reuse attempt: ${decoded.id}`);
-      const options = getCookieOptions();
-      res.clearCookie('refreshToken', options);
-      res.clearCookie('sessionId', options);
+      const clearOptions = getClearCookieOptions();
+      res.clearCookie('refreshToken', clearOptions);
+      res.clearCookie('sessionId', clearOptions);
       return res.status(401).json({ message: 'Invalid or expired session' });
     }
 
     const cookieSessionId = req.cookies?.sessionId;
     if (!cookieSessionId || cookieSessionId !== user.activeSessionId) {
       console.warn(`[Refresh] SESSION_CONFLICT for ${user.username}`);
-      const options = getCookieOptions();
-      res.clearCookie('refreshToken', options);
-      res.clearCookie('sessionId', options);
+      const clearOptions = getClearCookieOptions();
+      res.clearCookie('refreshToken', clearOptions);
+      res.clearCookie('sessionId', clearOptions);
       return res.status(401).json({
         code: 'SESSION_CONFLICT',
         message: 'Tài khoản đã được đăng nhập từ thiết bị khác',
@@ -308,9 +320,9 @@ exports.refreshToken = async (req, res) => {
     res.json({ success: true, accessToken });
   } catch (error) {
     systemLogger.error('[Refresh] Error', { message: error.message });
-    const options = getCookieOptions();
-    res.clearCookie('refreshToken', options);
-    res.clearCookie('sessionId', options);
+    const clearOptions = getClearCookieOptions();
+    res.clearCookie('refreshToken', clearOptions);
+    res.clearCookie('sessionId', clearOptions);
     res.status(401).json({ message: 'Session expired' });
   }
 };
@@ -344,9 +356,9 @@ exports.logout = async (req, res) => {
   } catch (err) {
     console.error('[Logout] Trace error:', err.message);
   }
-  const options = getCookieOptions();
-  res.clearCookie('refreshToken', options);
-  res.clearCookie('sessionId', options);
+  const clearOptions = getClearCookieOptions();
+  res.clearCookie('refreshToken', clearOptions);
+  res.clearCookie('sessionId', clearOptions);
   res.json({ message: 'Đã đăng xuất' });
 };
 
