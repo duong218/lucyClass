@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { useLenis } from "../components/LenisProvider";
 
 const Navbar = () => {
   const { t, i18n } = useTranslation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("hero");
+  const lenisRef = useLenis();
 
   const toggleLang = () => {
     const nextLang =
@@ -40,19 +42,15 @@ const Navbar = () => {
     const el = document.getElementById(id);
     if (!el) return;
 
-    const offset = 90;
-    const y = el.getBoundingClientRect().top + window.pageYOffset - offset;
+    const offset = -90; // Lenis dùng offset âm để trừ khoảng cách navbar
 
-    window.scrollTo({
-      top: y,
-      behavior: "smooth",
-    });
-
-    // iOS fallback
-    setTimeout(() => {
-      const updatedY = el.getBoundingClientRect().top + window.pageYOffset - offset;
-      window.scrollTo(0, updatedY);
-    }, 300);
+    if (lenisRef?.current) {
+      lenisRef.current.scrollTo(el, { offset, duration: 1.2 });
+    } else {
+      // Fallback nếu Lenis chưa sẵn sàng
+      const y = el.getBoundingClientRect().top + window.pageYOffset + offset;
+      window.scrollTo({ top: y, behavior: "smooth" });
+    }
   };
 
   const menuItems = [

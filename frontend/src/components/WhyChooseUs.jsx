@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, Flame } from 'lucide-react';
+import { useLenis } from './LenisProvider';
 import step1Img from '../assets/why-us-step1.png';
 import step2Img from '../assets/why-us-step2.png';
 import step3Img from '../assets/why-us-step3.png';
@@ -375,6 +376,7 @@ const RankingBoard = () => {
 // ─────────────────────────────────────────────
 const WhyChooseUs = () => {
   const { t } = useTranslation();
+  const lenisRef = useLenis();
 
   const containerVariants = {
     hidden:  { opacity: 0, y: 50 },
@@ -485,7 +487,12 @@ const WhyChooseUs = () => {
               <button
                 onClick={() => {
                   const el = document.getElementById('courses');
-                  if (el) window.scrollTo({ top: el.offsetTop - 80, behavior: 'smooth' });
+                  if (!el) return;
+                  if (lenisRef?.current) {
+                    lenisRef.current.scrollTo(el, { offset: -80, duration: 1.2 });
+                  } else {
+                    window.scrollTo({ top: el.offsetTop - 80, behavior: 'smooth' });
+                  }
                 }}
                 className="inline-flex items-center gap-3 bg-primary-500 hover:bg-primary-600 text-white px-8 py-4 rounded-full font-bold shadow-button hover:translate-y-1 transition-all"
               >

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import heroBg from "../assets/hero-bg.png";
 import heroMobile from "../assets/hero-mobile.png";
 import { getDeviceId } from '../utils/deviceId';
+import { useLenis } from './LenisProvider';
 
 const HeroSection = () => {
   const { t } = useTranslation();
@@ -35,12 +36,17 @@ const HeroSection = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [isTabletOrMobile]);
 
+  const lenisRef = useLenis();
+
   const scrollToCourses = () => {
     const el = document.getElementById('courses');
     if (!el) return;
-    const offset = 80;
-    const y = el.getBoundingClientRect().top + window.pageYOffset - offset;
-    window.scrollTo({ top: y, behavior: 'smooth' });
+    if (lenisRef?.current) {
+      lenisRef.current.scrollTo(el, { offset: -80, duration: 1.2 });
+    } else {
+      const y = el.getBoundingClientRect().top + window.pageYOffset - 80;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }
   };
 
   return (

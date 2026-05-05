@@ -1,12 +1,13 @@
 # Security Audit — LucyClass
 
-- **Ngày audit:** 2026-05-04 (cập nhật lần 4: 2026-05-04)
+- **Ngày audit:** 2026-05-05 (cập nhật lần 5: 2026-05-05)
 - **Phạm vi:** `backend/`, `frontend/`
 - **Phương pháp:**
   - Đọc source code trực tiếp: `authController.js`, `registrationController.js`, `courseController.js`, `server.js`, `RecaptchaProvider.jsx`, `RegistrationForm.jsx`, `AdminLogin.jsx`, `ForgotPassword.jsx`
   - Đọc cấu hình: `backend/.env.example`, `frontend/.env.example`
   - Đánh giá luồng xử lý reCAPTCHA v3 (Frontend & Backend)
   - Auth / session / CSRF / CORS / rate-limit review
+  - Quét lỗ hổng Dependency (npm audit) và thư viện thừa (unused deps)
 - **Cơ sở cấu hình được đọc:**
   - `backend/.env.example` ✅
   - `frontend/.env.example` ✅
@@ -20,10 +21,12 @@
 
 ## 1. Kết luận nhanh
 
-**Mức bảo mật hiện tại sau đợt nâng cấp reCAPTCHA v3: 9.0 / 10 — Rất Tốt**
+**Mức bảo mật hiện tại sau đợt dọn dẹp Dependency & nâng cấp reCAPTCHA v3: 9.5 / 10 — Xuất Sắc**
 
 Các finding quan trọng đã được xử lý sau đợt audit này:
 
+- **Dọn dẹp Dependency:** Xóa bỏ 8 thư viện không sử dụng (`json2csv`, `nodemailer`, `resend`, `uuid`, `rate-limit-redis`, `kill-port` ở backend; `lottie-react`, `swiper` ở frontend) giúp giảm nhẹ attack surface.
+- **Vá lỗ hổng NPM (High/Moderate):** Đã nâng cấp `axios` (1.8.1), `vite` (6.2.0), `file-type` (22.0.1) và force override `uuid` (11.0.0) để vá triệt để các lỗi Prototype Pollution, SSRF, và Missing bounds check.
 - **F1 (Logic Bypass Captcha ở Frontend):** Đã fix triệt để trong `RegistrationForm.jsx`. Người dùng không thể bypass Captcha kể cả khi chọn bỏ qua cảnh báo trùng lặp (ignoreDuplicate).
 - **F2 (Guard thiếu `captchaToken` ở Backend Login):** Đã fix trong `authController.js`. Hệ thống chặn ngay request không có `captchaToken` trước khi gọi tới API của Google.
 - **F3 (Threshold điểm reCAPTCHA quá thấp cho API nhạy cảm):** Đã fix. Nâng mốc an toàn (score threshold) từ `0.5` lên `0.7` riêng cho `authController.login` để chống brute-force triệt để. Các API public khác giữ mốc `0.5`.
@@ -96,15 +99,18 @@ Các finding quan trọng đã được xử lý sau đợt audit này:
 - **Thiếu Guard CaptchaToken (`authController.js`):** Request đăng nhập thiếu reCAPTCHA token vẫn bị lọt qua middleware và gọi tới Google API gây fail ngầm. => **Đã FIX:** Bổ sung `if (!captchaToken)` trước khi call Axios.
 - **Threshold đăng nhập quá lỏng:** Score 0.5 là an toàn nhưng chưa đủ chặt với luồng đăng nhập. => **Đã FIX:** Tăng Score đăng nhập lên 0.7.
 - **Dead Code `RecaptchaBox.jsx`:** Có thể gây nhầm lẫn import lại v2 API. => **Đã FIX:** Làm rỗng file, lưu nội dung cảnh báo Deprecated.
+- **Vulnerabilities từ thư viện (NPM Audit):** Phát hiện 1 lỗ hổng High (Axios Prototype Pollution) và 5 Moderate (esbuild, uuid, file-type). => **Đã FIX:** Cập nhật versions an toàn (`axios@^1.8.1`, `vite@^6.2.0`, `file-type@^22.0.1`) và áp dụng cấu hình `overrides` cho `uuid`. Sửa đổi middleware upload để tương thích với `file-type` bản ESM.
+- **Thư viện thừa gây phình to dự án:** Có quá nhiều thư viện khai báo nhưng không import, tạo rủi ro và tăng dung lượng bundle. => **Đã FIX:** Gỡ bỏ triệt để `json2csv`, `nodemailer`, `resend`, `rate-limit-redis`, `lottie-react`, `swiper`, v.v.
 
 ---
 
 ## 6. Đánh giá cuối
 
-Hệ thống đã trải qua nâng cấp reCAPTCHA v3 thành công, giải quyết triệt để 2 vấn đề:
+Hệ thống đã trải qua nâng cấp reCAPTCHA v3 và dọn dẹp Dependency thành công, giải quyết triệt để 3 vấn đề cốt lõi:
 1. **Lỗi logic bypass bảo mật frontend** do các flow pop-up chồng chéo.
 2. **Nâng cao khả năng chống bot** thông qua cơ chế chấm điểm ngầm, đặc biệt cho Endpoint nhạy cảm (Login).
+3. **Loại bỏ các nguy cơ từ Supply Chain (Chuỗi cung ứng)** bằng cách dọn sạch thư viện rác và cập nhật các gói phụ thuộc (dependencies) đang dính CVE (như Axios, UUID, File-type).
 
 Hệ thống không phát hiện rủi ro RCE (Thực thi mã từ xa), SQLi/NoSQLi (Tiêm nhiễm Database) hay IDOR (Phân quyền sai). Các file môi trường (`.env`) không chứa dữ liệu thật rò rỉ vào code base.
 
-**Điểm bảo mật hiện tại: 9.0 / 10 — Cực kỳ an toàn và tối ưu.** Mọi lỗ hổng gây ảnh hưởng nghiệp vụ đã bị triệt tiêu, chỉ còn lại các rủi ro cấu hình header (Low) được chấp nhận.
+**Điểm bảo mật hiện tại: 9.5 / 10 — Cực kỳ an toàn và tối ưu.** Mọi lỗ hổng gây ảnh hưởng nghiệp vụ và rủi ro từ Dependency (High/Moderate vulnerabilities) đã bị triệt tiêu hoàn toàn, chỉ còn lại rủi ro cấu hình header CSP (Low) được chấp nhận.

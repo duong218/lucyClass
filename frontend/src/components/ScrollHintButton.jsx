@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowDown, ArrowUp } from 'lucide-react';
+import { useLenis } from './LenisProvider';
 
 const BOTTOM_THRESHOLD = 200;
 
 const ScrollHintButton = () => {
   const [isNearBottom, setIsNearBottom] = useState(false);
+  const lenisRef = useLenis();
 
   useEffect(() => {
     const updatePosition = () => {
@@ -24,15 +26,23 @@ const ScrollHintButton = () => {
   }, []);
 
   const handleClick = () => {
+    const lenis = lenisRef?.current;
+
     if (isNearBottom) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (lenis) {
+        lenis.scrollTo(0, { duration: 1.2 });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
       return;
     }
 
-    window.scrollBy({
-      top: window.innerHeight * 0.8,
-      behavior: 'smooth',
-    });
+    const target = window.scrollY + window.innerHeight * 0.8;
+    if (lenis) {
+      lenis.scrollTo(target, { duration: 1.0 });
+    } else {
+      window.scrollBy({ top: window.innerHeight * 0.8, behavior: 'smooth' });
+    }
   };
 
   return (

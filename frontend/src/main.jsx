@@ -4,8 +4,10 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import { AuthProvider } from './contexts/AuthContext'
 import { RecaptchaProvider } from './components/RecaptchaProvider'
+import LenisProvider from './components/LenisProvider'
 import { keepAliveBackend } from './utils/keepAlive'
 import './i18n.js'
+import 'lenis/dist/lenis.css'
 import './index.css'
 
 keepAliveBackend();
@@ -16,12 +18,14 @@ window.addEventListener("unhandledrejection", function (event) {
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
-        <RecaptchaProvider>
-          <App />
-        </RecaptchaProvider>
-      </AuthProvider>
-    </BrowserRouter>
+    <LenisProvider>
+      <BrowserRouter>
+        <AuthProvider>
+          <RecaptchaProvider>
+            <App />
+          </RecaptchaProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </LenisProvider>
   </React.StrictMode>,
 )
