@@ -1,6 +1,5 @@
 const multer = require('multer');
 const path = require('path');
-const FileType = require('file-type');
 const sharp = require('sharp');
 
 const storage = multer.memoryStorage();
@@ -57,8 +56,10 @@ const validateMagicNumber = async (req, res, next) => {
   if (!req.file) return next();
 
   try {
+    const { fileTypeFromBuffer } = await import('file-type');
+    
     // Lớp 1: Kiểm tra magic bytes (file type thật sự)
-    const type = await FileType.fromBuffer(req.file.buffer);
+    const type = await fileTypeFromBuffer(req.file.buffer);
 
     if (!type || !ALLOWED_MIME_TYPES.includes(type.mime)) {
       return res.status(400).json({
