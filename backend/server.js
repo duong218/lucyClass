@@ -183,6 +183,7 @@ const staffDashboardRoutes = require('./routes/staffDashboardRoutes');
 const syncRoutes = require('./routes/syncRoutes');
 const attendanceRoutes = require('./routes/attendanceRoutes');
 const salaryRoutes = require('./routes/salaryRoutes');
+const chatConfigRoutes = require('./routes/chatConfigRoutes');
 
 // 7. Global Logic
 app.use(userIdentifier);
@@ -216,6 +217,7 @@ app.use('/api/sync', syncRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/staff-attendance', attendanceRoutes);
 app.use('/api/salary', salaryRoutes);
+app.use('/api/chat-config', chatConfigRoutes);
 
 // --- 📊 GOOGLE SHEETS SUBMISSION ENDPOINT ---
 // Helpers for /api/submit

@@ -2,19 +2,22 @@
 
 ## Phạm vi
 - Tài liệu này mô tả backend đang chạy trong thư mục `backend/`.
-- Mục tiêu là phản ánh đúng cấu trúc hiện tại của codebase, các nhóm module chính, route đang mount và các luồng nghiệp vụ quan trọng.
-- Không liệt kê `node_modules/`, log runtime hoặc nội dung sinh ra khi build/chạy.
+- Chỉ phản ánh cấu trúc file và luồng đang có trong codebase hiện tại.
+- Bỏ qua `node_modules/`, thư mục log runtime và mọi file `.env`, `.env.*`.
+- File môi trường duy nhất được tham chiếu ở đây là `backend/.env.example`.
 
 ## Tổng quan
 - Stack chính: `Node.js`, `Express`, `MongoDB/Mongoose`, `Redis`, `Google Drive API`.
 - Entry point: `backend/server.js`.
-- Backend phục vụ đồng thời:
+- Backend hiện phục vụ:
   - website public,
-  - khu vực admin,
-  - khu vực teacher,
-  - khu vực marketing,
-  - tác vụ backup/restore,
-  - tính năng public `streak/ranking`.
+  - admin portal,
+  - teacher portal,
+  - marketing portal,
+  - chấm công staff,
+  - cấu hình chatbox Lucy,
+  - backup/restore,
+  - ranking/streak public.
 
 ## Sơ đồ thư mục
 
@@ -29,9 +32,8 @@ backend/
 |-- services/
 |-- utils/
 |-- validators/
-|-- .env
+|-- .dockerignore
 |-- .env.example
-|-- .env.production
 |-- Dockerfile
 |-- googleSheets.js
 |-- migrate-childAge.js
@@ -42,18 +44,18 @@ backend/
 ```
 
 ## Entry point `server.js`
-- Nạp biến môi trường và kiểm tra các biến bắt buộc như `MONGO_URI`, `BACKUP_PATH`, `CLOUDINARY_*`, `BACKUP_ENCRYPTION_KEY`, `RECAPTCHA_SECRET_KEY`.
-- Khởi tạo các middleware nền:
+- Nạp biến môi trường bằng `dotenv` và kiểm tra các biến bắt buộc như `MONGO_URI`, `BACKUP_PATH`, `CLOUDINARY_*`, `BACKUP_ENCRYPTION_KEY`, `RECAPTCHA_SECRET_KEY`.
+- Khởi tạo middleware nền:
   - `cookie-parser`,
   - `cors`,
   - `helmet`,
-  - CSRF tự triển khai qua `Origin` + `X-Requested-With`,
+  - CSRF tự triển khai qua `verifyCSRF`,
   - `express.json` và `urlencoded`,
   - `express-mongo-sanitize`,
   - `xss-clean`,
   - `userIdentifier`,
   - rate limit cho toàn bộ `/api`.
-- Mount toàn bộ API chính:
+- Mount các API đang hoạt động:
   - `/api/auth`
   - `/api/courses`
   - `/api/teachers`
@@ -74,17 +76,18 @@ backend/
   - `/api/attendance`
   - `/api/staff-attendance`
   - `/api/salary`
-- Có thêm 2 endpoint được định nghĩa trực tiếp:
-  - `POST /api/submit`: form đăng ký public có reCAPTCHA, lưu MongoDB và đồng bộ Google Sheets.
-  - `GET /api/health`: kiểm tra trạng thái dịch vụ.
+  - `/api/chat-config`
+- Có thêm 2 endpoint định nghĩa trực tiếp trong file:
+  - `POST /api/submit`: form đăng ký public có reCAPTCHA, lưu MongoDB và đẩy Google Sheets.
+  - `GET /api/health`: healthcheck.
 - Khi khởi động:
   - kết nối MongoDB,
-  - retry backup upload dang dở,
+  - retry upload backup dang dở,
   - kết nối Redis nếu khả dụng,
   - khởi tạo cron jobs,
   - nạp `utils/scheduledTasks`,
   - bật HTTP server.
-- Có xử lý `uncaughtException`, `unhandledRejection`, `SIGINT`, `SIGTERM` và graceful shutdown cho HTTP, MongoDB, Redis.
+- Có xử lý `uncaughtException`, `unhandledRejection`, `SIGINT`, `SIGTERM` và graceful shutdown.
 
 ## Cấu hình `config/`
 
@@ -94,78 +97,46 @@ backend/
 ### `config/redis.js`
 - Khởi tạo Redis client bằng `ioredis`.
 - Hỗ trợ cả `REDIS_URL` và cấu hình host/port/password riêng.
-- Redis được dùng cho cache và một phần rate limit/chống spam.
 
 ### `config/google.js`
 - Cấu hình OAuth Google cho luồng backup/restore qua Drive.
 
 ### `config/cron.js`
 - Chứa cron jobs nền khi `ENABLE_CRON=true`.
-- Các lịch đang có:
-  - backup hằng ngày lúc `02:00`,
-  - dọn ranking cũ lúc `02:15`,
-  - dọn orphan ranking lúc `02:30`,
-  - dọn database restore tạm lúc `03:00`,
-  - deep clean định kỳ 6 tháng lúc `04:00` ngày `01/01` và `01/07`.
+- Các lịch chính hiện có:
+  - backup hằng ngày,
+  - dọn ranking cũ,
+  - dọn orphan ranking,
+  - dọn restore tạm,
+  - deep clean định kỳ dài hạn.
 
 ## Điều hướng API `routes/`
 
-### `authRoutes.js`
-- Đăng nhập, đăng xuất, refresh token, quên mật khẩu, đặt lại mật khẩu, lấy user hiện tại, kiểm tra xung đột session.
+### Nhóm đang được mount
+- `authRoutes.js`: đăng nhập, refresh token, quên/đặt lại mật khẩu, lấy user hiện tại, kiểm tra session.
+- `courseRoutes.js`: CRUD khóa học, gán giáo viên, điểm danh theo khóa, export attendance, danh sách học sinh theo lớp.
+- `teacherRoutes.js`: public read cho website và admin CRUD cho giáo viên.
+- `registrationRoutes.js`: quản lý đăng ký học, export Excel, cập nhật trạng thái, quản lý dữ liệu học viên và `note`.
+- `feedbackRoutes.js`: public read và admin CRUD cho phản hồi.
+- `statsRoutes.js`: dữ liệu dashboard và thống kê chi tiết.
+- `auditRoutes.js`: lịch sử thao tác admin và export log.
+- `googleRoutes.js`: OAuth Google và tác vụ backup liên quan Drive.
+- `restoreRoutes.js`: theo dõi tiến độ restore và kích hoạt khôi phục dữ liệu.
+- `announcementRoutes.js`: thông báo public, submission marketing, review/admin CRUD, đánh dấu đã xem.
+- `timetableRoutes.js`: đọc và chỉnh sửa thời khóa biểu dạng lưới, export file.
+- `rankingRoutes.js`: tạo/cập nhật ranking và lấy top ranking public.
+- `streakRoutes.js`: start, check-in, revive và leaderboard cho streak.
+- `staffRoutes.js`: quản lý tài khoản `teacher` và `marketing`.
+- `staffDashboardRoutes.js`: API hồ sơ cá nhân staff đã đăng nhập.
+- `syncRoutes.js`: đồng bộ hoặc dọn dữ liệu nặng như ranking/deep clean.
+- `attendanceRoutes.js`: chấm công staff, lịch sử chấm công, chỉnh sửa và export.
+- `salaryRoutes.js`: cấu hình lương, tính lương, bonus và xuất báo cáo lương.
 
-### `courseRoutes.js`
-- CRUD khóa học, gán giáo viên chính/phụ, dữ liệu điểm danh theo khóa, export attendance, danh sách học sinh theo lớp và chuyển lớp.
-
-### `teacherRoutes.js`
-- Public read cho website và admin CRUD cho giáo viên.
-
-### `registrationRoutes.js`
-- Quản lý đăng ký học, export Excel, cập nhật trạng thái, xóa hoặc chuyển đổi dữ liệu học viên.
-- Được mount ở cả `/api/registrations` và `/api/students`.
-- Có thêm route cập nhật `note` cho học sinh, cho phép `admin` và `teacher` thao tác trong phạm vi controller kiểm tra quyền.
-
-### `feedbackRoutes.js`
-- Public read và admin CRUD cho phản hồi.
-
-### `statsRoutes.js`
-- Dữ liệu dashboard và thống kê chi tiết.
-
-### `auditRoutes.js`
-- Lịch sử thao tác admin và export log.
-
-### `googleRoutes.js`
-- OAuth Google và các thao tác backup liên quan Drive.
-
-### `restoreRoutes.js`
-- Theo dõi tiến độ restore và kích hoạt khôi phục dữ liệu.
-
-### `announcementRoutes.js`
-- Thông báo public, submission của marketing, review/admin CRUD, đánh dấu đã xem.
-
-### `timetableRoutes.js`
-- Đọc và chỉnh sửa thời khóa biểu dạng lưới, export file thời khóa biểu.
-
-### `rankingRoutes.js`
-- Tạo/cập nhật ranking và lấy top ranking public.
-
-### `streakRoutes.js`
-- Start, check-in, revive và leaderboard cho streak public.
-
-### `staffRoutes.js`
-- Quản lý tài khoản `teacher` và `marketing`.
-
-### `staffDashboardRoutes.js`
-- API hồ sơ cá nhân cho staff đã đăng nhập.
-
-### `syncRoutes.js`
-- Đồng bộ hoặc dọn dữ liệu nặng như ranking/deep clean.
-
-### `attendanceRoutes.js`
-- Chấm công staff, lịch sử chấm công, chỉnh sửa và export.
-- Được mount ở cả `/api/attendance` và `/api/staff-attendance`.
-
-### `salaryRoutes.js`
-- Quản lý cấu hình lương, tính toán lương, bonus và xuất báo cáo lương.
+### Cụm chat config
+- `chatConfigRoutes.js`: route public/admin cho cấu hình chatbox.
+- `GET /api/chat-config`: public, để chatbox frontend lấy config khi mount.
+- `PUT /api/chat-config`: chỉ cho `admin`, để trang quản trị lưu cấu hình.
+- `server.js` đã mount cụm route này tại `/api/chat-config`.
 
 ## Điều phối nghiệp vụ `controllers/`
 
@@ -176,7 +147,7 @@ backend/
 - `attendanceController.js`: lớp bọc route cho attendance staff.
 - `auditController.js`: lấy log và export CSV.
 - `statsController.js`: widget và dữ liệu dashboard admin.
-- `salaryController.js`: quản lý cấu hình lương, tính toán lương, bonus và báo cáo.
+- `salaryController.js`: cấu hình lương, tính toán lương, bonus và báo cáo.
 
 ### Nhóm học vụ
 - `courseController.js`: khóa học, gán giáo viên chính/phụ, điểm danh, phân quyền teacher theo lớp, export attendance.
@@ -189,6 +160,7 @@ backend/
 - `announcementController.js`: thông báo public và luồng duyệt bài marketing.
 - `rankingController.js`: bảng xếp hạng.
 - `streakController.js`: streak public và leaderboard.
+- `chatConfigController.js`: trả cấu hình chatbox public và lưu cấu hình chatbox từ admin.
 
 ### Nhóm backup/sync
 - `google.controller.js`: kết nối Google và gọi backup.
@@ -196,14 +168,14 @@ backend/
 - `syncController.js`: đồng bộ ranking, deep clean.
 
 ## Tầng bảo vệ `middlewares/`
-- `auth.js`: xác thực JWT access token, gắn `req.user`, kiểm tra session đang hoạt động.
+- `auth.js`: xác thực JWT access token, gắn `req.user`, kiểm tra session còn hiệu lực.
 - `authorizeRoles.js`: phân quyền theo role.
 - `isAdmin.js`: chặn nếu không phải admin.
 - `securityMiddleware.js`: xác thực CSRF cho request thay đổi dữ liệu.
-- `rateLimiter.js`: bộ limiter cho API chung, login, đăng ký, thống kê, forgot/reset password, streak, backup/restore.
+- `rateLimiter.js`: limiter cho API chung, login, đăng ký, thống kê, forgot/reset password, streak, backup/restore.
 - `checkBlockedIP.js`: chặn IP bị khóa trước khi cho login.
 - `phoneLimiter.js`: chống spam theo phone/IP cho streak.
-- `streakAuth.js`: xác thực JWT riêng cho một số luồng streak cần token độc lập với auth staff/admin.
+- `streakAuth.js`: JWT riêng cho một số luồng streak.
 - `userIdentifier.js`: nhận diện user hiện tại để hỗ trợ limiter và logging.
 - `upload.js`: upload ảnh qua `multer`, kiểm tra extension, MIME, magic number, kích thước, pixel và re-encode ảnh.
 - `cacheMiddleware.js`: cache GET response bằng Redis và hỗ trợ xóa cache theo prefix.
@@ -224,15 +196,16 @@ backend/
 - `Ranking.js`, `Streak.js`, `DeviceUsage.js`: dữ liệu streak/ranking/chống spam.
 - `GoogleToken.js`: token OAuth Google.
 - `SalaryConfig.js`, `SalaryBonus.js`, `SalaryConfigLog.js`, `SalarySystemSettings.js`: cấu hình và dữ liệu lương.
-- `SessionTeacher.js`: dữ liệu buổi dạy của giáo viên hỗ trợ tính lương.
+- `SessionTeacher.js`: dữ liệu buổi dạy của giáo viên phục vụ tính lương.
 - `BlockedIP.js`, `LoginAttemptLog.js`, `Log.js`: hỗ trợ bảo mật và logging.
 - `TimetableRow.js`, `TimetableCell.js`: lưới thời khóa biểu.
+- `ChatConfig.js`: model Mongoose lưu cấu hình chatbox theo kiểu singleton document.
 
 ## Tầng dịch vụ `services/`
 
 ### `backup.service.js`
 - Chạy backup MongoDB, nén, mã hóa, upload Google Drive.
-- Có logic retry file upload dở dang khi server khởi động lại.
+- Có logic retry file upload dang dở khi server khởi động lại.
 
 ### `drive.service.js`
 - Đóng gói thao tác với Google Drive: upload, download, liệt kê và dọn backup cũ.
@@ -241,15 +214,11 @@ backend/
 - Giải mã backup, kiểm tra an toàn file, restore thử vào DB tạm, restore thật và xóa Redis cache sau khôi phục.
 
 ### `deepCleanService.js`
-- Các tác vụ dọn dữ liệu sâu, xử lý ranking orphan và nghiệp vụ dọn dẹp định kỳ.
+- Tác vụ dọn dữ liệu sâu, xử lý ranking orphan và nghiệp vụ dọn dẹp định kỳ.
 
 ## Validators `validators/`
-
-### `registrationValidator.js`
-- Bộ rule `express-validator` cho dữ liệu đăng ký học khi cần tách validate theo schema.
-
-### `streakValidator.js`
-- Bộ rule validate cho luồng streak như đăng ký tham gia, check-in và revive theo số điện thoại.
+- `registrationValidator.js`: rule `express-validator` cho dữ liệu đăng ký học.
+- `streakValidator.js`: rule validate cho các luồng streak như tham gia, check-in, revive.
 
 ## Tiện ích `utils/`
 - `catchAsync.js`: wrapper cho controller async.
@@ -260,23 +229,23 @@ backend/
 - `logger.js`, `systemLogger.js`: logging nghiệp vụ và hệ thống.
 - `normalizePhone.js`, `sanitize.js`: chuẩn hóa dữ liệu đầu vào.
 - `scheduledTasks.js`: các tác vụ nền phụ trợ ngoài cron.
-- `test-encryption.js`: file hỗ trợ kiểm tra luồng mã hóa/giải mã backup khi cần debug nội bộ.
+- `test-encryption.js`: file hỗ trợ kiểm tra luồng mã hóa/giải mã backup khi debug nội bộ.
 
 ## Script và file gốc
 - `.dockerignore`: loại trừ file không cần thiết khi build image backend.
+- `.env.example`: mẫu biến môi trường backend.
 - `googleSheets.js`: ghi dữ liệu đăng ký sang Google Sheets.
 - `migrate-childAge.js`: script migrate trường `childAge`.
 - `scripts/backup.js`: script backup MongoDB thủ công bằng `mongodump`.
 - `scripts/cleanRestoreTmp.js`: dọn artifact restore tạm.
 - `Dockerfile`: build image backend.
 - `nodemon.json`: cấu hình chạy dev.
-- `package-lock.json`: khóa phiên bản dependency cho môi trường Node.js backend.
-- `.env.example`, `.env.production`: mẫu cấu hình môi trường.
+- `package.json`, `package-lock.json`: metadata và khóa phiên bản dependency backend.
 
 ## Luồng chính
 
 ### Public website
-- Frontend public gọi các API như khóa học, giáo viên, phản hồi, thông báo, thời khóa biểu, ranking, streak, submit đăng ký.
+- Frontend public gọi các API như khóa học, giáo viên, phản hồi, thông báo, thời khóa biểu, ranking, streak và submit đăng ký.
 
 ### Xác thực nội bộ
 - Người dùng đăng nhập qua `POST /api/auth/login`.
@@ -291,3 +260,8 @@ backend/
 ### Teacher/marketing
 - Teacher xem dashboard, danh sách học sinh lớp mình và chấm công.
 - Marketing có dashboard riêng và gửi thông báo chờ admin duyệt.
+
+### Ghi chú về cụm chat config
+- Backend đã có đủ route, controller và model cho cụm chat config.
+- `GET /api/chat-config` có fallback về default config khi DB chưa có dữ liệu hoặc khi đọc DB lỗi.
+- `PUT /api/chat-config` dùng `findOneAndUpdate(..., { upsert: true })` để duy trì một bản ghi cấu hình duy nhất.

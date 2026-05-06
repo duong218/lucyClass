@@ -12,6 +12,7 @@ import RegistrationForm from '../components/RegistrationForm';
 import Fireworks from '../components/Fireworks';
 import AnnouncementSection from '../components/AnnouncementSection';
 import ScrollHintButton from '../components/ScrollHintButton';
+import ChatBox from '../components/ChatBox/ChatBox'; // ← THÊM
 
 const HomePage = () => {
   return (
@@ -20,7 +21,6 @@ const HomePage = () => {
       <Navbar />
       <ScrollHintButton />
 
-      {/* Sections order matches home page.png layout logic */}
       <HeroSection />
       <WhyChooseUs />
       <CoursesSection />
@@ -29,10 +29,12 @@ const HomePage = () => {
       <TeachersSection />
       <TestimonialsSection />
       <AnnouncementSection />
-      {/* Wavy bottom border specifically for Registration form transition if needed, actually it has its own blue bg */}
       <RegistrationForm />
 
       <Footer />
+
+      {/* Chatbox nổi — render sau Footer để z-index luôn ở trên cùng */}
+      <ChatBox /> {/* ← THÊM */}
     </div>
   );
 };

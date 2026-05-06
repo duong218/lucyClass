@@ -498,5 +498,86 @@
       "T6",
       "T7"
     ]
+  },
+  "chatbox": {
+    "admin_menu": "Cấu hình Chatbox",
+    "actions": {
+      "open": "Mở chat với Lucy AI",
+      "close": "Đóng chat",
+      "reset": "Bắt đầu lại cuộc trò chuyện",
+      "reset_default": "Khôi phục mặc định",
+      "save": "Lưu cấu hình",
+      "saving": "Đang lưu...",
+      "send": "Gửi tin nhắn",
+      "add": "Thêm",
+      "remove_suggestion": "Xóa gợi ý"
+    },
+    "errors": {
+      "missing_api_key": "Chưa cấu hình GROQ API key cho chatbox.",
+      "rate_limit": "Chatbox đang tạm quá tải hoặc chạm giới hạn GROQ. Vui lòng thử lại sau ít phút.",
+      "timeout": "Chatbox phản hồi quá lâu. Vui lòng thử lại.",
+      "generic": "Có lỗi xảy ra. Vui lòng thử lại."
+    },
+    "safety": {
+      "sensitive_refusal": "Mình không thể cung cấp thông tin nhạy cảm như thông tin liên hệ, học phí, lịch nội bộ hoặc dữ liệu riêng của giáo viên, học viên và phụ huynh. Bạn vui lòng liên hệ trực tiếp trung tâm qua các kênh chính thức nhé."
+    },
+    "fallback": {
+      "registration": "Bạn có thể đăng ký ngay trên website {{website}} hoặc nhắn trung tâm qua Zalo/Facebook để được tư vấn. Khi đăng ký, phụ huynh chỉ cần điền tên bé, độ tuổi, số điện thoại và khóa học quan tâm.",
+      "courses": "Trung tâm có nhiều khóa học tiếng Anh dành cho thiếu nhi. Bạn xem mục Khóa học trên website {{website}} hoặc nhắn Zalo {{zalo}} để được tư vấn lớp phù hợp nhé.",
+      "activities": "Lucy thường có hoạt động ngoại khóa, sự kiện và workshop theo từng giai đoạn. Bạn có thể theo dõi trên website {{website}}, Facebook {{facebook}} hoặc TikTok {{tiktok}} để cập nhật nhanh.",
+      "contact": "Bạn có thể theo dõi và liên hệ trung tâm qua các kênh chính thức:\n- Website: {{website}}\n- Zalo: {{zalo}}\n- Facebook: {{facebook}}\n- TikTok: {{tiktok}}",
+      "streak": "Streak là tính năng check-in hằng ngày để duy trì chuỗi học tập và theo dõi tiến độ. Bạn cũng có thể xem bảng xếp hạng ngay trên website của trung tâm tại {{website}}.",
+      "after_registration": "Sau khi gửi đăng ký, trung tâm sẽ liên hệ lại để tư vấn và sắp xếp lớp phù hợp. Nếu cần nhanh hơn, bạn có thể chủ động nhắn qua Zalo {{zalo}} hoặc Facebook {{facebook}}.",
+      "rate_limit_reply": "Trợ lý AI đang tạm quá tải nên mình chưa trả lời tự do được. Nếu bạn cần thông tin chính thức ngay, hãy liên hệ trung tâm qua website {{website}}, Zalo {{zalo}} hoặc Facebook {{facebook}}."
+    },
+    "widget": {
+      "subtitle": "Trợ lý trung tâm Lucy",
+      "suggestions_label": "Bạn có thể hỏi:",
+      "input_placeholder": "Nhập câu hỏi của bạn...",
+      "helper": "Trợ lý AI · Tải lại trang để reset hội thoại"
+    },
+    "config": {
+      "title": "Cấu hình Chatbox Lucy",
+      "subtitle": "Tùy chỉnh giao diện và nội dung mặc định cho chatbox.",
+      "loading": "Đang tải cấu hình chatbox...",
+      "bot_section": "Thông tin bot",
+      "bot_name": "Tên bot",
+      "welcome_message": "Tin nhắn chào mừng",
+      "welcome_placeholder": "Xin chào! Mình là trợ lý ảo của trung tâm Lucy...",
+      "accent_section": "Màu accent",
+      "bubble_section": "Màu bubble trả lời",
+      "preview_sample": "Xin chào! Đây là preview bubble chat.",
+      "suggestions_section": "Gợi ý câu hỏi nhanh",
+      "suggestions_hint": "Hiển thị khi người dùng mở chat lần đầu. Tối đa 10 gợi ý.",
+      "new_suggestion_placeholder": "Nhập gợi ý mới rồi nhấn Enter...",
+      "max_reached": "Đã đạt giới hạn 10 gợi ý.",
+      "prompt_section": "System Prompt",
+      "characters": "ký tự",
+      "prompt_hint": "Định nghĩa hành vi, giới hạn và giọng điệu của bot.",
+      "preview_section": "Preview",
+      "toasts": {
+        "load_error": "Không tải được cấu hình, đang dùng giá trị mặc định.",
+        "save_success": "Đã lưu cấu hình chatbox.",
+        "save_error": "Lưu cấu hình thất bại. Vui lòng thử lại.",
+        "max_suggestions": "Tối đa 10 gợi ý.",
+        "reset": "Đã khôi phục về mặc định, chưa lưu."
+      }
+    },
+    "colors": {
+      "teal": "Teal",
+      "emerald": "Emerald",
+      "blue": "Blue",
+      "violet": "Violet",
+      "rose": "Rose",
+      "amber": "Amber"
+    },
+    "bubbles": {
+      "teal": "Bubble xanh ngọc",
+      "blue": "Bubble xanh dương",
+      "emerald": "Bubble emerald",
+      "violet": "Bubble tím",
+      "rose": "Bubble hồng",
+      "amber": "Bubble vàng"
+    }
   }
 }

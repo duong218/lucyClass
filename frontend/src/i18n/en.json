@@ -498,5 +498,86 @@
       "Fri",
       "Sat"
     ]
+  },
+  "chatbox": {
+    "admin_menu": "Chatbox Settings",
+    "actions": {
+      "open": "Open Lucy AI chat",
+      "close": "Close chat",
+      "reset": "Restart conversation",
+      "reset_default": "Reset to default",
+      "save": "Save settings",
+      "saving": "Saving...",
+      "send": "Send message",
+      "add": "Add",
+      "remove_suggestion": "Remove suggestion"
+    },
+    "errors": {
+      "missing_api_key": "The GROQ API key is not configured for the chatbox.",
+      "rate_limit": "The chatbox is temporarily overloaded or has hit the GROQ limits. Please try again in a few minutes.",
+      "timeout": "The chatbox took too long to respond. Please try again.",
+      "generic": "Something went wrong. Please try again."
+    },
+    "safety": {
+      "sensitive_refusal": "I cannot provide sensitive information such as contact details, tuition, internal schedules, or private data about teachers, students, or parents. Please contact the center through its official channels."
+    },
+    "fallback": {
+      "registration": "You can register directly on {{website}} or message the center via Zalo or Facebook for guidance. Parents usually only need to provide the child's name, age, phone number, and the course they are interested in.",
+      "courses": "The center offers multiple English courses for children. Please check the Courses section on {{website}} or message Zalo at {{zalo}} for advice on the most suitable class.",
+      "activities": "Lucy regularly runs extracurricular activities, events, and workshops throughout the year. You can follow updates on {{website}}, Facebook {{facebook}}, or TikTok {{tiktok}}.",
+      "contact": "You can follow and contact the center through its official channels:\n- Website: {{website}}\n- Zalo: {{zalo}}\n- Facebook: {{facebook}}\n- TikTok: {{tiktok}}",
+      "streak": "Streak is the daily check-in feature that helps learners maintain a learning streak and track progress. You can also view the ranking features directly on the center website at {{website}}.",
+      "after_registration": "After you submit a registration, the center will contact you to advise and arrange a suitable class. If you need a faster response, please message Zalo {{zalo}} or Facebook {{facebook}} directly.",
+      "rate_limit_reply": "The AI assistant is temporarily overloaded, so I cannot answer free-form questions right now. If you need official information immediately, please contact the center via {{website}}, Zalo {{zalo}}, or Facebook {{facebook}}."
+    },
+    "widget": {
+      "subtitle": "Lucy Center Assistant",
+      "suggestions_label": "You can ask:",
+      "input_placeholder": "Type your question...",
+      "helper": "AI assistant · Reload the page to reset the conversation"
+    },
+    "config": {
+      "title": "Lucy Chatbox Settings",
+      "subtitle": "Customize the visual style and default content of the chatbox.",
+      "loading": "Loading chatbox settings...",
+      "bot_section": "Bot information",
+      "bot_name": "Bot name",
+      "welcome_message": "Welcome message",
+      "welcome_placeholder": "Hello! I am Lucy center's virtual assistant...",
+      "accent_section": "Accent colors",
+      "bubble_section": "Reply bubble colors",
+      "preview_sample": "Hello! This is a chat bubble preview.",
+      "suggestions_section": "Quick question suggestions",
+      "suggestions_hint": "These are shown when a user opens the chat for the first time. Maximum 10 suggestions.",
+      "new_suggestion_placeholder": "Type a new suggestion and press Enter...",
+      "max_reached": "The 10 suggestion limit has been reached.",
+      "prompt_section": "System Prompt",
+      "characters": "characters",
+      "prompt_hint": "Defines the bot's behavior, boundaries, and tone.",
+      "preview_section": "Preview",
+      "toasts": {
+        "load_error": "Could not load the config. Using default values instead.",
+        "save_success": "Chatbox settings saved.",
+        "save_error": "Failed to save chatbox settings. Please try again.",
+        "max_suggestions": "Maximum 10 suggestions.",
+        "reset": "Restored default values. Changes are not saved yet."
+      }
+    },
+    "colors": {
+      "teal": "Teal",
+      "emerald": "Emerald",
+      "blue": "Blue",
+      "violet": "Violet",
+      "rose": "Rose",
+      "amber": "Amber"
+    },
+    "bubbles": {
+      "teal": "Teal bubble",
+      "blue": "Blue bubble",
+      "emerald": "Emerald bubble",
+      "violet": "Violet bubble",
+      "rose": "Rose bubble",
+      "amber": "Amber bubble"
+    }
   }
 }

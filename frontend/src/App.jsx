@@ -21,6 +21,7 @@ import NotFound from './pages/NotFound/NotFound';
 import ProtectedRoute from './components/ProtectedRoute';
 import FlameButton from './components/FlameButton';
 import AccountManagement from './pages/AccountManagement';
+import ChatConfigPage from './pages/Admin/ChatConfigPage'; // ← THÊM
 
 // Staff pages
 import TeacherDashboard from './pages/Teacher/TeacherDashboard';
@@ -55,12 +56,11 @@ function App() {
         {/* Public */}
         <Route path="/" element={<HomePage />} />
 
-        {/* Login chung cho tất cả roles */}
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-        {/* ─── Admin routes (chỉ role: admin) ─────────────────────────────────── */}
+        {/* ─── Admin routes ─────────────────────────────────────────────────── */}
         <Route
           path="/admin"
           element={
@@ -85,9 +85,10 @@ function App() {
           <Route path="attendance" element={<AttendanceManagement />} />
           <Route path="salary-config" element={<SalaryConfig />} />
           <Route path="salary-report" element={<SalaryReport />} />
+          <Route path="chat-config" element={<ChatConfigPage />} />
         </Route>
 
-        {/* ─── Teacher routes (chỉ role: teacher) ──────────────────────────────── */}
+        {/* ─── Teacher routes ───────────────────────────────────────────────── */}
         <Route
           path="/teacher"
           element={
@@ -99,11 +100,10 @@ function App() {
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<TeacherDashboard />} />
           <Route path="attendance" element={<Navigate to="/attendance" replace />} />
-          {/* Xem danh sách học sinh của lớp mình phụ trách */}
           <Route path="students/course/:courseId" element={<CourseStudentList />} />
         </Route>
 
-        {/* ─── Marketing routes (chỉ role: marketing) ──────────────────────────── */}
+        {/* ─── Marketing routes ─────────────────────────────────────────────── */}
         <Route
           path="/marketing"
           element={
@@ -118,7 +118,7 @@ function App() {
           <Route path="announcements" element={<MktAnnouncementPage />} />
         </Route>
 
-        {/* ─── Shared staff attendance route (teacher + marketing) ───────────────── */}
+        {/* ─── Shared staff attendance ──────────────────────────────────────── */}
         <Route
           path="/attendance"
           element={
@@ -130,7 +130,6 @@ function App() {
           <Route index element={<StaffAttendance />} />
         </Route>
 
-        {/* Catch all */}
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>

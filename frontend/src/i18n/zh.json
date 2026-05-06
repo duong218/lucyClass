@@ -498,5 +498,86 @@
       "五",
       "六"
     ]
+  },
+  "chatbox": {
+    "admin_menu": "聊天框配置",
+    "actions": {
+      "open": "打开 Lucy AI 聊天",
+      "close": "关闭聊天",
+      "reset": "重新开始对话",
+      "reset_default": "恢复默认",
+      "save": "保存配置",
+      "saving": "保存中...",
+      "send": "发送消息",
+      "add": "添加",
+      "remove_suggestion": "删除建议"
+    },
+    "errors": {
+      "missing_api_key": "聊天框尚未配置 GROQ API key。",
+      "rate_limit": "聊天框当前负载过高，或已触发 GROQ 限制。请稍后再试。",
+      "timeout": "聊天响应超时，请稍后再试。",
+      "generic": "发生错误，请重试。"
+    },
+    "safety": {
+      "sensitive_refusal": "我不能提供敏感信息，例如联系方式、学费、内部课表，或教师、学生、家长的私人资料。请通过中心的官方渠道直接联系。"
+    },
+    "fallback": {
+      "registration": "您可以直接在 {{website}} 上报名，或通过 Zalo / Facebook 联系中心获取指导。通常家长只需提供孩子姓名、年龄、联系电话和感兴趣的课程。",
+      "courses": "中心提供多种儿童英语课程。您可以查看 {{website}} 上的课程栏目，或通过 Zalo {{zalo}} 联系中心，获取适合班级的建议。",
+      "activities": "Lucy 会定期举办课外活动、活动日和工作坊。您可以关注 {{website}}、Facebook {{facebook}} 或 TikTok {{tiktok}} 获取最新动态。",
+      "contact": "您可以通过以下官方渠道关注并联系中心：\n- Website: {{website}}\n- Zalo: {{zalo}}\n- Facebook: {{facebook}}\n- TikTok: {{tiktok}}",
+      "streak": "Streak 是每日签到功能，用来保持学习连续记录并跟踪进度。您也可以在中心网站 {{website}} 上查看相关排行榜功能。",
+      "after_registration": "提交报名后，中心会联系您并安排合适的班级。如果您希望更快获得回复，可以直接联系 Zalo {{zalo}} 或 Facebook {{facebook}}。",
+      "rate_limit_reply": "AI 助手当前暂时过载，我现在无法自由回答开放问题。如果您需要官方信息，请直接通过 {{website}}、Zalo {{zalo}} 或 Facebook {{facebook}} 联系中心。"
+    },
+    "widget": {
+      "subtitle": "Lucy 中心助手",
+      "suggestions_label": "你可以这样提问：",
+      "input_placeholder": "输入你的问题...",
+      "helper": "AI 助手 · 重新加载页面可重置对话"
+    },
+    "config": {
+      "title": "Lucy 聊天框配置",
+      "subtitle": "自定义聊天框的视觉风格和默认内容。",
+      "loading": "正在加载聊天框配置...",
+      "bot_section": "机器人信息",
+      "bot_name": "机器人名称",
+      "welcome_message": "欢迎消息",
+      "welcome_placeholder": "你好！我是 Lucy 中心的虚拟助手...",
+      "accent_section": "强调色",
+      "bubble_section": "回复气泡颜色",
+      "preview_sample": "你好！这是聊天气泡预览。",
+      "suggestions_section": "快捷问题建议",
+      "suggestions_hint": "用户首次打开聊天时会显示这些建议，最多 10 条。",
+      "new_suggestion_placeholder": "输入新建议后按 Enter...",
+      "max_reached": "已达到 10 条建议上限。",
+      "prompt_section": "系统提示词",
+      "characters": "字符",
+      "prompt_hint": "定义机器人的行为、边界和语气。",
+      "preview_section": "预览",
+      "toasts": {
+        "load_error": "无法加载配置，当前使用默认值。",
+        "save_success": "聊天框配置已保存。",
+        "save_error": "保存聊天框配置失败，请重试。",
+        "max_suggestions": "最多只能有 10 条建议。",
+        "reset": "已恢复默认值，但尚未保存。"
+      }
+    },
+    "colors": {
+      "teal": "青绿色",
+      "emerald": "祖母绿",
+      "blue": "蓝色",
+      "violet": "紫色",
+      "rose": "玫瑰色",
+      "amber": "琥珀色"
+    },
+    "bubbles": {
+      "teal": "青绿气泡",
+      "blue": "蓝色气泡",
+      "emerald": "祖母绿气泡",
+      "violet": "紫色气泡",
+      "rose": "玫瑰气泡",
+      "amber": "琥珀气泡"
+    }
   }
 }
