@@ -24,6 +24,11 @@
 ```text
 backend/
 |-- config/
+|   |-- cron.js
+|   |-- db.js
+|   |-- google.js
+|   |-- redis.js
+|   `-- safetyRules.js
 |-- controllers/
 |-- middlewares/
 |-- models/
@@ -109,6 +114,11 @@ backend/
   - dọn orphan ranking,
   - dọn restore tạm,
   - deep clean định kỳ dài hạn.
+
+### `config/safetyRules.js`
+- Định nghĩa bộ quy tắc an toàn runtime cho AI Assistant (Lucy AI).
+- Bao gồm: danh sách ngôn ngữ hỗ trợ (vi, en, zh), các chủ đề công khai, và các nhóm từ khóa nhạy cảm (Auth, Finance, Personal, Internal Ops).
+- Cung cấp logic kiểm tra vi phạm quy tắc an toàn trước khi gửi prompt tới AI provider.
 
 ## Điều hướng API `routes/`
 

@@ -21,8 +21,17 @@
 ```text
 frontend/
 |-- public/
+|   |-- decorate/
+|   |-- images/
+|   |-- sounds/
+|   |-- logo.svg
+|   |-- robot.txt
+|   `-- sitemap.xml
 |-- src/
 |   |-- assets/
+|   |   |-- 404.png
+|   |   |-- hero-bg.png
+|   |   `-- why-us-main.png
 |   |-- components/
 |   |   |-- ChatBox/
 |   |   |-- Timetable/
