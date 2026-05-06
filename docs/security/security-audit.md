@@ -1,278 +1,407 @@
-Security Audit - LucyClass
+# Security Audit - LucyClass
 
 Ngày audit: 2026-05-06
 Phạm vi: `backend/`, `frontend/`
-Mục tiêu: rà soát bảo mật ứng dụng theo code hiện tại, ưu tiên auth, phân quyền, session, CSRF/CORS, dữ liệu nội bộ và các luồng vận hành nhạy cảm.
+Phương pháp: static review theo source code hiện có, không pentest động
 
-## 1. Phương pháp và giới hạn
+## 1. Nguyên tắc audit và giới hạn
 
-Đã đọc trực tiếp các nhóm mã sau:
-- `backend/server.js`
-- `backend/controllers/authController.js`
-- `backend/controllers/salaryController.js`
-- `backend/controllers/announcementController.js`
-- `backend/controllers/restore.controller.js`
-- `backend/services/backup.service.js`
-- `backend/services/restore.service.js`
-- `backend/middlewares/auth.js`
-- `backend/middlewares/securityMiddleware.js`
-- `backend/middlewares/rateLimiter.js`
-- các route chính trong `backend/routes/`
-- `frontend/src/services/api.js`
-- `docs/security/security-audit.md`
+Phần đánh giá này tập trung vào:
+- Auth, session, refresh token, phân quyền.
+- Bề mặt public API, chống lạm dụng, CORS/CSRF.
+- Luồng điểm danh, học viên, thông báo, chat AI, backup/restore.
+- Frontend storage, route guard, cách gọi API, rò rỉ dữ liệu hiển thị.
 
-Chỉ đọc file cấu hình mẫu:
+Phần cấu hình chỉ dùng để hiểu shape hệ thống từ:
 - `backend/.env.example`
 - `frontend/.env.example`
 
-Không đọc:
-- `backend/.env`
-- `frontend/.env`
-- mọi file `env*` thật
-- key, secret, token, backup thật
+Không dùng giá trị secret thật để kết luận và không trích dẫn secret thật vào tài liệu này.
 
-Đây là audit tĩnh theo source code hiện có. Kết luận dưới đây không dựa vào giả định “hệ thống đang cấu hình đúng”, mà dựa vào hành vi thực tế của code.
+## 2. Loại trừ theo mô tả hệ thống
 
-## 2. Kết luận nhanh
+Các điểm dưới đây được xem là chu de nghiep vu da chu dong chap nhan, khong tinh la lo hong trong diem so:
 
-Điểm bảo mật hiện tại mình chấm: **7.5 / 10**
+### 2.1 Điểm danh học sinh theo khóa học
 
-Đánh giá tổng quan:
-- Nền tảng bảo mật cơ bản khá tốt: có rate limit, reCAPTCHA, refresh token qua httpOnly cookie, check upload tương đối chặt, restore flow có guard tốt.
-- Tuy nhiên hiện vẫn còn một lỗi phân quyền nghiệp vụ đáng kể và một số điểm “thiết kế nói một đằng, code chạy một nẻo”.
-- Vì vậy, kết luận cũ kiểu “9.5/10, chỉ còn CSP low” không còn đúng với codebase hiện tại.
+Theo mô tả hệ thống:
+- Mỗi khóa có 1 giáo viên chính và tối đa 15 giáo viên phụ.
+- Mọi giáo viên thuộc cùng khóa đều được phép xem danh sách lớp và điểm danh thay nhau.
+- Dữ liệu điểm danh được đồng bộ giữa các giáo viên của cùng khóa sau khi lưu.
 
-Mức ưu tiên xử lý:
-- Cao: 1
-- Trung bình: 2
-- Thấp: 3
+Đối chiếu code:
+- Backend đã khóa quyền theo giáo viên chính hoặc giáo viên phụ của khóa ở `backend/controllers/courseController.js`.
+- Khi teacher lấy danh sách học viên, API đã tự ẩn `phone` và `email` ở `backend/controllers/registrationController.js`.
+- Khi teacher xuất Excel điểm danh, số điện thoại cũng bị che ở `backend/controllers/courseController.js`.
 
-## 3. Điểm mạnh đang có
+Kết luận:
+- Đây là behavior phù hợp với yêu cầu khách hàng, không phải authorization bypass.
+- Riêng endpoint `GET /api/salary/session-teachers/:cellId` hiện chỉ cho teacher xem session mà chính mình được gán trong session đó. Đây là hạn chế vận hành, không phải lỗ hổng rò rỉ quyền.
 
-### 3.1 Auth và chống brute-force
-- Login có reCAPTCHA server-side và ngưỡng cao hơn cho luồng nhạy cảm.
-- Có `loginLimiter`, `forgotPasswordLimiter`, `resetPasswordLimiter`.
-- Có cơ chế block IP khi đăng nhập sai nhiều lần.
+### 2.2 Streak mini game
 
-### 3.2 Token và session
-- Access token đi qua header bearer, không thấy lưu vào `localStorage`.
-- Refresh token dùng cookie `httpOnly`.
-- Có cơ chế `activeSessionId` để kiểm soát phiên.
+Theo mô tả hệ thống:
+- Streak là mini game marketing, có chủ đích nới lỏng.
+- Có cho checkin hộ để tăng retention.
 
-### 3.3 Upload ảnh
-- Dùng `multer` memory storage.
-- Kiểm tra magic number.
-- Re-encode ảnh bằng `sharp`.
-- Có chặn pixel bomb cơ bản.
+Đối chiếu code:
+- API streak hiện dùng số điện thoại làm định danh chính.
+- API công khai trả về tên, số điện thoại và trạng thái streak tương ứng số đó.
+- Có limiter theo IP, device và số điện thoại, nhưng không có OTP hay xác minh danh tính thật.
 
-### 3.4 Restore / backup
-- Luồng restore yêu cầu admin, confirm tay, nhập lại mật khẩu, có audit log.
-- Restore service có kiểm tra zip-slip khi giải nén.
-- Dùng `spawn` cho `mongodump` / `mongorestore`, tránh shell injection kiểu nối chuỗi thô.
+Kết luận:
+- Đây là accepted risk theo thiết kế sản phẩm hiện tại.
+- Không chấm là lỗi auth/business logic trong điểm số tổng.
+- Nếu sau này muốn siết bảo mật, phải đổi kiến trúc streak sang mô hình xác minh sở hữu số điện thoại hoặc user account thật.
 
-## 4. Findings chi tiết
+### 2.3 Excel
 
-### F1. High - Hở phân quyền theo đối tượng ở endpoint giáo viên theo ô thời khóa biểu
+Theo mô tả hệ thống:
+- Hệ thống chủ yếu export file.
+- Không có role business thông thường được upload Excel vào hệ thống.
 
-Mức độ: High
+Kết luận:
+- Bề mặt tấn công từ file upload dạng Excel là rất thấp.
+- Audit vẫn kiểm tra upload ảnh và luồng backup/restore vì đây mới là file input thực tế trong hệ thống.
 
-Ảnh hưởng:
-- Giáo viên có thể truy vấn thông tin giáo viên khác và thông tin lớp của ô thời khóa biểu không thuộc phạm vi mình phụ trách.
-- Dữ liệu lộ ra gồm:
-  - `teacherId` được populate với `displayName`, `username`, `role`
-  - `courseId` được populate với `name`, `currentStudents`
-- Đây là đúng nhóm dữ liệu nội bộ mà policy nội bộ cần chặn: phân công giáo viên, sĩ số lớp, dữ liệu vận hành lớp học.
+## 3. Kết luận nhanh
 
-Bằng chứng:
-- Route cho phép cả `admin` và `teacher`:
-  - `backend/routes/salaryRoutes.js:21`
-- Controller không kiểm tra ownership hay phạm vi lớp:
-  - `backend/controllers/salaryController.js:322`
-  - `backend/controllers/salaryController.js:325`
-  - `backend/controllers/salaryController.js:326`
-  - `backend/controllers/salaryController.js:327`
+Điểm bảo mật hiện tại: **8.2 / 10**
 
-Phân tích:
-- `GET /api/salary/session-teachers/:cellId` hiện chỉ cần role `teacher`.
-- Sau đó controller chạy `SessionTeacher.find({ sessionId: cellId })` và trả dữ liệu luôn.
-- Không có bước xác minh:
-  - `cellId` này có thuộc lớp giáo viên đang phụ trách không
-  - giáo viên có được phép xem ô này không
-  - dữ liệu course/teacher trả về có cần che bớt không
+Nhận xét tổng quan:
+- Nền tảng bảo mật cơ bản của hệ thống đang tốt hơn mức trung bình: JWT + refresh cookie, session conflict, phân quyền teacher theo khóa, reCAPTCHA, limiter, upload ảnh có magic-number + re-encode, restore có guard khá chặt.
+- Các false positive lớn của bản audit cũ về teacher attendance và session replay toàn phần hiện không còn đúng với code hiện tại.
+- Tuy nhiên hệ thống vẫn còn một số điểm cần vá, chủ yếu nằm ở bề mặt public API, tính nhất quán giữa CORS và CSRF, dependency upload cũ, và vài rò rỉ vận hành mức thấp.
 
-Đánh giá:
-- Đây là lỗi authorization thật, không phải chỉ là “route chưa đẹp”.
-- Nếu `cellId` lộ qua frontend, network tab hoặc API khác, việc khai thác là thực tế.
+Phân loại hiện tại:
+- Medium: 3
+- Low: 3
 
-Khuyến nghị:
-- Chỉ cho `admin` dùng endpoint này nếu frontend teacher không thật sự cần.
-- Nếu teacher cần dùng:
-  - kiểm tra `cellId` phải thuộc một lớp mà teacher đang phụ trách
-  - chỉ trả dữ liệu tối thiểu cần thiết
-  - không populate các trường không cần như `currentStudents` nếu teacher không cần biết
+## 4. Điểm mạnh đang có
 
-### F2. Medium - Cơ chế single-session chưa chặn được access token replay ngoài trình duyệt
+### 4.1 Session và auth đã được siết tốt hơn trước
 
-Mức độ: Medium
+Điểm tốt:
+- Access token có mang `sid` tại `backend/controllers/authController.js`.
+- Backend bắt buộc request hợp lệ phải đi kèm `sessionId` cookie nếu tài khoản đang có phiên hoạt động tại `backend/middlewares/auth.js`.
+- Khi `activeSessionId` lệch cookie hoặc lệch `sid`, backend trả `SESSION_CONFLICT`.
+- Frontend chỉ giữ `accessToken` trong memory, không lưu vào `localStorage`, tại `frontend/src/services/api.js`.
 
-Ảnh hưởng:
-- Nếu `accessToken` bị lộ, attacker có thể gọi API bằng script/Postman mà không gửi cookie `sessionId`.
-- Middleware auth hiện chỉ chặn khi có `sessionId` cookie và cookie đó lệch với `activeSessionId`.
-- Kết quả là claim “mỗi lần login sẽ văng thiết bị cũ 100%” không đúng hoàn toàn.
+Ý nghĩa:
+- Lỗi access token replay đã được siết tốt hơn nhiều so với bản audit cũ.
+- Kẻ tấn công không thể chỉ dùng access token đơn lẻ theo cách cũ nếu thiếu session cookie hợp lệ.
 
-Bằng chứng:
-- Điều kiện check phụ thuộc cookie:
-  - `backend/middlewares/auth.js:65`
-  - `backend/middlewares/auth.js:67`
-  - `backend/middlewares/auth.js:68`
-  - `backend/middlewares/auth.js:69`
-- Claim cũ trong tài liệu:
-  - `docs/security/security-audit.md` bản trước đã khẳng định “single-session bảo vệ 100%”
+### 4.2 Teacher access ở module học viên và điểm danh đang đi đúng hướng least privilege
 
-Phân tích:
-- Nếu request có bearer token hợp lệ nhưng không kèm `req.cookies.sessionId`, nhánh conflict check không chạy.
-- Điều đó không phá toàn bộ auth, nhưng làm suy yếu lớp chống session hijack.
+Điểm tốt:
+- `checkCourseAccess()` trong `backend/controllers/courseController.js` chỉ cho teacher thuộc khóa truy cập.
+- `backend/controllers/registrationController.js` ẩn `phone` và `email` khỏi teacher khi lấy danh sách học viên.
+- `backend/controllers/courseController.js` che số điện thoại khi teacher export Excel điểm danh.
 
-Khuyến nghị:
-- Gắn `sessionId` hoặc `sessionVersion` vào access token và verify ở mọi request.
-- Hoặc bắt buộc access token chỉ hợp lệ khi đi kèm cookie phiên tương ứng.
-- Nếu vẫn giữ mô hình hiện tại, không nên tuyên bố “100%”.
+Ý nghĩa:
+- Flow "giáo viên chính/phụ cùng khóa điểm danh thay nhau" đang được giữ, nhưng PII đã được giảm bớt.
 
-### F3. Medium - CORS và CSRF đang dùng hai nguồn cấu hình origin khác nhau
+### 4.3 Upload ảnh có nhiều lớp kiểm tra hữu ích
+
+Điểm tốt:
+- `multer.memoryStorage()`, giới hạn file size và số field ở `backend/middlewares/upload.js`.
+- Kiểm tra magic number bằng `file-type`.
+- Re-encode qua `sharp`, strip metadata, chặn pixel bomb bằng `limitInputPixels`.
+
+Ý nghĩa:
+- Đây là lớp phòng thủ thực dụng và tốt hơn rất nhiều so với upload chỉ kiểm tra extension.
+
+### 4.4 Luồng restore có guard tương đối nghiêm túc
+
+Điểm tốt:
+- Restore chỉ cho admin.
+- Có xác nhận lại mật khẩu trong controller restore.
+- Có chặn zip slip ở `backend/services/restore.service.js`.
+- Có restore thử vào temp DB trước khi `--drop` DB chính.
+- Có flush Redis cache sau restore.
+
+Ý nghĩa:
+- Đây là một trong các phần được làm cẩn thận nhất của backend.
+
+## 5. Findings chi tiết
+
+### F1. Medium - CORS và CSRF đang dùng hai nguồn cấu hình origin khác nhau
 
 Mức độ: Medium
 
-Ảnh hưởng:
-- CORS ở server cho phép origin từ:
+File ảnh hưởng:
+- `backend/server.js`
+- `backend/middlewares/securityMiddleware.js`
+
+Mô tả:
+- CORS ở `backend/server.js` nhận origin từ chuỗi ưu tiên:
   - `CORS_ORIGINS`
   - hoặc `CLIENT_URL`
   - hoặc `FRONTEND_URL`
-- Nhưng CSRF middleware chỉ đọc `CORS_ORIGINS`.
-- Kịch bản xấu nhất: production chỉ set `CLIENT_URL` hoặc `FRONTEND_URL`, khi đó:
-  - CORS vẫn cho qua
-  - request ghi dữ liệu lại bị CSRF chặn
-- Đây là kiểu lệch cấu hình rất dễ dẫn đến việc “tạm tắt CSRF cho chạy trước”.
+- Nhưng CSRF layer ở `backend/middlewares/securityMiddleware.js` chỉ đọc `CORS_ORIGINS`.
+
+Rủi ro:
+- Nếu production chỉ set `CLIENT_URL` hoặc `FRONTEND_URL` mà không set `CORS_ORIGINS`, hệ thống có thể rơi vào trạng thái:
+  - CORS cho qua.
+  - Request ghi dữ liệu lại bị CSRF chặn.
+- Kiểu lệch này rất dễ dẫn đến hotfix kiểu "tạm nới CSRF cho chạy trước", làm giảm bảo mật thực tế.
 
 Bằng chứng:
-- `backend/server.js:92`
 - `backend/server.js:93`
-- `backend/server.js:102`
-- `backend/middlewares/securityMiddleware.js:32`
-- `backend/middlewares/securityMiddleware.js:33`
-- `backend/middlewares/securityMiddleware.js:41`
+- `backend/middlewares/securityMiddleware.js:32-41`
 
-Phân tích:
-- Đây không phải lỗ hổng đọc trộm dữ liệu trực tiếp.
-- Nhưng đây là vấn đề thiết kế bảo mật không nhất quán giữa lớp CORS và lớp CSRF.
-- Những lỗi kiểu này rất hay dẫn tới “sửa nóng bằng cách nới bảo mật”.
+Hướng xử lý:
+- Tạo một hàm parse origin dùng chung cho cả CORS lẫn CSRF.
+- Chỉ giữ một source of truth cho danh sách origin được phép.
+- Trong production, fail-fast nếu danh sách origin hợp lệ bị rỗng.
 
-Khuyến nghị:
-- Tạo một hàm parse origin dùng chung cho cả CORS và CSRF.
-- Chỉ có một source of truth cho allowed origins.
-- Nên fail-fast khi danh sách origin rỗng ở production.
+### F2. Medium - Public AI proxy có thể bị lạm dụng để đốt quota Groq
 
-### F4. Low - Staff thường vẫn biết số lượng announcement đang chờ duyệt
+Mức độ: Medium
 
-Mức độ: Low
+File ảnh hưởng:
+- `backend/routes/chatConfigRoutes.js`
+- `backend/controllers/chatConfigController.js`
+- `backend/middlewares/rateLimiter.js`
+- `backend/middlewares/securityMiddleware.js`
 
-Ảnh hưởng:
-- `GET /api/announcements/latest` chỉ cần `auth`.
-- Response trả cả `pendingCount`.
-- Điều này làm teacher/marketing biết được trạng thái moderation nội bộ dù không có quyền duyệt.
+Mô tả:
+- Endpoint `POST /api/chat-config/ask` là public.
+- Route chỉ gắn `publicLimiter` chung, không có auth, không có captcha, không có rate limit riêng cho AI proxy.
+- Backend nhận lịch sử chat rồi gọi thẳng Groq bằng API key server-side.
+
+Rủi ro:
+- Bất kỳ ai cũng có thể dùng endpoint này như một relay AI công khai.
+- `Origin` + `X-Requested-With` chỉ có giá trị chặn trình duyệt cross-site, không phải cơ chế trust thật với client script/server-to-server.
+- Kết quả xấu nhất là:
+  - Tốn quota Groq.
+  - Tăng chi phí.
+  - Gây degradation dịch vụ cho người dùng thật.
 
 Bằng chứng:
-- Route:
-  - `backend/routes/announcementRoutes.js:17`
-- Controller:
-  - `backend/controllers/announcementController.js:35`
-  - `backend/controllers/announcementController.js:47`
-  - `backend/controllers/announcementController.js:48`
-  - `backend/controllers/announcementController.js:50`
+- `backend/routes/chatConfigRoutes.js:16`
+- `backend/controllers/chatConfigController.js:114-175`
+- `backend/server.js` đang áp limiter API chung nhưng chưa có limiter chuyên cho AI proxy.
 
-Khuyến nghị:
-- Chỉ trả `pendingCount` cho admin.
-- Hoặc bỏ hẳn trường này khỏi endpoint `/latest`.
+Đánh giá thực tế:
+- Đây là rủi ro availability/cost abuse, không phải data breach trực tiếp.
+- Vì có safety layer nội dung, rủi ro lộ dữ liệu thấp hơn rủi ro bị lạm dụng tài nguyên.
 
-### F5. Low - Hardcode Google Drive folder ID trong backup service
+Hướng xử lý:
+- Tạo limiter riêng cho `/api/chat-config/ask`, chặt hơn nhiều so với `publicLimiter`.
+- Thêm CAPTCHA cho chat public hoặc token widget ngắn hạn do backend phát.
+- Cân nhắc chỉ cho chat widget gọi qua signed request hoặc nonce do backend cấp.
+- Bổ sung logging theo IP, UA, volume và circuit breaker khi Groq lỗi/rate limit tăng đột biến.
+
+### F3. Medium - Dependency upload vẫn dùng Multer 1.x đã bị upstream cảnh báo có lỗ hổng
+
+Mức độ: Medium
+
+File ảnh hưởng:
+- `backend/package.json`
+- `backend/package-lock.json`
+- `backend/middlewares/upload.js`
+
+Mô tả:
+- Backend đang dùng `multer` 1.x.
+- Chính `package-lock` ghi rõ nhánh 1.x bị ảnh hưởng bởi nhiều lỗ hổng đã được vá ở 2.x.
+
+Rủi ro:
+- Ứng dụng hiện đã có nhiều lớp tự vệ ở tầng app, nên exploitability giảm.
+- Tuy vậy parser multipart là lớp đầu vào rất gần network boundary; dependency cũ ở đây không nên để kéo dài.
+
+Bằng chứng:
+- `backend/package.json:33`
+- `backend/package-lock.json:3862`
+- Upload hiện đang dùng trực tiếp `multer` ở `backend/middlewares/upload.js:1-45`
+
+Đánh giá thực tế:
+- Không nên chấm High vì:
+  - Upload route chủ yếu là admin/marketing.
+  - App có giới hạn size, magic number, re-encode ảnh.
+- Nhưng vẫn đủ để chấm Medium do đây là dependency nằm ngay bề mặt upload.
+
+Hướng xử lý:
+- Lên kế hoạch nâng lên `multer` 2.x.
+- Re-test toàn bộ các route upload ảnh sau khi nâng.
+- Giữ nguyên các lớp kiểm tra magic number và `sharp`, không bỏ vì nâng version dependency.
+
+### F4. Low - `pendingCount` của thông báo đang lộ cho mọi staff đã đăng nhập
 
 Mức độ: Low
 
-Ảnh hưởng:
-- Source đang fallback sang một `GOOGLE_DRIVE_FOLDER_ID` cố định nếu env không có.
-- Đây là internal integration identifier không nên hardcode trong codebase.
-- Ngoài vấn đề lộ định danh, còn có rủi ro backup bị đẩy sang sai thư mục nếu deployment cấu hình thiếu.
+File ảnh hưởng:
+- `backend/routes/announcementRoutes.js`
+- `backend/controllers/announcementController.js`
+
+Mô tả:
+- `GET /api/announcements/latest` chỉ yêu cầu `auth`.
+- Response trả cả `pendingCount`.
+
+Rủi ro:
+- Teacher và marketing thường vẫn biết được số lượng bài đang chờ duyệt.
+- Đây là rò rỉ trạng thái moderation nội bộ, mức thấp.
+
+Bằng chứng:
+- `backend/controllers/announcementController.js:35-50`
+
+Hướng xử lý:
+- Chỉ trả `pendingCount` cho admin.
+- Hoặc tách trường này sang endpoint admin riêng.
+
+### F5. Low - Hardcoded fallback Google Drive folder ID trong backup service
+
+Mức độ: Low
+
+File ảnh hưởng:
+- `backend/services/backup.service.js`
+
+Mô tả:
+- Backup service có fallback cứng cho `GOOGLE_DRIVE_FOLDER_ID` nếu env không có.
+
+Rủi ro:
+- Dễ đẩy backup sang sai folder nếu deployment thiếu config.
+- Lộ internal integration identifier vào codebase.
+- Làm giảm tính an toàn vận hành của backup/restore.
 
 Bằng chứng:
 - `backend/services/backup.service.js:66`
 - `backend/services/backup.service.js:114`
 
-Khuyến nghị:
+Hướng xử lý:
 - Bỏ fallback hardcoded.
 - Production phải fail-fast nếu thiếu `GOOGLE_DRIVE_FOLDER_ID`.
 
-### F6. Low - CSP vẫn còn `unsafe-inline` trong `script-src`
+### F6. Low - CSP vẫn giữ `unsafe-inline` cho script
 
 Mức độ: Low
 
-Ảnh hưởng:
-- `script-src` hiện vẫn chứa `'unsafe-inline'`.
-- Điều này làm giảm độ chặt của CSP nếu sau này frontend phát sinh XSS ở nơi khác.
+File ảnh hưởng:
+- `backend/server.js`
+
+Mô tả:
+- CSP hiện vẫn cho phép `'unsafe-inline'` trong `script-src`.
+
+Rủi ro:
+- Nếu sau này phát sinh XSS ở nơi khác, CSP sẽ giảm hiệu quả chặn.
+- Hiện tại điều này có vẻ đang được giữ để tương thích với reCAPTCHA và một số đoạn frontend hiện hữu.
 
 Bằng chứng:
-- `backend/server.js:116`
 - `backend/server.js:120`
 
-Đánh giá:
-- Đây vẫn là accepted risk có thể hiểu được nếu đang phải tương thích với reCAPTCHA.
-- Tuy nhiên không thể coi đây là finding duy nhất như kết luận audit cũ.
+Hướng xử lý:
+- Lập kế hoạch chuyển dần sang nonce-based CSP.
+- Rà các script inline và các chỗ frontend đang phụ thuộc vào DOM mutation trực tiếp.
 
-Khuyến nghị:
-- Nếu muốn siết thêm, chuyển dần sang nonce-based CSP cho script được inject.
+## 6. Những điểm đã kiểm tra và không xem là lỗ hổng ở thời điểm này
 
-## 5. Những điểm không thấy lộ hổng rõ trong phạm vi đã đọc
+### 6.1 Teacher attendance sharing trong cùng khóa
 
-Trong phạm vi source đã kiểm tra, mình chưa thấy bằng chứng rõ của:
-- RCE trực tiếp qua upload hoặc restore
-- SQLi/NoSQLi rõ ràng kiểu concat query thô
-- đọc secret trực tiếp từ frontend
-- public route lộ bảng lương hoặc danh sách phụ huynh/học viên hàng loạt
+Không tính là lỗ hổng vì:
+- Business rule đã nêu rất rõ.
+- Code có check teacher chính/phụ theo khóa.
+- Dữ liệu nhạy cảm đã được giảm bớt cho teacher ở các API học viên.
 
-Lưu ý:
-- “Không thấy trong mẫu kiểm tra” không đồng nghĩa “chứng minh tuyệt đối là không có”.
-- Để kết luận mạnh hơn cần thêm dynamic testing và review sâu hơn từng module business.
+File tham chiếu:
+- `backend/controllers/courseController.js`
+- `backend/controllers/registrationController.js`
+- `backend/routes/courseRoutes.js`
 
-## 6. So sánh với bản audit trước
+### 6.2 Session binding cũ đã được vá
 
-Bản trước đánh giá `9.5/10` và kết luận gần như chỉ còn CSP low. Kết luận đó hiện không còn phù hợp vì:
-- đã bỏ sót lỗi authorization ở `salary/session-teachers`
-- đã đánh giá quá mạnh cơ chế single-session
-- chưa chỉ ra sự lệch cấu hình giữa CORS và CSRF
-- chưa coi `pending announcement state` là internal data leak
+Bản audit cũ từng coi access token replay là vấn đề trung bình. Với code hiện tại:
+- Access token có `sid`.
+- Auth middleware buộc kiểm tra `sessionId` cookie.
+- Khi thiếu cookie hoặc lệch `sid`, backend trả `SESSION_CONFLICT`.
 
-Do đó, nếu tài liệu này dùng làm tài liệu bàn giao hoặc cam kết chất lượng, nên lấy bản hiện tại làm mốc mới.
+File tham chiếu:
+- `backend/controllers/authController.js`
+- `backend/middlewares/auth.js`
+- `frontend/src/services/api.js`
 
-## 7. Thứ tự ưu tiên sửa
+Kết luận:
+- Finding cũ này không còn là finding chính ở bản audit hiện tại.
 
-### Ưu tiên 1 - Sửa ngay
-- Vá `GET /api/salary/session-teachers/:cellId`
-- Quyết định rõ teacher có được xem endpoint này hay không
+### 6.3 Endpoint `session-teachers` không còn là authorization leak kiểu cũ
 
-### Ưu tiên 2 - Sửa trong cùng đợt auth/security
-- Buộc ràng buộc access token với session state thật sự
-- Gom CORS và CSRF về chung một nguồn cấu hình origin
+Hiện tại teacher chỉ đọc được session có chính mình trong đó:
+- `backend/controllers/salaryController.js:322-345`
 
-### Ưu tiên 3 - Dọn nợ bảo mật
-- Ẩn `pendingCount` khỏi staff thường
-- Bỏ hardcoded Drive folder ID
-- Lập kế hoạch giảm dần `unsafe-inline` trong CSP
+Kết luận:
+- Đây không phải lỗ hổng rò rỉ dữ liệu hàng loạt.
+- Nếu cần cho teacher xem "hôm nay dạy ai" ở mức rộng hơn, đó là yêu cầu nghiệp vụ mới, không phải vá bảo mật.
 
-## 8. Kết luận cuối
+## 7. Mức độ hoàn thiện theo từng lớp
 
-Hệ thống hiện có nền tảng bảo mật khá hơn mức trung bình và không có dấu hiệu “vỡ trận” ở các lớp cơ bản. Tuy nhiên, hệ thống **chưa ở mức có thể tự tin gọi là 9.5/10** vì vẫn còn:
-- 1 lỗi phân quyền nghiệp vụ đáng kể
-- 2 điểm trung bình làm suy yếu các cam kết bảo mật hiện tại
-- 3 điểm rò rỉ/thiết kế yếu ở mức thấp
+### 7.1 Auth và session
 
-Điểm tổng hợp hợp lý ở thời điểm audit này: **7.5 / 10**
+Đánh giá: Tốt
 
-Nếu vá xong `F1`, `F2`, `F3`, mình đánh giá hệ thống có thể tăng lên khoảng **8.7 - 9.0 / 10** mà không cần thay đổi kiến trúc quá lớn.
+Lý do:
+- Refresh token trong cookie httpOnly.
+- Access token chỉ giữ in-memory ở frontend.
+- Có session conflict check và invalidate phiên cũ.
+- Có reCAPTCHA và limiter cho login/forgot/reset.
+
+### 7.2 Authorization nghiệp vụ
+
+Đánh giá: Khá tốt
+
+Lý do:
+- Teacher access theo khóa đã đúng ở module học viên/điểm danh.
+- Admin-only routes ở backup, restore, salary report, timetable đang khá rõ.
+- Vẫn còn vài rò rỉ vận hành nhẹ như `pendingCount`.
+
+### 7.3 Public API abuse resistance
+
+Đánh giá: Trung bình khá
+
+Lý do:
+- Có limiter và reCAPTCHA cho form public chính.
+- Nhưng AI proxy public vẫn còn hơi mở, chưa có abuse control đủ mạnh.
+
+### 7.4 File handling
+
+Đánh giá: Khá
+
+Lý do:
+- Upload ảnh được làm cẩn thận ở tầng ứng dụng.
+- Tuy vậy dependency `multer` nên được nâng.
+
+### 7.5 Khả năng chống rò rỉ dữ liệu
+
+Đánh giá: Khá
+
+Lý do:
+- Teacher đã bị ẩn phone/email khi xem học viên.
+- Frontend không lưu access token.
+- Vẫn còn vài metadata nội bộ đang lộ cho staff đã đăng nhập.
+
+## 8. Thứ tự ưu tiên sửa
+
+### Ưu tiên 1 - Nên làm sớm
+
+- Gom CORS và CSRF về cùng một nguồn cấu hình origin.
+- Siết `POST /api/chat-config/ask` bằng limiter riêng và cơ chế anti-abuse tốt hơn.
+- Nâng `multer` 1.x lên 2.x rồi re-test toàn bộ upload route.
+
+### Ưu tiên 2 - Dọn nợ bảo mật
+
+- Ẩn `pendingCount` khỏi staff thường.
+- Bỏ hardcoded Drive folder ID.
+- Lập kế hoạch giảm dần `unsafe-inline` trong CSP.
+
+## 9. Kết luận cuối
+
+Hệ thống hiện tại **không yếu**, và ở nhiều phần đã được làm tốt hơn so với mặt bằng web custom nhỏ:
+- Teacher attendance theo khóa đang đi đúng business rule và đã có least privilege tương đối tốt.
+- Session/auth hiện đã chặt hơn đáng kể.
+- Upload ảnh và restore flow có nhiều guard hữu ích.
+
+Nhưng hệ thống **chưa ở mức có thể tự tin gọi là gần tuyệt đối an toàn**, vì vẫn còn:
+- 3 điểm Medium đáng xử lý.
+- 3 điểm Low nên dọn trong cùng đợt hardening.
+
+Điểm hợp lý cho trạng thái hiện tại: **8.2 / 10**
+
+Nếu xử lý xong `F1`, `F2`, `F3`, mình đánh giá hệ thống có thể lên khoảng **8.8 - 9.0 / 10** mà không cần thay đổi kiến trúc quá lớn.

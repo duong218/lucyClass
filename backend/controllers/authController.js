@@ -93,7 +93,7 @@ const getClearCookieOptions = () => {
 };
 
 // ─── generateTokens ───────────────────────────────────────────────────────────
-const generateTokens = (user) => {
+const generateTokens = (user, sessionId = user?.activeSessionId || null) => {
   const jwtSecret = process.env.JWT_SECRET;
   const refreshTokenSecret = process.env.REFRESH_TOKEN_SECRET;
 
@@ -102,7 +102,13 @@ const generateTokens = (user) => {
   }
 
   const accessToken = jwt.sign(
-    { id: user._id, username: user.username, role: user.role, email: user.email },
+    {
+      id: user._id,
+      username: user.username,
+      role: user.role,
+      email: user.email,
+      sid: sessionId || undefined,
+    },
     jwtSecret,
     { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }
   );
@@ -229,9 +235,9 @@ exports.login = async (req, res) => {
     user.loginAttempts = 0;
     user.lockUntil = undefined;
 
-    const { accessToken, refreshToken } = generateTokens(user);
     const sessionId = crypto.randomBytes(32).toString('hex');
     user.activeSessionId = sessionId;
+    const { accessToken, refreshToken } = generateTokens(user, sessionId);
     if (!user.refreshTokens) user.refreshTokens = [];
     user.refreshTokens = [refreshToken];
     await user.save();
@@ -307,7 +313,10 @@ exports.refreshToken = async (req, res) => {
       });
     }
 
-    const { accessToken, refreshToken: newRefreshToken } = generateTokens(user);
+    const { accessToken, refreshToken: newRefreshToken } = generateTokens(
+      user,
+      user.activeSessionId
+    );
     user.refreshTokens = user.refreshTokens.filter((t) => t !== token);
     user.refreshTokens.push(newRefreshToken);
     await user.save();

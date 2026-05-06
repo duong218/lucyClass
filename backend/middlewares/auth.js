@@ -63,10 +63,26 @@ const auth = async (req, res, next) => {
 
     // SESSION CONFLICT CHECK
     const cookieSessionId = req.cookies?.sessionId;
+    const tokenSessionId = decoded.sid || null;
+
+    // Legacy access tokens created before sid rollout are still allowed,
+    // but only when they come from the browser session that owns the cookie.
+    if (user.activeSessionId && !cookieSessionId) {
+      console.warn(
+        `[Auth Middleware] Missing session cookie for ${user.username || decoded.username}`
+      );
+      return res.status(401).json({
+        code: 'SESSION_CONFLICT',
+        message: 'Tài khoản đã được đăng nhập từ thiết bị khác'
+      });
+    }
+
     if (
-      cookieSessionId &&
       user.activeSessionId &&
-      user.activeSessionId !== cookieSessionId
+      (
+        user.activeSessionId !== cookieSessionId ||
+        (tokenSessionId && tokenSessionId !== user.activeSessionId)
+      )
     ) {
       console.warn(
         `[Auth Middleware] SESSION_CONFLICT for ${user.username || decoded.username}`

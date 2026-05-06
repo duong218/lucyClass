@@ -322,6 +322,25 @@ exports.getSalaryConfigLogs = async (req, res, next) => {
 exports.getSessionTeachers = async (req, res, next) => {
   try {
     const { cellId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(cellId)) {
+      return res.status(400).json({ success: false, message: 'cellId không hợp lệ' });
+    }
+
+    if (req.user?.role === 'teacher') {
+      const canAccess = await SessionTeacher.exists({
+        sessionId: cellId,
+        teacherId: req.user.id,
+      });
+
+      if (!canAccess) {
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn không phụ trách buổi dạy này',
+        });
+      }
+    }
+
     const teachers = await SessionTeacher.find({ sessionId: cellId })
       .populate('teacherId', 'displayName username role')
       .populate('courseId', 'name currentStudents')
