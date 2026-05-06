@@ -11,7 +11,6 @@ const AnnouncementModal = lazy(() => import('./AnnouncementModal'));
 /**
  * AnnouncementListModal
  * Modal danh sách thông báo — dùng chung cho bell icon ở AdminLayout & StaffLayout.
- * Tách từ logic "View All" trong AnnouncementSection, giữ nguyên thiết kế.
  *
  * Props:
  *  @param {boolean}  isOpen    - hiển thị hay ẩn modal
@@ -43,7 +42,9 @@ const AnnouncementListModal = ({ isOpen, onClose }) => {
     fetch();
   }, [isOpen]);
 
-  // Lock scroll khi list hoặc detail đang mở
+  // Lock scroll (bao gồm Lenis) khi list hoặc detail đang mở
+  // useLockBodyScroll giờ dùng lockScroll/unlockScroll từ modalScrollLock
+  // nên Lenis cũng được stop/start đúng cách
   useLockBodyScroll(isOpen || !!selectedAnnouncement);
 
   // ESC để đóng
@@ -60,7 +61,7 @@ const AnnouncementListModal = ({ isOpen, onClose }) => {
 
   return createPortal((
     <>
-      {/* ── List Modal — ẩn (không unmount) khi detail đang mở ──────── */}
+      {/* ── List Modal ── */}
       {isOpen && !selectedAnnouncement && (
       <div
         className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[99999] p-4"
@@ -83,8 +84,8 @@ const AnnouncementListModal = ({ isOpen, onClose }) => {
             </button>
           </div>
 
-          {/* List */}
-          <div className="overflow-y-auto pr-2 custom-scrollbar flex-1">
+          {/* List — data-lenis-prevent để Lenis không nuốt scroll event */}
+          <div className="overflow-y-auto pr-2 custom-scrollbar flex-1" data-lenis-prevent>
             {loading ? (
               <div className="flex items-center justify-center py-16 text-gray-400 text-sm">
                 Đang tải...
@@ -139,7 +140,7 @@ const AnnouncementListModal = ({ isOpen, onClose }) => {
       </div>
       )}
 
-      {/* ── Detail Modal — đóng thì quay lại list ───────────────────── */}
+      {/* ── Detail Modal ── */}
       <Suspense fallback={null}>
         {selectedAnnouncement && (
           <AnnouncementModal

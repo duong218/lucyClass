@@ -1,5 +1,18 @@
 let scrollPosition = 0;
 let modalCount = 0;
+let lenisInstance = null;
+
+/**
+ * Đăng ký Lenis instance để modalScrollLock có thể stop/start nó.
+ * Gọi hàm này từ LenisProvider sau khi tạo Lenis.
+ */
+export const registerLenis = (lenis) => {
+  lenisInstance = lenis;
+};
+
+export const unregisterLenis = () => {
+  lenisInstance = null;
+};
 
 export const lockScroll = () => {
   if (typeof document === 'undefined') return;
@@ -10,11 +23,15 @@ export const lockScroll = () => {
 
   const scrollBarWidth = window.innerWidth - document.documentElement.clientWidth;
 
-  // Chỉ dùng overflow hidden — KHÔNG dùng position:fixed
-  // position:fixed reset scrollTop về 0 trên mobile, gây bug cuộn lên top
+  // Chặn native scroll
   document.documentElement.style.overflow = 'hidden';
   document.body.style.overflow = 'hidden';
   document.body.style.paddingRight = `${scrollBarWidth}px`;
+
+  // Chặn Lenis smooth scroll — quan trọng!
+  if (lenisInstance) {
+    lenisInstance.stop();
+  }
 };
 
 export const unlockScroll = () => {
@@ -25,6 +42,11 @@ export const unlockScroll = () => {
   document.documentElement.style.overflow = '';
   document.body.style.overflow = '';
   document.body.style.paddingRight = '';
+
+  // Khởi động lại Lenis smooth scroll
+  if (lenisInstance) {
+    lenisInstance.start();
+  }
 
   // Restore scroll sau khi overflow đã clear
   window.scrollTo(0, restorePosition);

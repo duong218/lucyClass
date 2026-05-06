@@ -310,7 +310,7 @@ const ActivityPopup = ({ isOpen, onClose }) => {
         <div className="mx-5 mb-3 h-px shrink-0" style={{ background: 'rgba(255,255,255,0.12)' }} />
 
         {/* Scrollable content — Album + Video stacked */}
-        <div className="flex-1 overflow-y-auto no-scrollbar pb-6">
+        <div className="flex-1 overflow-y-auto no-scrollbar pb-6" data-lenis-prevent>
 
           {/* Album */}
           {hasAlbum && (

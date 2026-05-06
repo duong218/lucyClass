@@ -36,8 +36,8 @@ backend/
 |-- googleSheets.js
 |-- migrate-childAge.js
 |-- nodemon.json
+|-- package-lock.json
 |-- package.json
-|-- readme1.txt
 `-- server.js
 ```
 
@@ -270,6 +270,7 @@ backend/
 - `scripts/cleanRestoreTmp.js`: dọn artifact restore tạm.
 - `Dockerfile`: build image backend.
 - `nodemon.json`: cấu hình chạy dev.
+- `package-lock.json`: khóa phiên bản dependency cho môi trường Node.js backend.
 - `.env.example`, `.env.production`: mẫu cấu hình môi trường.
 
 ## Luồng chính

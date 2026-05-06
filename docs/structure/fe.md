@@ -6,7 +6,7 @@
 - Không liệt kê chi tiết toàn bộ asset tĩnh nhỏ lẻ hoặc `node_modules`.
 
 ## Tổng quan
-- Stack chính: `React 18`, `Vite`, `React Router`, `Tailwind CSS`, `Axios`, `react-toastify`, `framer-motion`, `chart.js`, `ExcelJS`, `file-saver`.
+- Stack chính: `React 18`, `Vite`, `React Router`, `Tailwind CSS`, `Axios`, `react-toastify`, `framer-motion`, `Lenis`, `chart.js`, `ExcelJS`, `file-saver`.
 - Entry point: `frontend/src/main.jsx`.
 - Frontend là một codebase dùng chung cho:
   - website public,
@@ -40,6 +40,7 @@ frontend/
 |-- .env.example
 |-- .env.production
 |-- index.html
+|-- package-lock.json
 |-- package.json
 |-- postcss.config.js
 |-- tailwind.config.js
@@ -51,11 +52,12 @@ frontend/
 
 ### `src/main.jsx`
 - Mount ứng dụng React với:
+  - `LenisProvider`,
   - `BrowserRouter`,
   - `AuthProvider`,
   - `RecaptchaProvider`.
 - Gọi `keepAliveBackend()` ngay khi app khởi động để đánh thức backend nếu cần.
-- Nạp `i18n.js` và `index.css`.
+- Nạp `i18n.js`, `lenis/dist/lenis.css` và `index.css`.
 
 ### `src/App.jsx`
 - Khai báo toàn bộ route của ứng dụng.
@@ -221,6 +223,7 @@ frontend/
 
 ### Thành phần hệ thống
 - `FlameButton.jsx`: nút truy cập nhanh cho streak/trải nghiệm nổi bật.
+- `LenisProvider.jsx`: bọc toàn app để bật smooth scroll và đồng bộ với `modalScrollLock`.
 - `NotificationBell.jsx`: chuông thông báo cho khu vực nội bộ.
 - `RecaptchaBox.jsx`, `RecaptchaProvider.jsx`: reCAPTCHA cho form public và login.
 - `AttendanceExportPanel.jsx`: panel export attendance.
@@ -293,8 +296,8 @@ frontend/
 - Chứa Tailwind base và style global của ứng dụng.
 
 ## Public assets
-- `public/` chứa logo, hình nền, audio, ảnh hoạt động, icon trang trí, Lottie asset và các file tĩnh như `sitemap.xml`.
-- `src/assets/` chứa ảnh được import trực tiếp vào code React.
+- `public/` chứa logo, hình nền, audio, ảnh hoạt động, icon trang trí, Lottie asset và các file tĩnh như `sitemap.xml`, `robot.txt`, `logo.svg`.
+- `src/assets/` chứa ảnh được import trực tiếp vào code React, gồm các bộ hình cho `404`, `hero`, `announcement` và `why-us`.
 
 ## Cấu hình chạy và deploy
 

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef } from 'react';
 import Lenis from 'lenis';
+import { registerLenis, unregisterLenis } from '../utils/modalScrollLock';
 
 const LenisContext = createContext(null);
 
@@ -27,6 +28,9 @@ const LenisProvider = ({ children }) => {
 
     lenisRef.current = lenis;
 
+    // Đăng ký Lenis với modalScrollLock để có thể stop/start khi mở/đóng modal
+    registerLenis(lenis);
+
     // RAF loop — Lenis cần được gọi raf() mỗi frame
     function raf(time) {
       lenis.raf(time);
@@ -35,6 +39,7 @@ const LenisProvider = ({ children }) => {
     requestAnimationFrame(raf);
 
     return () => {
+      unregisterLenis();
       lenis.destroy();
       lenisRef.current = null;
     };

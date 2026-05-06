@@ -69,7 +69,6 @@ const AnnouncementModal = ({ announcement, onClose }) => {
     e.target.src = '/placeholder.jpg';
   };
 
-  /* 1. ENSURE MODAL IS RENDERED AT ROOT (React Portal) */
   return createPortal(
     <div 
       className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 overflow-hidden pointer-events-none"
@@ -79,7 +78,7 @@ const AnnouncementModal = ({ announcement, onClose }) => {
       <AnimatePresence mode="wait">
         {announcement && (
           <div className="contents">
-            {/* 2. BACKDROP (OVERLAY) - Smooth opacity transition, pointer-events-auto, z-[1] */}
+            {/* BACKDROP */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -90,7 +89,7 @@ const AnnouncementModal = ({ announcement, onClose }) => {
               aria-hidden="true"
             />
             
-            {/* 3. MODAL CONTENT - Centered, stable, pointer-events-auto, z-[2] */}
+            {/* MODAL CONTENT */}
             <motion.div
               ref={modalRef}
               initial={{ opacity: 0 }}
@@ -100,7 +99,7 @@ const AnnouncementModal = ({ announcement, onClose }) => {
               className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg sm:max-w-2xl max-h-[85vh] overflow-hidden flex flex-col z-[2] pointer-events-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Close Button - z-[10] to ensure clickability */}
+              {/* Close Button */}
               <button 
                 onClick={onClose}
                 aria-label={t('common.close') || 'Close'}
@@ -118,8 +117,14 @@ const AnnouncementModal = ({ announcement, onClose }) => {
                 />
               </div>
 
-              {/* 4. SCROLL ONLY INSIDE CONTENT */}
-              <div className="overflow-y-auto p-6 sm:p-10 flex-1 overscroll-contain custom-scrollbar">
+              {/* SCROLL ONLY INSIDE CONTENT
+                  data-lenis-prevent: báo cho Lenis không intercept wheel/touch
+                  events bên trong element này.
+              */}
+              <div
+                className="overflow-y-auto p-6 sm:p-10 flex-1 overscroll-contain custom-scrollbar"
+                data-lenis-prevent
+              >
                 <div className="flex items-center gap-3 mb-4">
                   <span className="bg-primary-100 text-primary-500 text-xs font-black px-3 py-1 rounded-full uppercase tracking-widest">
                     News
@@ -149,6 +154,5 @@ const AnnouncementModal = ({ announcement, onClose }) => {
     document.body
   );
 };
-
 
 export default AnnouncementModal;

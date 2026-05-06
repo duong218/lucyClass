@@ -71,8 +71,15 @@ const CourseDetailModal = ({ course, onClose }) => {
             >✕</button>
           </div>
 
-          {/* ── SCROLLABLE BODY ── */}
-          <div className="overflow-y-auto flex-1" style={{ WebkitOverflowScrolling: 'touch' }}>
+          {/* ── SCROLLABLE BODY ──
+               data-lenis-prevent: báo cho Lenis không intercept wheel/touch
+               events bên trong element này, để browser xử lý scroll tự nhiên.
+          ── */}
+          <div
+            className="overflow-y-auto flex-1"
+            style={{ WebkitOverflowScrolling: 'touch' }}
+            data-lenis-prevent
+          >
             <div className="p-5 pt-4 md:p-8 md:pt-3">
               <div className="flex flex-col md:flex-row gap-5 md:gap-8">
 
