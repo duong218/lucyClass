@@ -2,6 +2,12 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
+  Megaphone, Plus, Pencil, Save, Send, Trash2, Eye,
+  CheckCircle2, Clock, XCircle, Calendar, User,
+  ImagePlus, X, AlertCircle, MessageCircle, Loader2,
+  Inbox, Sparkles, PartyPopper,
+} from 'lucide-react';
+import {
   getAdminAllAnnouncements,
   getPendingAnnouncements,
   createAnnouncement,
@@ -16,13 +22,6 @@ import AnnouncementReviewModal from '../components/AnnouncementReviewModal';
 const TAB_PUBLISHED = 'published';
 const TAB_PENDING   = 'pending';
 const TAB_REJECTED  = 'rejected';
-
-// ─── Status badge config (dùng trong tab all) ────────────────────────────────
-const STATUS_CONFIG = {
-  published: { label: '✅ Đã đăng',  bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-green-400' },
-  pending:   { label: '⏳ Chờ duyệt', bg: 'bg-amber-100',   text: 'text-amber-700',   dot: 'bg-amber-400' },
-  rejected:  { label: '❌ Từ chối',   bg: 'bg-red-100',     text: 'text-red-600',     dot: 'bg-red-400'   },
-};
 
 // ─── Animation variants ─────────────────────────────────────────────────────
 const cardVariants = {
@@ -72,9 +71,7 @@ const AnnouncementManagement = () => {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   // Lắng nghe event từ NotificationBell khi admin bấm "Xem & duyệt ngay"
   useEffect(() => {
@@ -165,9 +162,7 @@ const AnnouncementManagement = () => {
   };
 
   // ─── Sau khi review modal duyệt / từ chối ────────────────────────────────
-  const handleReviewed = () => {
-    fetchAll();
-  };
+  const handleReviewed = () => { fetchAll(); };
 
   const handleImageError = (e) => { e.target.src = '/placeholder.jpg'; };
 
@@ -177,8 +172,8 @@ const AnnouncementManagement = () => {
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3">
-        <div className="w-12 h-12 rounded-2xl bg-primary-100 flex items-center justify-center text-2xl shrink-0">
-          📢
+        <div className="w-12 h-12 rounded-2xl bg-primary-100 flex items-center justify-center shrink-0">
+          <Megaphone className="w-6 h-6 text-primary-600" />
         </div>
         <div>
           <h1 className="text-2xl font-black text-gray-800 uppercase tracking-tight leading-tight">
@@ -197,7 +192,10 @@ const AnnouncementManagement = () => {
         className="bg-white rounded-3xl shadow-card border border-gray-100 p-6 sm:p-8 space-y-5"
       >
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-lg">{editingId ? '✏️' : '➕'}</span>
+          {editingId
+            ? <Pencil className="w-5 h-5 text-primary-500" />
+            : <Plus className="w-5 h-5 text-primary-500" />
+          }
           <h2 className="text-base font-black text-gray-700 uppercase tracking-wide">
             {editingId ? 'Chỉnh sửa thông báo' : 'Tạo thông báo mới'}
           </h2>
@@ -211,7 +209,7 @@ const AnnouncementManagement = () => {
               exit={{ opacity: 0, height: 0 }}
               className="px-4 py-3 bg-red-50 border border-red-200 rounded-2xl text-sm text-red-600 font-semibold flex items-center gap-2"
             >
-              <span>⚠️</span> {formError}
+              <AlertCircle className="w-4 h-4 shrink-0" /> {formError}
             </motion.div>
           )}
         </AnimatePresence>
@@ -266,7 +264,7 @@ const AnnouncementManagement = () => {
               onClick={() => fileInputRef.current?.click()}
               className="w-full border-2 border-dashed border-gray-200 rounded-2xl py-8 flex flex-col items-center gap-2 hover:border-primary-400 hover:bg-primary-50/30 transition-all group cursor-pointer"
             >
-              <span className="text-3xl group-hover:scale-110 transition-transform">🖼️</span>
+              <ImagePlus className="w-8 h-8 text-gray-300 group-hover:text-primary-400 group-hover:scale-110 transition-all" />
               <span className="text-sm text-gray-400 font-semibold group-hover:text-primary-500 transition-colors">
                 Nhấn để chọn ảnh
               </span>
@@ -277,9 +275,9 @@ const AnnouncementManagement = () => {
               <button
                 type="button"
                 onClick={() => { setImageFile(null); setImagePreview(''); }}
-                className="absolute top-1.5 right-1.5 w-7 h-7 bg-black/50 hover:bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-black transition-all opacity-0 group-hover:opacity-100"
+                className="absolute top-1.5 right-1.5 w-7 h-7 bg-black/50 hover:bg-red-500 text-white rounded-full flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
               >
-                ✕
+                <X className="w-3.5 h-3.5" />
               </button>
               <button
                 type="button"
@@ -297,9 +295,14 @@ const AnnouncementManagement = () => {
           <button
             type="submit"
             disabled={submitting}
-            className="px-7 py-3 bg-primary-500 text-white rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-primary-600 hover:shadow-card-hover transition-all active:scale-95 disabled:opacity-50"
+            className="flex items-center gap-2 px-7 py-3 bg-primary-500 text-white rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-primary-600 hover:shadow-card-hover transition-all active:scale-95 disabled:opacity-50"
           >
-            {submitting ? '⏳ Đang lưu...' : editingId ? '💾 Cập nhật' : '📤 Đăng thông báo'}
+            {submitting
+              ? <><Loader2 className="w-4 h-4 animate-spin" /> Đang lưu...</>
+              : editingId
+                ? <><Save className="w-4 h-4" /> Cập nhật</>
+                : <><Send className="w-4 h-4" /> Đăng thông báo</>
+            }
           </button>
           {editingId && (
             <button
@@ -317,38 +320,38 @@ const AnnouncementManagement = () => {
       <div className="flex gap-1 bg-gray-100 rounded-2xl p-1.5">
         <button
           onClick={() => setActiveTab(TAB_PUBLISHED)}
-          className={`flex-1 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
+          className={`flex items-center justify-center gap-1.5 flex-1 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
             activeTab === TAB_PUBLISHED
               ? 'bg-white shadow-sm text-primary-600'
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          ✅ Đã đăng ({announcements.length})
+          <CheckCircle2 className="w-4 h-4" /> Đã đăng ({announcements.length})
         </button>
         <button
           onClick={() => setActiveTab(TAB_PENDING)}
-          className={`relative flex-1 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
+          className={`relative flex items-center justify-center gap-1.5 flex-1 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
             activeTab === TAB_PENDING
               ? 'bg-white shadow-sm text-amber-600'
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          ⏳ Chờ duyệt
+          <Clock className="w-4 h-4" /> Chờ duyệt
           {pendingList.length > 0 && (
-            <span className="ml-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-white text-[10px] font-black animate-pulse">
+            <span className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-white text-[10px] font-black animate-pulse">
               {pendingList.length}
             </span>
           )}
         </button>
         <button
           onClick={() => setActiveTab(TAB_REJECTED)}
-          className={`flex-1 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
+          className={`flex items-center justify-center gap-1.5 flex-1 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
             activeTab === TAB_REJECTED
               ? 'bg-white shadow-sm text-red-600'
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          ❌ Từ chối ({rejectedList.length})
+          <XCircle className="w-4 h-4" /> Từ chối ({rejectedList.length})
         </button>
       </div>
 
@@ -362,7 +365,7 @@ const AnnouncementManagement = () => {
             </div>
           ) : announcements.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <span className="text-5xl">📭</span>
+              <Inbox className="w-12 h-12 text-gray-200" />
               <p className="text-sm text-gray-400 font-semibold">Chưa có thông báo nào</p>
               <p className="text-xs text-gray-300">Tạo thông báo đầu tiên ở form phía trên</p>
             </div>
@@ -394,22 +397,22 @@ const AnnouncementManagement = () => {
                       </h4>
                     </div>
                     <p className="text-xs text-gray-500 line-clamp-2 mt-0.5 leading-relaxed">{item.description}</p>
-                    <span className="text-[10px] text-gray-400 mt-1.5 inline-block font-semibold">
-                      📅 {new Date(item.createdAt).toLocaleDateString('vi-VN')}
+                    <span className="text-[10px] text-gray-400 mt-1.5 inline-flex items-center gap-1 font-semibold">
+                      <Calendar className="w-3 h-3" /> {new Date(item.createdAt).toLocaleDateString('vi-VN')}
                     </span>
                   </div>
                   <div className="flex flex-col gap-2 shrink-0 justify-center">
                     <button
                       onClick={() => startEdit(item)}
-                      className="px-4 py-2 bg-primary-50 text-primary-600 rounded-xl text-xs font-bold hover:bg-primary-100 transition-all active:scale-95"
+                      className="flex items-center gap-1.5 px-4 py-2 bg-primary-50 text-primary-600 rounded-xl text-xs font-bold hover:bg-primary-100 transition-all active:scale-95"
                     >
-                      ✏️ Sửa
+                      <Pencil className="w-3.5 h-3.5" /> Sửa
                     </button>
                     <button
                       onClick={() => setDeleteTarget(item._id)}
-                      className="px-4 py-2 bg-red-50 text-red-500 rounded-xl text-xs font-bold hover:bg-red-100 transition-all active:scale-95"
+                      className="flex items-center gap-1.5 px-4 py-2 bg-red-50 text-red-500 rounded-xl text-xs font-bold hover:bg-red-100 transition-all active:scale-95"
                     >
-                      🗑️ Xoá
+                      <Trash2 className="w-3.5 h-3.5" /> Xoá
                     </button>
                   </div>
                 </motion.div>
@@ -429,7 +432,7 @@ const AnnouncementManagement = () => {
             </div>
           ) : pendingList.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <span className="text-5xl">🎉</span>
+              <Sparkles className="w-12 h-12 text-gray-200" />
               <p className="text-sm text-gray-400 font-semibold">Không có thông báo nào đang chờ duyệt</p>
               <p className="text-xs text-gray-300">Tuyệt vời! Mọi thứ đã được xử lý</p>
             </div>
@@ -456,12 +459,12 @@ const AnnouncementManagement = () => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="text-[10px] font-black bg-amber-200 text-amber-700 px-2.5 py-0.5 rounded-full uppercase tracking-widest">
-                        ⏳ Chờ duyệt
+                      <span className="inline-flex items-center gap-1 text-[10px] font-black bg-amber-200 text-amber-700 px-2.5 py-0.5 rounded-full uppercase tracking-widest">
+                        <Clock className="w-3 h-3" /> Chờ duyệt
                       </span>
                       {item.submittedBy && (
-                        <span className="text-[10px] text-violet-500 font-bold flex items-center gap-1">
-                          👤 {item.submittedBy.displayName || item.submittedBy.username}
+                        <span className="inline-flex items-center gap-1 text-[10px] text-violet-500 font-bold">
+                          <User className="w-3 h-3" /> {item.submittedBy.displayName || item.submittedBy.username}
                         </span>
                       )}
                     </div>
@@ -469,16 +472,16 @@ const AnnouncementManagement = () => {
                       {item.title}
                     </h4>
                     <p className="text-xs text-gray-500 line-clamp-2 mt-0.5 leading-relaxed">{item.description}</p>
-                    <span className="text-[10px] text-gray-400 mt-1.5 inline-block font-semibold">
-                      📅 {new Date(item.createdAt).toLocaleDateString('vi-VN')}
+                    <span className="text-[10px] text-gray-400 mt-1.5 inline-flex items-center gap-1 font-semibold">
+                      <Calendar className="w-3 h-3" /> {new Date(item.createdAt).toLocaleDateString('vi-VN')}
                     </span>
                   </div>
                   <div className="flex flex-col gap-2 shrink-0 justify-center">
                     <button
                       onClick={e => { e.stopPropagation(); setReviewTarget(item); }}
-                      className="px-4 py-2 bg-emerald-500 text-white rounded-xl text-xs font-bold hover:bg-emerald-600 transition-all active:scale-95 shadow-sm"
+                      className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 text-white rounded-xl text-xs font-bold hover:bg-emerald-600 transition-all active:scale-95 shadow-sm"
                     >
-                      👁️ Duyệt
+                      <Eye className="w-3.5 h-3.5" /> Duyệt
                     </button>
                   </div>
                 </motion.div>
@@ -498,7 +501,7 @@ const AnnouncementManagement = () => {
             </div>
           ) : rejectedList.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <span className="text-5xl">✨</span>
+              <Sparkles className="w-12 h-12 text-gray-200" />
               <p className="text-sm text-gray-400 font-semibold">Không có thông báo nào bị từ chối</p>
             </div>
           ) : (
@@ -523,12 +526,12 @@ const AnnouncementManagement = () => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="text-[10px] font-black bg-red-100 text-red-600 px-2.5 py-0.5 rounded-full uppercase tracking-widest">
-                        ❌ Từ chối
+                      <span className="inline-flex items-center gap-1 text-[10px] font-black bg-red-100 text-red-600 px-2.5 py-0.5 rounded-full uppercase tracking-widest">
+                        <XCircle className="w-3 h-3" /> Từ chối
                       </span>
                       {item.submittedBy && (
-                        <span className="text-[10px] text-violet-500 font-bold">
-                          👤 {item.submittedBy.displayName || item.submittedBy.username}
+                        <span className="inline-flex items-center gap-1 text-[10px] text-violet-500 font-bold">
+                          <User className="w-3 h-3" /> {item.submittedBy.displayName || item.submittedBy.username}
                         </span>
                       )}
                     </div>
@@ -537,18 +540,20 @@ const AnnouncementManagement = () => {
                     </h4>
                     <p className="text-xs text-gray-500 line-clamp-2 mt-0.5 leading-relaxed">{item.description}</p>
                     {item.reviewNote && (
-                      <p className="text-xs text-red-500 mt-1 font-semibold">💬 {item.reviewNote}</p>
+                      <p className="inline-flex items-center gap-1 text-xs text-red-500 mt-1 font-semibold">
+                        <MessageCircle className="w-3 h-3" /> {item.reviewNote}
+                      </p>
                     )}
-                    <span className="text-[10px] text-gray-400 mt-1.5 inline-block font-semibold">
-                      📅 {new Date(item.createdAt).toLocaleDateString('vi-VN')}
+                    <span className="text-[10px] text-gray-400 mt-1.5 inline-flex items-center gap-1 font-semibold">
+                      <Calendar className="w-3 h-3" /> {new Date(item.createdAt).toLocaleDateString('vi-VN')}
                     </span>
                   </div>
                   <div className="flex flex-col gap-2 shrink-0 justify-center">
                     <button
                       onClick={() => setDeleteTarget(item._id)}
-                      className="px-4 py-2 bg-red-50 text-red-500 rounded-xl text-xs font-bold hover:bg-red-100 transition-all active:scale-95"
+                      className="flex items-center gap-1.5 px-4 py-2 bg-red-50 text-red-500 rounded-xl text-xs font-bold hover:bg-red-100 transition-all active:scale-95"
                     >
-                      🗑️ Xoá
+                      <Trash2 className="w-3.5 h-3.5" /> Xoá
                     </button>
                   </div>
                 </motion.div>
@@ -576,7 +581,9 @@ const AnnouncementManagement = () => {
               className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center space-y-4"
               onClick={e => e.stopPropagation()}
             >
-              <span className="text-5xl block">🗑️</span>
+              <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mx-auto">
+                <Trash2 className="w-8 h-8 text-red-500" />
+              </div>
               <h3 className="text-lg font-black text-gray-800">Xoá thông báo?</h3>
               <p className="text-sm text-gray-500">Hành động này không thể hoàn tác. Bạn có chắc chắn muốn xoá?</p>
               <div className="flex gap-3 pt-2">
@@ -590,9 +597,12 @@ const AnnouncementManagement = () => {
                 <button
                   onClick={handleDelete}
                   disabled={deleting}
-                  className="flex-1 px-5 py-2.5 bg-red-500 text-white rounded-2xl text-sm font-bold hover:bg-red-600 transition-all active:scale-95 disabled:opacity-50"
+                  className="flex items-center justify-center gap-2 flex-1 px-5 py-2.5 bg-red-500 text-white rounded-2xl text-sm font-bold hover:bg-red-600 transition-all active:scale-95 disabled:opacity-50"
                 >
-                  {deleting ? '⏳ Đang xoá...' : '🗑️ Xoá'}
+                  {deleting
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Đang xoá...</>
+                    : <><Trash2 className="w-4 h-4" /> Xoá</>
+                  }
                 </button>
               </div>
             </motion.div>
