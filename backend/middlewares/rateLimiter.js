@@ -1,4 +1,4 @@
-const rateLimit = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const systemLogger = require('../utils/systemLogger');
 
 const isProduction = process.env.NODE_ENV === 'production';
@@ -170,6 +170,21 @@ const toggleAttendanceLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+/**
+ * 11. AI Proxy Limiter — POST /api/chat-config/ask
+ * Endpoint public gọi Groq; cần siết riêng để tránh abuse đốt quota.
+ * PROD: 10 request / phút / IP — đủ cho người dùng thật chat bình thường
+ * DEV: không giới hạn thực tế
+ */
+const aiProxyLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: isProduction ? 10 : 10000,
+  keyGenerator: (req) => ipKeyGenerator(req), // rate-limit theo IP, không phụ thuộc auth
+  handler: rateLimitHandler,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 module.exports = {
   apiLimiter,
   loginLimiter,
@@ -180,5 +195,6 @@ module.exports = {
   resetPasswordLimiter,
   streakLimiter,
   heavyOpLimiter,
-  toggleAttendanceLimiter
+  toggleAttendanceLimiter,
+  aiProxyLimiter,
 };

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  getAllAnnouncements,
+  getAdminAllAnnouncements,
   getPendingAnnouncements,
   createAnnouncement,
   updateAnnouncement,
@@ -15,6 +15,14 @@ import AnnouncementReviewModal from '../components/AnnouncementReviewModal';
 // ─── Tabs ────────────────────────────────────────────────────────────────────
 const TAB_PUBLISHED = 'published';
 const TAB_PENDING   = 'pending';
+const TAB_REJECTED  = 'rejected';
+
+// ─── Status badge config (dùng trong tab all) ────────────────────────────────
+const STATUS_CONFIG = {
+  published: { label: '✅ Đã đăng',  bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-green-400' },
+  pending:   { label: '⏳ Chờ duyệt', bg: 'bg-amber-100',   text: 'text-amber-700',   dot: 'bg-amber-400' },
+  rejected:  { label: '❌ Từ chối',   bg: 'bg-red-100',     text: 'text-red-600',     dot: 'bg-red-400'   },
+};
 
 // ─── Animation variants ─────────────────────────────────────────────────────
 const cardVariants = {
@@ -30,9 +38,13 @@ const AnnouncementManagement = () => {
   const [activeTab, setActiveTab] = useState(TAB_PUBLISHED);
 
   // ── Data ───────────────────────────────────────────────────────────────────
-  const [announcements, setAnnouncements] = useState([]);
-  const [pendingList, setPendingList]     = useState([]);
-  const [loading, setLoading]             = useState(false);
+  const [allAnnouncements, setAllAnnouncements] = useState([]);
+  const [loading, setLoading]                   = useState(false);
+
+  // Derived lists từ allAnnouncements
+  const announcements = allAnnouncements.filter(a => a.status === 'published');
+  const pendingList   = allAnnouncements.filter(a => a.status === 'pending');
+  const rejectedList  = allAnnouncements.filter(a => a.status === 'rejected');
 
   // ── Form (create / edit) ───────────────────────────────────────────────────
   const [form, setForm]           = useState({ title: '', description: '' });
@@ -50,30 +62,19 @@ const AnnouncementManagement = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  // ─── Fetch published ────────────────────────────────────────────────────────
-  const fetchPublished = useCallback(async () => {
+  // ─── Fetch tất cả (admin thấy mọi trạng thái) ────────────────────────────
+  const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await getAllAnnouncements();
-      setAnnouncements(res.data.data || []);
-    } catch { /* silent */ }
-    finally { setLoading(false); }
-  }, []);
-
-  // ─── Fetch pending ──────────────────────────────────────────────────────────
-  const fetchPending = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await getPendingAnnouncements();
-      setPendingList(res.data.data || []);
+      const res = await getAdminAllAnnouncements();
+      setAllAnnouncements(res.data.data || []);
     } catch { /* silent */ }
     finally { setLoading(false); }
   }, []);
 
   useEffect(() => {
-    fetchPublished();
-    fetchPending();
-  }, [fetchPublished, fetchPending]);
+    fetchAll();
+  }, [fetchAll]);
 
   // Lắng nghe event từ NotificationBell khi admin bấm "Xem & duyệt ngay"
   useEffect(() => {
@@ -84,10 +85,10 @@ const AnnouncementManagement = () => {
 
   // Lắng nghe event sau khi review xong từ bất kỳ nơi nào
   useEffect(() => {
-    const handler = () => { fetchPublished(); fetchPending(); };
+    const handler = () => fetchAll();
     window.addEventListener('announcement:reviewed', handler);
     return () => window.removeEventListener('announcement:reviewed', handler);
-  }, [fetchPublished, fetchPending]);
+  }, [fetchAll]);
 
   // ─── Xử lý form ─────────────────────────────────────────────────────────────
   const handleImageChange = (e) => {
@@ -138,7 +139,7 @@ const AnnouncementManagement = () => {
         showToast.success('Đăng thông báo thành công!');
       }
       resetForm();
-      fetchPublished();
+      fetchAll();
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || 'Có lỗi xảy ra';
       setFormError(msg);
@@ -154,7 +155,7 @@ const AnnouncementManagement = () => {
     try {
       await deleteAnnouncement(deleteTarget);
       showToast.success('Đã xoá thông báo thành công!');
-      fetchPublished();
+      fetchAll();
     } catch {
       showToast.error('Xoá thất bại, vui lòng thử lại.');
     } finally {
@@ -164,9 +165,8 @@ const AnnouncementManagement = () => {
   };
 
   // ─── Sau khi review modal duyệt / từ chối ────────────────────────────────
-  const handleReviewed = (id, action) => {
-    setPendingList(prev => prev.filter(a => a._id !== id));
-    if (action === 'approve') fetchPublished();
+  const handleReviewed = () => {
+    fetchAll();
   };
 
   const handleImageError = (e) => { e.target.src = '/placeholder.jpg'; };
@@ -340,6 +340,16 @@ const AnnouncementManagement = () => {
             </span>
           )}
         </button>
+        <button
+          onClick={() => setActiveTab(TAB_REJECTED)}
+          className={`flex-1 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
+            activeTab === TAB_REJECTED
+              ? 'bg-white shadow-sm text-red-600'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          ❌ Từ chối ({rejectedList.length})
+        </button>
       </div>
 
       {/* ── Tab: Published ───────────────────────────────────────────────── */}
@@ -478,6 +488,76 @@ const AnnouncementManagement = () => {
         </div>
       )}
 
+      {/* ── Tab: Rejected ────────────────────────────────────────────────── */}
+      {activeTab === TAB_REJECTED && (
+        <div className="space-y-3">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <div className="w-8 h-8 border-3 border-red-200 border-t-red-500 rounded-full animate-spin" />
+              <p className="text-sm text-gray-400 font-medium">Đang tải...</p>
+            </div>
+          ) : rejectedList.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <span className="text-5xl">✨</span>
+              <p className="text-sm text-gray-400 font-semibold">Không có thông báo nào bị từ chối</p>
+            </div>
+          ) : (
+            <AnimatePresence>
+              {rejectedList.map((item, i) => (
+                <motion.div
+                  key={item._id}
+                  custom={i}
+                  variants={cardVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  layout
+                  className="flex gap-4 bg-red-50/60 rounded-2xl border border-red-200 p-4 transition-all"
+                >
+                  <div className="w-24 h-20 shrink-0 rounded-xl overflow-hidden bg-gray-100">
+                    <img
+                      src={getImageUrl(item.image)} alt={item.title}
+                      className="w-full h-full object-cover"
+                      onError={handleImageError}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="text-[10px] font-black bg-red-100 text-red-600 px-2.5 py-0.5 rounded-full uppercase tracking-widest">
+                        ❌ Từ chối
+                      </span>
+                      {item.submittedBy && (
+                        <span className="text-[10px] text-violet-500 font-bold">
+                          👤 {item.submittedBy.displayName || item.submittedBy.username}
+                        </span>
+                      )}
+                    </div>
+                    <h4 className="font-black text-gray-800 text-sm uppercase tracking-tight truncate">
+                      {item.title}
+                    </h4>
+                    <p className="text-xs text-gray-500 line-clamp-2 mt-0.5 leading-relaxed">{item.description}</p>
+                    {item.reviewNote && (
+                      <p className="text-xs text-red-500 mt-1 font-semibold">💬 {item.reviewNote}</p>
+                    )}
+                    <span className="text-[10px] text-gray-400 mt-1.5 inline-block font-semibold">
+                      📅 {new Date(item.createdAt).toLocaleDateString('vi-VN')}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-2 shrink-0 justify-center">
+                    <button
+                      onClick={() => setDeleteTarget(item._id)}
+                      className="px-4 py-2 bg-red-50 text-red-500 rounded-xl text-xs font-bold hover:bg-red-100 transition-all active:scale-95"
+                    >
+                      🗑️ Xoá
+                    </button>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          )}
+        </div>
+      )}
+
       {/* ── Delete Confirmation Modal ─────────────────────────────────────── */}
       <AnimatePresence>
         {deleteTarget && (
@@ -526,7 +606,7 @@ const AnnouncementManagement = () => {
         onClose={() => setReviewTarget(null)}
         onReviewed={(id, action) => {
           setReviewTarget(null);
-          handleReviewed(id, action);
+          handleReviewed();
           window.dispatchEvent(new CustomEvent('announcement:reviewed', { detail: { id, action } }));
         }}
       />

@@ -17,11 +17,14 @@ router.get('/', cacheMiddleware(60), catchAsync(announcementController.getAll));
 router.get('/latest',     auth, catchAsync(announcementController.getLatest));
 router.patch('/mark-seen', auth, catchAsync(announcementController.markSeen));
 
+// ─── Admin: xem tất cả thông báo (mọi trạng thái) ───────────────────────────
+router.get('/admin-all', auth, isAdmin, catchAsync(announcementController.getAdminAll));
+
 // ─── Admin: xem danh sách pending ───────────────────────────────────────────
 router.get('/pending', auth, isAdmin, catchAsync(announcementController.getPending));
 
-// ─── Marketing: xem lịch sử submission của mình ─────────────────────────────
-router.get('/my', auth, catchAsync(announcementController.getMySubmissions));
+// ─── Marketing: xem lịch sử submission của mình (pending + published + rejected) ──
+router.get('/my', auth, authorizeRoles('marketing'), catchAsync(announcementController.getMySubmissions));
 
 // ─── Admin: duyệt hoặc từ chối ──────────────────────────────────────────────
 router.patch('/:id/review', auth, isAdmin, catchAsync(announcementController.reviewAnnouncement));

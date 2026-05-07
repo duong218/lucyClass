@@ -12,6 +12,11 @@ export const getAllAnnouncements = () => {
   return api.get('/announcements');
 };
 
+// Admin: lấy tất cả thông báo mọi trạng thái (published + pending + rejected)
+export const getAdminAllAnnouncements = () => {
+  return api.get('/announcements/admin-all');
+};
+
 // Bell icon polling: latest published + newCount + pendingCount
 export const getLatestAnnouncement = () => {
   return api.get('/announcements/latest');

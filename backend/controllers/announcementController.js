@@ -29,6 +29,22 @@ exports.getAll = async (req, res) => {
 };
 
 // ============================================================================
+// GET /api/announcements/admin-all  — Admin: xem tất cả (published + pending + rejected)
+// ============================================================================
+exports.getAdminAll = async (req, res) => {
+  try {
+    const announcements = await Announcement.find({ isDeleted: { $ne: true } })
+      .sort({ createdAt: -1 })
+      .populate('submittedBy', 'username displayName role')
+      .populate('reviewedBy', 'username displayName')
+      .lean();
+    return sendSuccess(res, announcements);
+  } catch (error) {
+    return sendError(res, 'Failed to fetch announcements', error);
+  }
+};
+
+// ============================================================================
 // GET /api/announcements/latest  — bell icon polling (admin/staff)
 // Trả về thông báo published mới nhất + số unread
 // ============================================================================
@@ -44,10 +60,13 @@ exports.getLatest = async (req, res) => {
       isDeleted: { $ne: true }
     });
 
-    // Đếm pending để admin biết cần duyệt
-    const pendingCount = await Announcement.countDocuments({ status: 'pending', isDeleted: { $ne: true } });
+    // pendingCount chỉ trả về cho admin — tránh lộ trạng thái moderation cho staff thường
+    const isAdmin = req.user?.role === 'admin';
+    const pendingCount = isAdmin
+      ? await Announcement.countDocuments({ status: 'pending', isDeleted: { $ne: true } })
+      : undefined;
 
-    return sendSuccess(res, { latest, newCount, pendingCount });
+    return sendSuccess(res, { latest, newCount, ...(isAdmin && { pendingCount }) });
   } catch (error) {
     return sendError(res, 'Failed to fetch latest announcement', error);
   }
