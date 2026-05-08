@@ -14,6 +14,7 @@ import {
 } from '../../services/salaryService';
 import { showToast } from '../../utils/toastUtils';
 import { LUCY_BRAND } from '../../theme/lucyBrand';
+import { openModal, closeModal } from '../../utils/modalScrollLock';
 
 const PRESET_COLORS = [
   '#3B82F6',
@@ -113,6 +114,13 @@ const CellPopover = ({ cell, row, dayIndex, weekDate, onSaved, onClose }) => {
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
   }, [onClose]);
+
+  // Khoá scroll trang khi modal mở, mở lại khi đóng
+  useEffect(() => {
+    openModal();
+    return () => closeModal();
+  }, []);
+
 
   useEffect(() => {
     const timer = setTimeout(() => textareaRef.current?.focus(), 150);
@@ -362,7 +370,7 @@ const CellPopover = ({ cell, row, dayIndex, weekDate, onSaved, onClose }) => {
           </button>
         </div>
 
-        <div className="p-5 overflow-y-auto space-y-5 custom-scrollbar flex-1">
+        <div className="p-5 overflow-y-auto space-y-5 custom-scrollbar flex-1" onWheel={(e) => e.stopPropagation()}>
           {loadingSession && (
             <p className="text-xs text-gray-400 font-medium">Đang tải phân công giáo viên…</p>
           )}

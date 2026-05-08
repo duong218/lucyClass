@@ -65,7 +65,7 @@ Kết luận:
 
 ## 3. Kết luận nhanh
 
-Điểm bảo mật hiện tại: **8.8 / 10** (Tăng từ 8.6)
+Điểm bảo mật hiện tại: **8.9 / 10** (Tăng từ 8.8)
 
 Nhận xét tổng quan:
 - Hệ thống đã có những cải tiến đáng kể: Lỗ hổng `F4` (rò rỉ pendingCount) đã được vá triệt để bằng cách kiểm tra quyền Admin. Bề mặt AI Proxy (`F2`) đã được vá hoàn toàn với cả rate limiter chuyên dụng (10 req/min/IP) và reCAPTCHA v3 để chặn bot tự động. Sự bất đồng nhất cấu hình CORS/CSRF (`F1`) cũng đã được xử lý triệt để.
@@ -157,7 +157,7 @@ Phân loại hiện tại:
 
 ## 8. Kết luận cuối
 
-Hệ thống LucyClass đang ở trạng thái bảo mật **khá tốt (8.8/10)**. Việc vá lỗ hổng rò rỉ metadata (`F4`), siết chặt bảo vệ AI Proxy (`F2`) bằng rate limiter lẫn reCAPTCHA, và hợp nhất cấu hình CORS/CSRF (`F1`) cho thấy sự quan tâm đúng mức đến hardening.
+Hệ thống LucyClass đang ở trạng thái bảo mật **rất tốt (8.9/10)**. Việc vá lỗ hổng rò rỉ metadata (`F4`), siết chặt bảo vệ AI Proxy (`F2`) bằng rate limiter lẫn reCAPTCHA, hợp nhất cấu hình CORS/CSRF (`F1`) và dọn dẹp các thư viện dư thừa (`F7`) cho thấy sự quan tâm đúng mức đến hardening.
 
 Điểm sáng nhất của hệ thống là luồng **Restore** và **Upload ảnh** - cả hai đều được thiết kế với tư duy "defense in depth" (phòng thủ chiều sâu) rất rõ ràng.
 
