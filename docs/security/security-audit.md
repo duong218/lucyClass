@@ -65,16 +65,16 @@ Kết luận:
 
 ## 3. Kết luận nhanh
 
-Điểm bảo mật hiện tại: **8.6 / 10** (Tăng từ 8.4)
+Điểm bảo mật hiện tại: **8.8 / 10** (Tăng từ 8.6)
 
 Nhận xét tổng quan:
-- Hệ thống đã có những cải tiến đáng kể: Lỗ hổng `F4` (rò rỉ pendingCount) đã được vá triệt để bằng cách kiểm tra quyền Admin. Bề mặt AI Proxy (`F2`) đã được vá hoàn toàn với cả rate limiter chuyên dụng (10 req/min/IP) và reCAPTCHA v3 để chặn bot tự động.
+- Hệ thống đã có những cải tiến đáng kể: Lỗ hổng `F4` (rò rỉ pendingCount) đã được vá triệt để bằng cách kiểm tra quyền Admin. Bề mặt AI Proxy (`F2`) đã được vá hoàn toàn với cả rate limiter chuyên dụng (10 req/min/IP) và reCAPTCHA v3 để chặn bot tự động. Sự bất đồng nhất cấu hình CORS/CSRF (`F1`) cũng đã được xử lý triệt để.
 - Nền tảng bảo mật cơ bản vẫn rất tốt: JWT + refresh cookie, session conflict, least privilege cho teacher, upload ảnh có magic-number + sharp re-encode.
 - Luồng Restore là một trong những phần được làm kỹ nhất với 4 lớp bảo vệ (Admin role, Explicit string confirm, Password re-auth, 4s Security delay).
-- Các điểm yếu còn tồn tại: Mismatch CORS/CSRF config, dependency cũ (`multer` 1.x), CSP `unsafe-inline`.
+- Các điểm yếu còn tồn tại: dependency cũ (`multer` 1.x), CSP `unsafe-inline`, các cấu hình hardcode phụ.
 
 Phân loại hiện tại:
-- Medium: 2 (F1, F3)
+- Medium: 1 (F3)
 - Low: 4 (F5, F6, F7, F8)
 
 ## 4. Điểm mạnh đang có
@@ -102,10 +102,9 @@ Phân loại hiện tại:
 
 ## 5. Findings chi tiết
 
-### F1. Medium - CORS và CSRF đang dùng hai nguồn cấu hình origin khác nhau (STILL PRESENT)
-- **File**: `backend/server.js`, `backend/middlewares/securityMiddleware.js`
-- **Mô tả**: CORS cho phép fallback và nhiều biến env, trong khi CSRF layer chỉ đọc `CORS_ORIGINS`.
-- **Rủi ro**: Lệch config dẫn đến lỗi vận hành hoặc nới lỏng CSRF sai cách.
+### F1. SOLVED - CORS và CSRF đang dùng hai nguồn cấu hình origin khác nhau (FULLY IMPROVED)
+- **Kết quả**: Đã tạo module `backend/config/allowedOrigins.js` làm "Single Source of Truth" cho cả `cors` middleware và `verifyCSRF`.
+- **Đánh giá**: Ngăn chặn hoàn toàn nguy cơ lệch cấu hình dẫn đến bypass CSRF bảo vệ.
 
 ### F2. SOLVED - Public AI proxy (FULLY IMPROVED)
 - **Kết quả**: Đã thêm `aiProxyLimiter` (10 req/phút/IP) và `verifyRecaptcha('chat')` vào endpoint `/api/chat-config/ask`.
@@ -150,7 +149,6 @@ Phân loại hiện tại:
 ## 7. Thứ tự ưu tiên sửa
 
 ### Ưu tiên 1 - Nên làm sớm
-- Gom CORS và CSRF về cùng một nguồn cấu hình origin.
 - Nâng `multer` 1.x lên 2.x.
 
 ### Ưu tiên 2 - Dọn nợ bảo mật
@@ -161,8 +159,8 @@ Phân loại hiện tại:
 
 ## 8. Kết luận cuối
 
-Hệ thống LucyClass đang ở trạng thái bảo mật **khá tốt (8.6/10)**. Việc vá lỗ hổng rò rỉ metadata (`F4`) và siết chặt bảo vệ AI Proxy (`F2`) bằng rate limiter lẫn reCAPTCHA cho thấy sự quan tâm đúng mức đến hardening.
+Hệ thống LucyClass đang ở trạng thái bảo mật **khá tốt (8.8/10)**. Việc vá lỗ hổng rò rỉ metadata (`F4`), siết chặt bảo vệ AI Proxy (`F2`) bằng rate limiter lẫn reCAPTCHA, và hợp nhất cấu hình CORS/CSRF (`F1`) cho thấy sự quan tâm đúng mức đến hardening.
 
 Điểm sáng nhất của hệ thống là luồng **Restore** và **Upload ảnh** - cả hai đều được thiết kế với tư duy "defense in depth" (phòng thủ chiều sâu) rất rõ ràng.
 
-Nếu xử lý nốt các điểm Medium còn lại, hệ thống hoàn toàn có thể đạt mức **9.0 / 10**.
+Nếu xử lý nốt điểm Medium (`F3` - Multer), hệ thống hoàn toàn có thể đạt mức **9.0 / 10**.

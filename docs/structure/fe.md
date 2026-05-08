@@ -3,8 +3,9 @@
 ## Phạm vi
 - Tài liệu này mô tả frontend trong thư mục `frontend/`.
 - Chỉ phản ánh cấu trúc source và trạng thái tích hợp hiện tại.
-- Bỏ qua `node_modules/`, thư mục build `dist/` và mọi file `.env`, `.env.*`.
-- File môi trường duy nhất được tham chiếu ở đây là `frontend/.env.example`.
+- Bỏ qua `node_modules/`, thư mục build `dist/`.
+- **BẢO MẬT**: NGHIÊM CẤM đọc/tham chiếu các file `.env`, `.env.*` thật để tránh lộ secret key.
+- File môi trường duy nhất được phép tham chiếu ở đây là `frontend/.env.example`.
 
 ## Tổng quan
 - Stack chính: `React 18`, `Vite`, `React Router`, `Tailwind CSS`, `Axios`, `react-toastify`, `framer-motion`, `Lenis`, `chart.js`, `ExcelJS`.

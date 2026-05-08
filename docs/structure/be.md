@@ -3,8 +3,9 @@
 ## Phạm vi
 - Tài liệu này mô tả backend đang chạy trong thư mục `backend/`.
 - Chỉ phản ánh cấu trúc file và luồng đang có trong codebase hiện tại.
-- Bỏ qua `node_modules/`, thư mục log runtime và mọi file `.env`, `.env.*`.
-- File môi trường duy nhất được tham chiếu ở đây là `backend/.env.example`.
+- Bỏ qua `node_modules/`, thư mục log runtime.
+- **BẢO MẬT**: NGHIÊM CẤM đọc/tham chiếu các file `.env`, `.env.*` thật để tránh lộ secret key.
+- File môi trường duy nhất được phép tham chiếu ở đây là `backend/.env.example`.
 
 ## Tổng quan
 - Stack chính: `Node.js`, `Express`, `MongoDB/Mongoose`, `Redis`, `Google Drive API`.
@@ -24,6 +25,7 @@
 ```text
 backend/
 |-- config/
+|   |-- allowedOrigins.js
 |   |-- cron.js
 |   |-- db.js
 |   |-- google.js
@@ -95,6 +97,10 @@ backend/
 - Có xử lý `uncaughtException`, `unhandledRejection`, `SIGINT`, `SIGTERM` và graceful shutdown.
 
 ## Cấu hình `config/`
+
+### `config/allowedOrigins.js`
+- Nguồn sự thật duy nhất (Single Source of Truth) định nghĩa whitelist các domain được phép gọi API.
+- Dùng chung cho cả `cors` middleware và cơ chế chống CSRF.
 
 ### `config/db.js`
 - Tạo kết nối MongoDB cho toàn hệ thống.

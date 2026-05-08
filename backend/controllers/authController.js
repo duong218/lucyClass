@@ -1,7 +1,7 @@
 const Admin = require('../models/Admin');
 const StaffAccount = require('../models/StaffAccount');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcrypt');
 const axios = require('axios');
 const crypto = require('crypto');
 const { sendEmail, getHtmlTemplate } = require('../utils/emailService');
