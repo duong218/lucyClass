@@ -1,4 +1,5 @@
 const systemLogger = require('../utils/systemLogger');
+const { getAllowedOrigins } = require('../config/allowedOrigins'); // ← import helper
 
 /**
  * 🛡️ Lightweight CSRF Protection via Origin & Custom Header
@@ -30,9 +31,9 @@ const verifyCSRF = (req, res, next) => {
   }
 
   const origin = req.headers.origin;
-  const allowedOrigins = (process.env.CORS_ORIGINS || '')
-    .split(',')
-    .map(o => o.trim().replace(/\/$/, ''));
+  // Dùng getAllowedOrigins() thay vì parse process.env.CORS_ORIGINS trực tiếp
+  // → cùng nguồn với CORS config trong server.js, không còn mismatch
+  const allowedOrigins = getAllowedOrigins();
   
   // 4. Kiểm tra Origin Header (Bắt buộc cho request thay đổi dữ liệu)
   // Dùng strict equality thay vì startsWith để tránh bypass kiểu

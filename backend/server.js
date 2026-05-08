@@ -70,6 +70,7 @@ const xss = require('xss-clean');
 const connectDB = require('./config/db');
 const { verifyCSRF } = require('./middlewares/securityMiddleware');
 const redisClient = require('./config/redis');
+const { getAllowedOrigins } = require('./config/allowedOrigins'); // ← import helper
 
 // --- 🎯 ABSOLUTE PRIORITY MIDDLEWARE ---
 const app = express();
@@ -81,19 +82,10 @@ app.set("trust proxy", 1);
 app.use(cookieParser(process.env.COOKIE_SECRET));
 
 // 3. CORS Configuration
-const parseOrigins = (envVar) => {
-  if (!envVar) return [];
-  return envVar
-    .split(',')
-    .map(o => o.trim().replace(/\/$/, ''))
-    .filter(o => o.length > 0);
-};
-
-const allowedOrigins = parseOrigins(
-  process.env.CORS_ORIGINS || process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:5173,https://lucy-class.vercel.app'
-);
+// Dùng getAllowedOrigins() thay vì parse inline — cùng nguồn với CSRF
+const allowedOrigins = getAllowedOrigins();
 console.log('[CORS] Allowed origins:', allowedOrigins);
-const isDev = process.env.NODE_ENV === 'development';
+
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);

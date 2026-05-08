@@ -65,17 +65,17 @@ Kết luận:
 
 ## 3. Kết luận nhanh
 
-Điểm bảo mật hiện tại: **8.4 / 10** (Tăng từ 8.2)
+Điểm bảo mật hiện tại: **8.6 / 10** (Tăng từ 8.4)
 
 Nhận xét tổng quan:
-- Hệ thống đã có những cải tiến đáng kể: Lỗ hổng `F4` (rò rỉ pendingCount) đã được vá triệt để bằng cách kiểm tra quyền Admin. Bề mặt AI Proxy (`F2`) đã được siết bằng rate limiter chuyên dụng (10 req/min/IP).
+- Hệ thống đã có những cải tiến đáng kể: Lỗ hổng `F4` (rò rỉ pendingCount) đã được vá triệt để bằng cách kiểm tra quyền Admin. Bề mặt AI Proxy (`F2`) đã được vá hoàn toàn với cả rate limiter chuyên dụng (10 req/min/IP) và reCAPTCHA v3 để chặn bot tự động.
 - Nền tảng bảo mật cơ bản vẫn rất tốt: JWT + refresh cookie, session conflict, least privilege cho teacher, upload ảnh có magic-number + sharp re-encode.
 - Luồng Restore là một trong những phần được làm kỹ nhất với 4 lớp bảo vệ (Admin role, Explicit string confirm, Password re-auth, 4s Security delay).
 - Các điểm yếu còn tồn tại: Mismatch CORS/CSRF config, dependency cũ (`multer` 1.x), CSP `unsafe-inline`.
 
 Phân loại hiện tại:
-- Medium: 3 (F1, F2 - giảm mức độ, F3)
-- Low: 4 (F5, F6, F7 - NEW, F8 - NEW)
+- Medium: 2 (F1, F3)
+- Low: 4 (F5, F6, F7, F8)
 
 ## 4. Điểm mạnh đang có
 
@@ -107,10 +107,9 @@ Phân loại hiện tại:
 - **Mô tả**: CORS cho phép fallback và nhiều biến env, trong khi CSRF layer chỉ đọc `CORS_ORIGINS`.
 - **Rủi ro**: Lệch config dẫn đến lỗi vận hành hoặc nới lỏng CSRF sai cách.
 
-### F2. Medium - Public AI proxy (PARTIALLY IMPROVED)
-- **Trạng thái**: Đã thêm `aiProxyLimiter` (10 req/phút/IP).
-- **Mô tả**: Route `/api/chat-config/ask` vẫn là public. Dù đã có rate limit, kẻ tấn công vẫn có thể dùng nhiều IP để đốt quota Groq.
-- **Hướng xử lý**: Thêm reCAPTCHA cho endpoint này để đảm bảo request đến từ người dùng thật trên widget.
+### F2. SOLVED - Public AI proxy (FULLY IMPROVED)
+- **Kết quả**: Đã thêm `aiProxyLimiter` (10 req/phút/IP) và `verifyRecaptcha('chat')` vào endpoint `/api/chat-config/ask`.
+- **Đánh giá**: Hoàn toàn ngăn chặn nguy cơ lạm dụng tự động và flood quota Groq.
 
 ### F3. Medium - Dependency upload vẫn dùng Multer 1.x (STILL PRESENT)
 - **Mô tả**: `multer` 1.4.5-lts.1 có các cảnh báo bảo mật về parser multipart.
@@ -144,7 +143,7 @@ Phân loại hiện tại:
 
 - **Auth và session**: Tốt (9/10) - Đã có session conflict check và in-memory token.
 - **Authorization nghiệp vụ**: Khá tốt (8.5/10) - Đã vá rò rỉ `pendingCount`, PII teacher được bảo vệ.
-- **Public API abuse resistance**: Khá (7.5/10) - Có limiter tốt, cần thêm CAPTCHA cho AI Proxy.
+- **Public API abuse resistance**: Tốt (8.5/10) - Đã bảo vệ bằng rate limit và CAPTCHA cho Submit và AI Proxy.
 - **File handling**: Khá (8/10) - Logic xử lý ảnh rất tốt, cần nâng version dependency.
 - **Restore flow**: Tuyệt vời (9.5/10) - Thiết kế rất an toàn.
 
@@ -152,7 +151,6 @@ Phân loại hiện tại:
 
 ### Ưu tiên 1 - Nên làm sớm
 - Gom CORS và CSRF về cùng một nguồn cấu hình origin.
-- Thêm reCAPTCHA cho `POST /api/chat-config/ask`.
 - Nâng `multer` 1.x lên 2.x.
 
 ### Ưu tiên 2 - Dọn nợ bảo mật
@@ -163,7 +161,7 @@ Phân loại hiện tại:
 
 ## 8. Kết luận cuối
 
-Hệ thống LucyClass đang ở trạng thái bảo mật **khá tốt (8.4/10)**. Việc vá lỗ hổng rò rỉ metadata (`F4`) và siết chặt rate limit cho AI Proxy (`F2`) cho thấy sự quan tâm đúng mức đến hardening.
+Hệ thống LucyClass đang ở trạng thái bảo mật **khá tốt (8.6/10)**. Việc vá lỗ hổng rò rỉ metadata (`F4`) và siết chặt bảo vệ AI Proxy (`F2`) bằng rate limiter lẫn reCAPTCHA cho thấy sự quan tâm đúng mức đến hardening.
 
 Điểm sáng nhất của hệ thống là luồng **Restore** và **Upload ảnh** - cả hai đều được thiết kế với tư duy "defense in depth" (phòng thủ chiều sâu) rất rõ ràng.
 
