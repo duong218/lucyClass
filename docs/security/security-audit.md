@@ -75,7 +75,7 @@ Nhận xét tổng quan:
 
 Phân loại hiện tại:
 - Medium: 1 (F3)
-- Low: 4 (F5, F6, F7, F8)
+- Low: 3 (F5, F6, F8)
 
 ## 4. Điểm mạnh đang có
 
@@ -127,10 +127,9 @@ Phân loại hiện tại:
 - **Mô tả**: CSP cho phép `'unsafe-inline'` để tương thích với reCAPTCHA và legacy scripts.
 - **Rủi ro**: Giảm hiệu quả của CSP trong việc ngăn chặn XSS.
 
-### F7. Low - Redundant Bcrypt Libraries (NEW)
-- **File**: `backend/package.json`
-- **Mô tả**: Cài đặt cả `bcrypt` (native) và `bcryptjs` (pure JS).
-- **Rủi ro**: Gây nhầm lẫn trong phát triển và bảo trì. Nên thống nhất dùng một thư viện.
+### F7. SOLVED - Redundant Bcrypt Libraries
+- **Kết quả**: Đã gỡ bỏ `bcryptjs` khỏi `package.json` và đồng nhất toàn bộ codebase (`authController.js`, `Admin.js`, `StaffAccount.js`) sang sử dụng thư viện `bcrypt` native.
+- **Đánh giá**: Codebase gọn gàng hơn, giảm bớt dependency dư thừa và tối ưu hiệu suất do `bcrypt` native chạy nhanh hơn bản thuần JS.
 
 ### F8. Low - Unmaintained Dependency: xss-clean (NEW)
 - **File**: `backend/package.json`
@@ -152,7 +151,6 @@ Phân loại hiện tại:
 - Nâng `multer` 1.x lên 2.x.
 
 ### Ưu tiên 2 - Dọn nợ bảo mật
-- Thống nhất dùng 1 thư viện bcrypt (khuyên dùng `bcrypt` native).
 - Thay thế `xss-clean` bằng `sanitize-html` cho toàn bộ input.
 - Bỏ hardcoded Drive folder ID.
 - Lập kế hoạch dùng nonce-based CSP để bỏ `unsafe-inline`.
