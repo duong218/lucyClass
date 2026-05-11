@@ -112,8 +112,19 @@ const TeacherCard = ({ teacher, index, onHoverStart, onHoverEnd }) => {
         <span className="text-xs font-bold text-text-light ml-0.5">{Number(teacher.rating || 5).toFixed(1)}</span>
       </div>
 
-      {/* Hover hint */}
-      <div className="mt-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-[11px] text-text-light/70 font-medium">
+      {/* Feedback summary */}
+      {teacher.feedback && (
+        <div className="mt-4 px-1 w-full">
+          <div className="bg-white/40 backdrop-blur-sm rounded-2xl p-3 border border-white/50 text-left shadow-inner group-hover:bg-white/60 transition-colors duration-300">
+            <p className="text-[11px] text-text-light leading-relaxed italic line-clamp-3">
+              "{teacher.feedback}"
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* View Details hint */}
+      <div className="mt-3 text-[11px] text-text-light/60 font-medium group-hover:text-text-light/90 transition-colors">
         {t('teachersSection.card.hoverHint')}
       </div>
     </div>
@@ -429,7 +440,7 @@ const TeachersSection = () => {
     const start = setTimeout(() => {
       const interval = setInterval(() => {
         setCurrentIndex(prev => (prev + 1) % displayTeachers.length);
-      }, 2000);
+      }, 3800);
 
       autoRotateRef.current = interval;
     }, 300)
@@ -516,14 +527,15 @@ const TeachersSection = () => {
 
       {/* ── Marquee carousel — full-width, outside centered container ── */}
       {/* FIX: placed outside max-w-7xl so fade overlays reach true screen edges */}
-      <div className="relative py-4 w-full reveal stagger-3 hidden md:block">
+      <div className="relative py-4 w-full reveal stagger-3 hidden md:block overflow-hidden">
         {/* Fade left — anchored to viewport edge */}
-        <div className="absolute left-0 top-0 bottom-0 w-24 md:w-40 bg-gradient-to-r from-white via-white/90 to-transparent z-10 pointer-events-none" />
+        <div className="absolute left-0 top-0 bottom-0 w-16 md:w-24 bg-gradient-to-r from-[#F5F5F0] via-[#F5F5F0]/75 to-transparent z-10 pointer-events-none" />
         {/* Fade right — anchored to viewport edge */}
-        <div className="absolute right-0 top-0 bottom-0 w-24 md:w-40 bg-gradient-to-l from-white via-white/90 to-transparent z-10 pointer-events-none" />
+        <div className="absolute right-0 top-0 bottom-0 w-16 md:w-24 bg-gradient-to-l from-[#F5F5F0] via-[#F5F5F0]/75 to-transparent z-10 pointer-events-none" />
 
         <div
           className={`flex w-max teachers-marquee-track ${isPaused ? 'paused' : ''}`}
+          style={{ paddingLeft: '24px', paddingRight: '24px' }}
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => {
             if (!selectedTeacher) setIsPaused(false);
@@ -556,144 +568,118 @@ const TeachersSection = () => {
         </div>
       </div>
 
-      {/* ── Mobile Dual-Layer Carousel (md:hidden) ── */}
-      <div className="relative md:hidden h-[450px] w-full overflow-visible my-8 reveal stagger-3 px-6">
-        {/* Layer 1: Rotating Avatar Ring (Decorative Background) */}
-        <div className="absolute left-[-110px] top-1/2 -translate-y-1/2 z-0">
-          {(() => {
-            const LOOP_COUNT = displayTeachers.length < 6 ? 3 : 2;
-            const loopedTeachers = Array.from({ length: LOOP_COUNT }).flatMap(() => displayTeachers);
-
-            return loopedTeachers.map((teacher, i) => {
-              const baseIndex = i % displayTeachers.length;
-              const baseAngle = BASE_ANGLES[baseIndex] || 0;
-              const groupOffset = Math.floor(i / displayTeachers.length) * (360 / LOOP_COUNT);
-              const angle = baseAngle + rotation + groupOffset;
-              const radius = 170;
-
-              return (
-                <motion.div
-                  key={`mobile-ring-${teacher._id}-${i}`}
-                  initial={false}
-                  animate={{
-                    transform: `translate(-50%, -50%) rotate(${angle}deg) translateY(${radius}px) rotate(${-angle}deg)`,
-                    opacity: 1,
-                    scale: 0.9,
-                  }}
-                  transition={{ type: 'spring', stiffness: 60, damping: 15 }}
-                  className="absolute"
-                  style={{
-                    left: 0,
-                    top: 0,
-                    willChange: "transform",
-                    transform: "translateZ(0)"
-                  }}
-                  onClick={() => {
-                    handleUserInteraction();
-                    setSelectedTeacher(teacher);
-                    setSelectedIndex(i % displayTeachers.length);
-                  }}
-                >
-                  <div className="w-14 h-14 rounded-full border-2 border-white bg-white overflow-hidden shadow-md">
-                    {teacher.avatar ? (
-                      <img src={getImageUrl(teacher.avatar)} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gray-50 text-gray-400"><User className="w-6 h-6 text-gray-400" /></div>
-                    )}
-                  </div>
-                </motion.div>
-              );
-            });
-          })()}
-        </div>
-
-        {/* Layer 2: Main Active Card (Primary Foreground) */}
-        <div className="absolute left-[85px] right-20 top-1/2 -translate-y-1/2 h-40 flex items-center">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={displayTeachers[currentIndex]?._id || 'none'}
-              initial={{ opacity: 0, x: 20, scale: 0.95 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: -10, scale: 0.95 }}
-              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-              className="bg-gradient-to-br from-blue-50 via-white to-purple-50 border border-blue-200 shadow-[0_10px_30px_rgba(59,130,246,0.15)] rounded-3xl p-5 flex flex-row items-center gap-5 w-full cursor-pointer"
-              onClick={() => {
-                setSelectedTeacher(displayTeachers[currentIndex]);
-                setSelectedIndex(currentIndex);
-              }}
-            >
-              {/* Card Avatar */}
-              <div className="w-20 h-20 rounded-2xl overflow-hidden shadow-lg ring-4 ring-white shrink-0 bg-gradient-to-br from-primary-100 to-primary-200">
-                {displayTeachers[currentIndex]?.avatar ? (
-                  <img
-                    src={getImageUrl(displayTeachers[currentIndex].avatar)}
-                    alt={displayTeachers[currentIndex].name}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center"><User className="w-8 h-8 text-primary-400" /></div>
-                )}
-              </div>
-
-              {/* Card Text Info */}
-              <div className="min-w-0 pr-2">
-                <div className="h-1 w-16 bg-gradient-to-r from-blue-400 to-pink-400 rounded-full mb-2" />
-                <h4 className="text-lg font-black text-text-main line-clamp-1 leading-tight mb-0.5">
-                  {displayTeachers[currentIndex]?.name}
-                </h4>
-                <p className="text-xs font-bold text-primary-500 truncate mb-1.5">
-                  {displayTeachers[currentIndex]?.specialization || t('teachersSection.card.defaultRole')}
-                </p>
-                <div className="flex items-center gap-1.5">
-                  <Stars rating={displayTeachers[currentIndex]?.rating} size="text-[10px]" />
-                  <span className="text-[10px] font-bold text-text-light">{Number(displayTeachers[currentIndex]?.rating || 5).toFixed(1)}</span>
+      {/* ── Mobile Spotlight Carousel (md:hidden) ── */}
+      <div className="md:hidden my-8 reveal stagger-3 px-6">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={displayTeachers[currentIndex]?._id || 'none'}
+            initial={{ opacity: 0, y: 14, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.98 }}
+            transition={{ duration: 0.45, ease: 'easeOut' }}
+            className="lc-card border border-[#E6DCCF] p-6 text-center cursor-pointer"
+            onClick={() => {
+              setSelectedTeacher(displayTeachers[currentIndex]);
+              setSelectedIndex(currentIndex);
+            }}
+          >
+            <div className="w-24 h-24 mx-auto rounded-full overflow-hidden ring-4 ring-white shadow-md bg-[#F5F5F0] mb-4">
+              {displayTeachers[currentIndex]?.avatar ? (
+                <img
+                  src={getImageUrl(displayTeachers[currentIndex].avatar)}
+                  alt={displayTeachers[currentIndex].name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <User className="w-10 h-10 text-[#1C695C]" />
                 </div>
-              </div>
-            </motion.div>
-          </AnimatePresence>
-        </div>
+              )}
+            </div>
 
-        {/* Right side controls */}
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-4 z-50">
+            <h4 className="text-[22px] leading-[30px] font-display font-bold text-[#4A4A4A] line-clamp-1">
+              {displayTeachers[currentIndex]?.name}
+            </h4>
+            <p className="text-sm font-semibold text-[#1C6970] mt-1 line-clamp-1">
+              {displayTeachers[currentIndex]?.specialization || t('teachersSection.card.defaultRole')}
+            </p>
+            <div className="mt-3 flex items-center justify-center gap-2">
+              <Stars rating={displayTeachers[currentIndex]?.rating} size="text-sm" />
+              <span className="text-xs font-bold text-[#4A4A4A]">
+                {Number(displayTeachers[currentIndex]?.rating || 5).toFixed(1)}
+              </span>
+            </div>
+
+            {/* Mobile Feedback summary */}
+            {displayTeachers[currentIndex]?.feedback && (
+              <div className="mt-4 bg-[#F5F5F0]/50 rounded-2xl p-4 border border-[#E6DCCF] text-left">
+                <p className="text-sm text-[#4A4A4A] leading-relaxed italic line-clamp-3">
+                  "{displayTeachers[currentIndex].feedback}"
+                </p>
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
+
+        <div className="mt-4 flex items-center justify-center gap-3">
           <button
             onClick={() => handleMobileNav('prev')}
-            className="w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center active:scale-90 transition-transform"
+            className="w-11 h-11 bg-white border border-[#E6DCCF] rounded-full shadow-sm flex items-center justify-center active:scale-95 transition-transform"
+            aria-label="Previous teacher"
           >
-            <ChevronUp className="w-5 h-5 text-gray-600" />
+            <ChevronLeft className="w-5 h-5 text-[#4A4A4A]" />
           </button>
           <button
             onClick={() => {
               setSelectedTeacher(displayTeachers[currentIndex]);
               setSelectedIndex(currentIndex);
             }}
-            className="w-12 h-12 bg-[#1C695C] text-white rounded-full shadow-lg flex items-center justify-center active:scale-90 transition-transform"
+            className="lc-btn lc-btn-primary px-6 text-xs"
           >
-            <ChevronLeft className="w-5 h-5" />
+            <span className="inline-flex items-center gap-1.5">
+              <Eye className="w-4 h-4" /> {t('teachersSection.viewAll')}
+            </span>
           </button>
           <button
             onClick={() => handleMobileNav('next')}
-            className="w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center active:scale-90 transition-transform"
+            className="w-11 h-11 bg-white border border-[#E6DCCF] rounded-full shadow-sm flex items-center justify-center active:scale-95 transition-transform"
+            aria-label="Next teacher"
           >
-            <ChevronDown className="w-5 h-5 text-gray-600" />
+            <ChevronDown className="w-5 h-5 text-[#4A4A4A] rotate-[-90deg]" />
           </button>
         </div>
 
-        {/* View All Button */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2">
-  <button
-    onClick={() => setShowAllModal(true)}
-    className="relative lc-btn lc-btn-primary text-sm px-8 py-3 active:scale-95 uppercase tracking-widest overflow-hidden"
-  >
-    {/* Glow effect */}
-    <span className="absolute inset-0 bg-white/20 opacity-0 hover:opacity-100 transition-opacity duration-300 rounded-full" />
-
-    {/* Text */}
-    <span className="relative z-10 flex items-center gap-2 justify-center">
-      <Eye className="w-4 h-4" /> {t('teachersSection.viewAll')}
-    </span>
-  </button>
-</div>
-
+        <div className="mt-4 flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory">
+          {displayTeachers.map((teacher, i) => {
+            const active = i === currentIndex;
+            return (
+              <button
+                key={teacher._id || i}
+                type="button"
+                onClick={() => {
+                  handleUserInteraction();
+                  setCurrentIndex(i);
+                }}
+                className={`snap-start shrink-0 flex items-center gap-2.5 px-3 py-2 rounded-full border transition-all duration-200 ${
+                  active
+                    ? 'bg-[#1C695C] text-white border-[#1C695C]'
+                    : 'bg-white text-[#4A4A4A] border-[#E6DCCF]'
+                }`}
+              >
+                <div className="w-8 h-8 rounded-full overflow-hidden bg-[#F5F5F0]">
+                  {teacher.avatar ? (
+                    <img src={getImageUrl(teacher.avatar)} alt={teacher.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <User className={`w-4 h-4 ${active ? 'text-white' : 'text-[#1C695C]'}`} />
+                    </div>
+                  )}
+                </div>
+                <span className="text-xs font-bold max-w-[92px] truncate">{teacher.name}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* ── Trust badges strip — back inside centered container ── */}

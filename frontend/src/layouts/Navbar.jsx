@@ -220,21 +220,11 @@ const Navbar = () => {
             <button
               key={item.id}
               onClick={() => scrollToSection(item.id)}
-              className={`w-full max-w-sm py-4 rounded-[24px] font-sans font-bold text-xl transition-all active:scale-95 shadow-sm border`}
-              style={
+              className={`w-full max-w-sm py-4 rounded-[24px] font-sans font-bold text-xl transition-all active:scale-95 shadow-sm border border-white/25 text-white ${
                 activeSection === item.id
-                  ? {
-                      background: "rgba(255,255,255,0.15)",
-                      color: "#fff",
-                      borderColor: "rgba(255,255,255,0.25)",
-                      borderLeft: "4px solid #D9A441",
-                    }
-                  : {
-                      background: "transparent",
-                      color: "#fff",
-                      borderColor: "rgba(255,255,255,0.25)",
-                    }
-              }
+                  ? "bg-white/15 border-l-4 border-l-[#D9A441]"
+                  : "bg-transparent"
+              }`}
             >
               {item.label}
             </button>
