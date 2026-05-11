@@ -52,7 +52,7 @@ const HeroSection = () => {
   return (
     <section
       id="hero"
-      className="relative min-h-screen min-h-[100dvh] flex items-center justify-center overflow-hidden"
+      className="relative min-h-[100dvh] flex items-center justify-center overflow-hidden"
     >
       <div
         className="absolute inset-0 z-0 bg-cover bg-no-repeat pointer-events-none"
@@ -66,27 +66,26 @@ const HeroSection = () => {
 
 
       {/* Content Container (CENTER) */}
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-5 sm:px-6 lg:px-8 bg-transparent">
+      <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(28,105,92,0.85),rgba(28,105,112,0.8),rgba(63,164,143,0.7))] z-[1]" />
+      <div className="relative z-10 w-full lc-container px-4 md:px-6 lg:px-10 bg-transparent">
         <div className="flex flex-col items-center justify-center text-center">
 
           <div className="max-w-4xl animate-fadeInUp">
             <h1
-              className="text-gray-900 text-[26px] md:text-[38px] lg:text-[50px] font-display font-black mb-6 md:mb-8 leading-[1.2] uppercase tracking-tight"
-              style={{ textShadow: '0 0 4px rgba(255,255,255,0.8), 0 0 8px rgba(255,255,255,0.6), 0 2px 6px rgba(255,255,255,0.4)' }}
+              className="text-white text-[36px] md:text-[42px] lg:text-[50px] font-display font-black mb-6 md:mb-8 leading-[1.2] tracking-tight"
             >
               {t('hero.title')}
             </h1>
 
             <p
-              className="text-gray-700 text-[14px] md:text-[16px] lg:text-[18px] font-bold mb-10 md:mb-14 max-w-3xl mx-auto leading-[1.6]"
-              style={{ textShadow: '0 0 4px rgba(255,255,255,0.8), 0 0 8px rgba(255,255,255,0.6), 0 2px 6px rgba(255,255,255,0.4)' }}
+              className="text-white/95 text-[16px] lg:text-[18px] font-semibold mb-10 md:mb-14 max-w-3xl mx-auto leading-[1.6]"
             >
               {t('hero.subtitle')}
             </p>
 
             <button
               onClick={scrollToCourses}
-              className="bg-[#1C695C] text-white px-10 md:px-14 py-4 md:py-5 rounded-full text-lg md:text-xl font-bold transition-all shadow-[0_10px_20px_rgba(28,105,92,0.35)] hover:shadow-[0_15px_30px_rgba(28,105,92,0.45)] hover:bg-[#155047] hover:-translate-y-1 hover:scale-105 active:scale-95"
+              className="lc-btn lc-btn-promo px-8 md:px-10 py-3 md:py-3.5 text-sm md:text-sm w-full sm:w-auto"
             >
               {t('hero.cta')}
             </button>

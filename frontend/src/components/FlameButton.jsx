@@ -328,9 +328,28 @@ const FlameButton = () => {
   const [savedPhone, setSavedPhone] = useState(localStorage.getItem('streak_phone') || '');
   const [userData, setUserData] = useState(null);
   const [isReviveConfirmOpen, setIsReviveConfirmOpen] = useState(false);
+  const [isFabHidden, setIsFabHidden] = useState(
+    localStorage.getItem('streak_fab_hidden') === '1'
+  );
+  const renderFloatingFab = false;
 
   const handleOpen = () => { openModal(); setIsOpen(true); };
   const handleClose = () => { closeModal(); setIsOpen(false); };
+  const hideFab = (e) => {
+    e.stopPropagation();
+    localStorage.setItem('streak_fab_hidden', '1');
+    setIsFabHidden(true);
+  };
+  const showFab = () => {
+    localStorage.setItem('streak_fab_hidden', '0');
+    setIsFabHidden(false);
+  };
+
+  useEffect(() => {
+    const onOpenFromNavbar = () => handleOpen();
+    window.addEventListener('open-streak-modal', onOpenFromNavbar);
+    return () => window.removeEventListener('open-streak-modal', onOpenFromNavbar);
+  }, []);
 
   useEffect(() => {
     if (userData?.streakCount !== undefined) {
@@ -578,65 +597,127 @@ const FlameButton = () => {
       {/* ═══════════════════════════════════════════════════════════════════
           FAB — Floating Action Button with Lottie Fire
       ═════════════════════════════════════════════════════════════════════ */}
-      <div
-        ref={elementRef}
-        className="fixed bottom-[14px] right-[12px] sm:bottom-[22px] sm:right-[18px] md:bottom-[28px] md:right-[28px] lg:bottom-[36px] lg:right-[36px] z-[40] select-none touch-none"
-        style={{ touchAction: 'none', cursor: 'pointer' }}
-        onClick={(e) => {
-          if (!hasMoved) handleOpen();
-          else { e.preventDefault(); e.stopPropagation(); }
-        }}
-      >
-        {/* Glow halo — dynamic color per milestone */}
-        <div style={{
-          position: 'absolute',
-          inset: '10px',
-          background: cfg.glowColor,
-          borderRadius: '50%',
-          animation: 'fabGlowPulse 3s ease-in-out infinite',
-          pointerEvents: 'none',
-          zIndex: 0,
-        }} />
-
-        {/* Lottie fire — replaces flame.png */}
-        <div className={`fab-lottie-wrap${checkInAnim ? ' burst' : ''}`} style={{ position: 'relative', zIndex: 1 }}>
-          <LottieFire
-            hueRotate={cfg.hueRotate}
-            speed={cfg.lottieSpeed}
-            size="default"
-          />
-        </div>
-
-        {/* Streak count badge */}
-        {userData?.streakCount > 0 && (
-          <div style={{
-            position: 'absolute',
-            bottom: -4,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            animation: 'badgePop 2.4s ease-in-out infinite',
-            zIndex: 2,
-          }}>
-            <div style={{
-              background: cfg.btnGradient,
+      {renderFloatingFab && (!isFabHidden ? (
+        <div
+          ref={elementRef}
+          className="fixed bottom-[14px] right-[12px] sm:bottom-[22px] sm:right-[18px] md:bottom-[28px] md:right-[28px] lg:bottom-[36px] lg:right-[36px] z-[40] select-none touch-none"
+          style={{ touchAction: 'none' }}
+        >
+          {/* Quick hide button */}
+          <button
+            type="button"
+            onClick={hideFab}
+            onMouseDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            aria-label="Ẩn streak button"
+            title="Ẩn tạm"
+            style={{
+              position: 'absolute',
+              top: -6,
+              right: -4,
+              width: 20,
+              height: 20,
+              borderRadius: '50%',
+              border: '1px solid rgba(255,255,255,0.8)',
+              background: 'rgba(31,41,55,0.85)',
               color: '#fff',
-              fontWeight: 900,
-              fontSize: 'clamp(10px, 2.4vw, 14px)',
-              padding: '2px 9px',
-              borderRadius: 999,
-              border: '2px solid rgba(255,255,255,0.55)',
-              boxShadow: `0 3px 14px ${cfg.glowColor}, 0 1px 4px rgba(0,0,0,0.15)`,
-              display: 'flex', alignItems: 'center', gap: 3,
-              fontFamily: "'Baloo 2', 'Nunito', sans-serif",
-              whiteSpace: 'nowrap',
-              backdropFilter: 'blur(4px)',
-            }}>
-              <span>{userData.streakCount}</span>
-              <span style={{ fontSize: '0.78em' }}>🔥</span>
+              fontSize: 12,
+              lineHeight: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 3,
+              cursor: 'pointer',
+            }}
+          >
+            ×
+          </button>
+
+          <div
+            style={{ cursor: 'pointer' }}
+            onClick={(e) => {
+              if (!hasMoved) handleOpen();
+              else { e.preventDefault(); e.stopPropagation(); }
+            }}
+          >
+            {/* Glow halo — dynamic color per milestone */}
+            <div style={{
+              position: 'absolute',
+              inset: '10px',
+              background: cfg.glowColor,
+              borderRadius: '50%',
+              animation: 'fabGlowPulse 3s ease-in-out infinite',
+              pointerEvents: 'none',
+              zIndex: 0,
+            }} />
+
+            {/* Lottie fire — replaces flame.png */}
+            <div className={`fab-lottie-wrap${checkInAnim ? ' burst' : ''}`} style={{ position: 'relative', zIndex: 1 }}>
+              <LottieFire
+                hueRotate={cfg.hueRotate}
+                speed={cfg.lottieSpeed}
+                size="default"
+              />
             </div>
+
+            {/* Streak count badge */}
+            {userData?.streakCount > 0 && (
+              <div style={{
+                position: 'absolute',
+                bottom: -4,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                animation: 'badgePop 2.4s ease-in-out infinite',
+                zIndex: 2,
+              }}>
+                <div style={{
+                  background: cfg.btnGradient,
+                  color: '#fff',
+                  fontWeight: 900,
+                  fontSize: 'clamp(10px, 2.4vw, 14px)',
+                  padding: '2px 9px',
+                  borderRadius: 999,
+                  border: '2px solid rgba(255,255,255,0.55)',
+                  boxShadow: `0 3px 14px ${cfg.glowColor}, 0 1px 4px rgba(0,0,0,0.15)`,
+                  display: 'flex', alignItems: 'center', gap: 3,
+                  fontFamily: "'Baloo 2', 'Nunito', sans-serif",
+                  whiteSpace: 'nowrap',
+                  backdropFilter: 'blur(4px)',
+                }}>
+                  <span>{userData.streakCount}</span>
+                  <span style={{ fontSize: '0.78em' }}>🔥</span>
+                </div>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={showFab}
+          className="fixed bottom-[14px] right-[12px] sm:bottom-[22px] sm:right-[18px] md:bottom-[28px] md:right-[28px] lg:bottom-[36px] lg:right-[36px] z-[40]"
+          style={{
+            background: 'rgba(31,41,55,0.82)',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.3)',
+            borderRadius: 9999,
+            padding: '8px 12px',
+            fontSize: 12,
+            fontWeight: 800,
+            fontFamily: "'Baloo 2', 'Nunito', sans-serif",
+            backdropFilter: 'blur(8px)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+          aria-label="Hiện streak button"
+          title="Hiện lại streak"
+        >
+          <span>🔥</span>
+          <span>Streak</span>
+        </button>
+      ))}
 
       {/* ═══════════════════════════════════════════════════════════════════
           MODAL

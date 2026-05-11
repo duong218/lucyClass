@@ -94,7 +94,7 @@ const MobileCard = ({ fb, onClick }) => (
     onClick={onClick}
     className="
       snap-start flex-shrink-0 w-[32vw] max-w-[130px]
-      bg-white rounded-2xl p-3 shadow-sm border border-blue-50
+      bg-white rounded-[32px] p-3 shadow-card border border-[#E6DCCF]
       flex flex-col items-center cursor-pointer
       active:scale-95 transition-transform duration-150
     "
@@ -133,7 +133,7 @@ const MobileCard = ({ fb, onClick }) => (
     <p className="text-[10px] font-bold text-gray-700 text-center leading-tight line-clamp-2 mb-1">
       {fb.parentName}
     </p>
-    <p className="text-[9px] text-blue-400 text-center leading-tight mb-2">
+    <p className="text-[9px] text-[#1C6970] text-center leading-tight mb-2">
       {fb.childName}, {fb.childAge}y
     </p>
 
@@ -181,18 +181,18 @@ const TestimonialsSection = () => {
   const feedbacksList = feedbacks.length > 0 ? feedbacks : fallbackFeedbacks;
 
   return (
-    <section key={i18n.language} className="py-20 px-6 bg-[#F8FDFE] relative">
+    <section key={i18n.language} className="lc-section bg-[#1C695C] relative text-white">
       {/* Decorative stars */}
       <div className="absolute top-10 left-[10%] text-3xl opacity-60 text-yellow-400">⭐</div>
       <div className="absolute top-32 right-[5%] text-4xl opacity-60 text-blue-300">✨</div>
       <div className="absolute bottom-20 left-[5%] text-4xl opacity-60 text-yellow-400">⭐</div>
       <div className="absolute bottom-10 right-[10%] text-2xl opacity-60 text-blue-300">✨</div>
 
-      <div className="max-w-6xl mx-auto text-center relative z-10">
-        <h2 className="text-3xl md:text-4xl font-display font-black text-text-main mb-2">
+      <div className="lc-container text-center relative z-10">
+        <h2 className="text-[28px] md:text-[36px] lg:text-[48px] font-display font-black text-white mb-2">
           {t('testimonials.title')}
         </h2>
-        <p className="text-gray-500 mb-16 max-w-2xl mx-auto">
+        <p className="text-white/85 mb-16 max-w-2xl mx-auto">
           {t('testimonials.subtitle')}
         </p>
 
@@ -216,14 +216,14 @@ const TestimonialsSection = () => {
             return currentItems.map((fb, idx) => (
               <div
                 key={fb._id || idx}
-                className="bg-white rounded-[2rem] p-8 border-2 border-gray-100 shadow-sm relative text-center hover:shadow-md transition-shadow"
+                className="bg-white/10 rounded-[24px] p-8 border border-white/20 shadow-sm relative text-center hover:bg-white/15 transition-all text-white"
               >
                 {/* Quote icon top left */}
-                <div className="absolute -top-4 -left-4 text-5xl text-blue-200">❝</div>
+                <div className="absolute -top-4 -left-4 text-5xl text-white/40">❝</div>
                 {/* Stars top right */}
                 <div className="absolute top-4 right-6 flex">
                   {[...Array(5)].map((_, i) => (
-                    <span key={i} className={`text-sm ${i < fb.rating ? 'text-yellow-400' : 'text-gray-200'}`}>★</span>
+                    <span key={i} className={`text-sm ${i < fb.rating ? 'text-[#D9A441]' : 'text-white/30'}`}>★</span>
                   ))}
                 </div>
 
@@ -240,15 +240,15 @@ const TestimonialsSection = () => {
                   )}
                 </div>
 
-                <h4 className="font-bold text-text-main">{fb.parentName} - Parent of</h4>
-                <h4 className="font-bold text-text-main mb-4">{fb.childName} ({fb.childAge} years old)</h4>
+                <h4 className="font-bold text-white">{fb.parentName} - Parent of</h4>
+                <h4 className="font-bold text-white mb-4">{fb.childName} ({fb.childAge} years old)</h4>
 
-                <p className="text-sm text-text-main font-medium leading-relaxed opacity-80">
+                <p className="text-sm text-white/85 font-medium leading-relaxed">
                   {fb.text}
                 </p>
 
                 {/* Quote icon bottom right */}
-                <div className="absolute -bottom-6 -right-2 text-5xl text-blue-200 rotate-180">❝</div>
+                <div className="absolute -bottom-6 -right-2 text-5xl text-white/40 rotate-180">❝</div>
               </div>
             ));
           })()}
@@ -259,7 +259,7 @@ const TestimonialsSection = () => {
           <button
             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
             disabled={currentPage === 1}
-            className="px-6 py-2 bg-white text-blue-500 border-2 border-blue-100 rounded-full font-bold shadow-sm transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
+            className="lc-btn bg-white text-[#1C695C] border-2 border-[#1C695C] rounded-full font-bold shadow-sm hover:bg-[#F5F5F0] disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
           >
             {t('common.prev', 'Trước')}
           </button>
@@ -270,7 +270,7 @@ const TestimonialsSection = () => {
               return [...Array(totalPages)].map((_, i) => (
                 <div
                   key={i}
-                  className={`w-2 h-2 rounded-full transition-all duration-300 ${currentPage === i + 1 ? 'bg-blue-500 w-6' : 'bg-blue-200'}`}
+                  className={`w-2 h-2 rounded-full transition-all duration-200 ${currentPage === i + 1 ? 'bg-[#1C695C] w-6' : 'bg-[#E6DCCF]'}`}
                 />
               ));
             })()}
@@ -282,7 +282,7 @@ const TestimonialsSection = () => {
               setCurrentPage(prev => Math.min(prev + 1, totalPages));
             }}
             disabled={currentPage >= Math.ceil(feedbacksList.length / itemsPerPage)}
-            className="px-6 py-2 bg-blue-500 text-white rounded-full font-bold shadow-md transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
+            className="lc-btn lc-btn-primary px-6 py-2 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
           >
             {t('common.next', 'Tiếp')}
           </button>

@@ -70,10 +70,10 @@ const CoursesSection = () => {
 
   const getCardStyle = (idx, type) => {
     const styles = [
-      { bg: 'bg-[#c8dff0]', text: 'text-blue-800' },
-      { bg: 'bg-[#f0db9f]', text: 'text-yellow-800' },
-      { bg: 'bg-[#c8e2c4]', text: 'text-green-800' },
-      { bg: 'bg-[#f0c4a8]', text: 'text-orange-800' },
+      { bg: 'bg-[#F5F5F0]', text: 'text-[#1C695C]' },
+      { bg: 'bg-[#F5F5F0]', text: 'text-[#1C6970]' },
+      { bg: 'bg-[#F5F5F0]', text: 'text-[#693D6A]' },
+      { bg: 'bg-[#F5F5F0]', text: 'text-[#C96A3D]' },
     ];
 
     if (type === 'blue') return styles[0];
@@ -85,10 +85,10 @@ const CoursesSection = () => {
 
   const getIconForIndex = (index) => {
     const icons = [
-      <Telescope className="w-16 h-16 text-blue-500 opacity-70" />,
-      <Palette className="w-16 h-16 text-yellow-500 opacity-70" />,
-      <FlaskConical className="w-16 h-16 text-green-500 opacity-70" />,
-      <Music className="w-16 h-16 text-orange-500 opacity-70" />,
+      <Telescope className="w-16 h-16 text-[#1C695C] opacity-70" />,
+      <Palette className="w-16 h-16 text-[#D9A441] opacity-70" />,
+      <FlaskConical className="w-16 h-16 text-[#3FA48F] opacity-70" />,
+      <Music className="w-16 h-16 text-[#C96A3D] opacity-70" />,
     ];
     return icons[index % 4];
   };
@@ -122,12 +122,12 @@ const CoursesSection = () => {
   });
 
   return (
-    <section ref={sectionRef} id="courses" className="py-16 px-10 bg-mesh relative overflow-hidden backdrop-blur-md rounded-[24px]">
+    <section ref={sectionRef} id="courses" className="lc-section bg-white relative overflow-hidden">
       {/* Background soft blur circles */}
       <div className="absolute top-20 left-10 w-64 h-64 bg-blue-100 rounded-full blur-[100px] opacity-40 float-slow pointer-events-none" />
       <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-100 rounded-full blur-[120px] opacity-40 float-fast pointer-events-none" style={{ animationDelay: '1s' }} />
 
-      <div className="max-w-6xl mx-auto text-center relative z-10">
+      <div className="lc-container text-center relative z-10">
         <h2 className="text-4xl md:text-6xl font-display font-black text-text-main mb-12">
           {t('coursesSection.title')}
         </h2>
@@ -141,10 +141,10 @@ const CoursesSection = () => {
                 setActiveTab(cat);
                 setShowAll(false); // Reset on filter change
               }}
-              className={`px-6 py-2 rounded-full font-bold text-sm md:text-base border-2 transition-all duration-300 ${
+              className={`px-6 py-2 rounded-full font-bold text-sm md:text-base border-2 transition-all duration-200 ${
                 activeTab === cat 
-                  ? 'bg-blue-500 text-white border-blue-500 shadow-lg scale-105' 
-                  : 'bg-white text-gray-600 border-transparent hover:border-blue-300 hover:text-blue-500 hover:shadow-md'
+                  ? 'bg-[#1C695C] text-white border-[#1C695C] shadow-lg scale-105' 
+                  : 'bg-white text-[#4A4A4A] border-[#E6DCCF] hover:border-[#3FA48F] hover:text-[#1C695C] hover:shadow-md'
               }`}
             >
               {cat === 'All' ? t('coursesSection.all') : cat}
@@ -159,12 +159,12 @@ const CoursesSection = () => {
               <div 
                 key={course._id} 
                 onClick={() => setSelectedCourse(course)}
-                className={`course-card group relative cursor-pointer transform transition-all duration-150 ease-out active:scale-95 md:duration-300 md:hover:-translate-y-2 md:hover:scale-[1.02] rounded-2xl md:rounded-3xl md:border-transparent dark:bg-white/10 dark:backdrop-blur-xl dark:border-white/20 dark:hover:bg-white/20 h-fit md:h-auto ${idx % 2 === 0 ? 'md:animate-[float_6s_ease-in-out_infinite]' : 'md:animate-[float_8s_ease-in-out_infinite]'}`}
+                className={`course-card group relative cursor-pointer transform transition-all duration-200 ease-out active:scale-95 md:hover:-translate-y-2 md:hover:scale-[1.02] rounded-[32px] md:border-transparent dark:bg-white/10 dark:backdrop-blur-xl dark:border-white/20 dark:hover:bg-white/20 h-fit md:h-auto ${idx % 2 === 0 ? 'md:animate-[float_6s_ease-in-out_infinite]' : 'md:animate-[float_8s_ease-in-out_infinite]'}`}
               >
                 {/* Mobile Card – matches mockup design */}
-                <div className="md:hidden bg-white rounded-2xl p-3 text-left shadow-sm border border-gray-100 flex flex-col gap-2">
+                <div className="md:hidden lc-card p-3 text-left border border-[#E6DCCF] flex flex-col gap-2">
                   {/* Illustration */}
-                  <div className={`w-full rounded-xl ${style.bg} flex items-center justify-center overflow-hidden`} style={{ aspectRatio: '4/3' }}>
+                  <div className={`w-full rounded-[24px] ${style.bg} flex items-center justify-center overflow-hidden`} style={{ aspectRatio: '4/3' }}>
                     {course.image ? (
                       <img
                         src={getImageUrl(course.image)}
@@ -180,17 +180,17 @@ const CoursesSection = () => {
                   <div className="flex flex-col gap-0.5 px-0.5">
                     <h3 className="text-[13px] font-bold text-gray-900 leading-snug line-clamp-2">{course.name}</h3>
                     <p className="text-[11px] text-gray-500 line-clamp-2 leading-relaxed">{getShortDescription(course.description || course.desc || '')}</p>
-                    <p className="text-[11px] text-blue-500 font-semibold mt-1 flex items-center gap-0.5">Xem chi tiết <ChevronDown className="w-3 h-3 -rotate-90" /></p>
+                    <p className="text-[11px] text-[#1C6970] font-semibold mt-1 flex items-center gap-0.5">Xem chi tiết <ChevronDown className="w-3 h-3 -rotate-90" /></p>
                   </div>
                 </div>
 
                 <div className="flip-card hidden md:block w-full h-full">
                   <div className="flip-card-inner hidden md:block">
                     {/* Front Side */}
-                    <div className={`flip-card-front ${style.bg} border-2 border-transparent shadow-lg text-center rounded-3xl overflow-hidden`}>
+                    <div className={`flip-card-front ${style.bg} border-2 border-transparent shadow-card text-center rounded-[32px] overflow-hidden`}>
                       {/* Large image area - rounded square with padding */}
                       <div className="p-3 pb-0">
-                        <div className="w-full aspect-square overflow-hidden rounded-2xl flex items-center justify-center bg-white/40">
+                        <div className="w-full aspect-square overflow-hidden rounded-[24px] flex items-center justify-center bg-white/70">
                         {course.image ? (
                           <img
                             src={getImageUrl(course.image)}
@@ -206,7 +206,7 @@ const CoursesSection = () => {
                         </div>
                       </div>
                       <div className="px-5 py-4">
-                        <h3 className={`text-xl font-black ${style.text} leading-tight group-hover:text-blue-500 transition-colors`}>{course.name}</h3>
+                        <h3 className={`text-xl font-black ${style.text} leading-tight group-hover:text-[#1C695C] transition-colors`}>{course.name}</h3>
                       </div>
                     </div>
 
@@ -218,7 +218,7 @@ const CoursesSection = () => {
                           e.stopPropagation();
                           setSelectedCourse(course);
                         }}
-                        className="bg-[#4A90E2] text-white font-black py-4 px-8 rounded-full shadow-xl hover:scale-110 transition-transform active:scale-95"
+                        className="lc-btn lc-btn-primary"
                       >
                         {t('coursesSection.viewCourse')}
                       </button>
@@ -236,14 +236,14 @@ const CoursesSection = () => {
             {/* Mobile: solid pill button like mockup */}
             <button
               onClick={() => setShowAll((prev) => !prev)}
-              className="md:hidden w-full max-w-xs mx-auto block bg-blue-500 hover:bg-blue-600 active:scale-95 text-white font-bold py-3 px-8 rounded-full shadow-md transition-all duration-200"
+              className="md:hidden w-full max-w-xs mx-auto block lc-btn lc-btn-primary active:scale-95"
             >
               {showAll ? t('coursesSection.showLess') : t('coursesSection.showMore')}
             </button>
             {/* Desktop: text link */}
             <button
               onClick={() => setShowAll((prev) => !prev)}
-              className="hidden md:flex text-blue-500 hover:underline font-bold transition-all duration-300 items-center justify-center gap-1 mx-auto"
+              className="hidden md:flex text-[#1C6970] hover:underline font-bold transition-all duration-200 items-center justify-center gap-1 mx-auto"
             >
               {showAll ? t('coursesSection.showLess') : t('coursesSection.showMore')}
               {showAll ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}

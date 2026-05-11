@@ -118,7 +118,7 @@ const AnnouncementSection = () => {
     <section 
       id="announcements"
       key={i18n.language}
-      className="relative py-12 lg:py-24 px-4 lg:px-6 overflow-hidden bg-white border-t border-primary-50 isolate z-0 font-sans"
+      className="relative lc-section overflow-hidden bg-[#F5F5F0] border-t border-[#E6DCCF] isolate z-0 font-sans"
     >
 
       {/* ═══════════════════════════════════════════════════════════════════
@@ -320,7 +320,7 @@ const AnnouncementSection = () => {
       </div>
       {/* ═══════════════════════════════════════════════════════════════════ */}
 
-      <div className="relative group max-w-7xl mx-auto">
+      <div className="relative group lc-container">
         {/* OUTER GLOW LAYER (soft pastel gradient) */}
         <div
           className="
@@ -333,7 +333,7 @@ const AnnouncementSection = () => {
         ></div>
 
         {/* INNER WRAPPER (main content container) */}
-        <div className="relative rounded-[24px] lg:rounded-[40px] bg-gradient-to-br from-blue-50/50 via-white to-purple-50/50 p-4 md:p-8 lg:p-12 border border-white/50 shadow-card overflow-hidden">
+        <div className="relative rounded-[24px] lg:rounded-[40px] bg-gradient-to-br from-[#F5F5F0] via-white to-[#F5F5F0] p-4 md:p-8 lg:p-12 border border-[#E6DCCF] shadow-card overflow-hidden">
           {/* Animated Characters (Desktop Only) */}
           <div className="hidden lg:block pointer-events-none">
             {/* Shin - Left Side */}
@@ -577,7 +577,7 @@ const AnnouncementSection = () => {
                       {announcement.description}
                     </p>
                     <div className="mt-auto">
-                      <button className="bg-gradient-to-r from-primary-400 to-primary-600 hover:from-primary-500 hover:to-primary-700 text-white rounded-full px-8 py-3 transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg font-black text-sm uppercase tracking-widest">
+                      <button className="lc-btn lc-btn-primary hover:scale-105 active:scale-95 uppercase tracking-widest">
                         {t('announcements.read_more', "Explore")}
                       </button>
                     </div>
@@ -613,7 +613,7 @@ const AnnouncementSection = () => {
           <div className="flex justify-center mt-6 lg:mt-12">
             <button 
               onClick={() => setOpenAll(true)}
-              className="px-10 py-3 rounded-full bg-primary-400 text-white font-black uppercase tracking-widest hover:bg-primary-500 hover:scale-105 active:scale-95 transition-all duration-200 shadow-heavy"
+              className="lc-btn lc-btn-primary px-10 uppercase tracking-widest hover:scale-105 active:scale-95"
             >
               {t("announcements.view_all", "Xem tất cả")}
             </button>

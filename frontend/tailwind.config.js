@@ -7,29 +7,41 @@ export default {
   theme: {
     extend: {
       colors: {
+        lucy: {
+          primary: '#1C695C',
+          secondary: '#3FA48F',
+          tealCyan: '#1C6970',
+          orange: '#C96A3D',
+          yellow: '#D9A441',
+          purple: '#693D6A',
+          body: '#4A4A4A',
+          offwhite: '#F5F5F0',
+          beige: '#E6DCCF',
+          white: '#FFFFFF',
+        },
         primary: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#c2e0f9', /* Sky blue from screenshot */
-          400: '#8ab4f8',
-          500: '#4A90E2', /* Button blue */
-          600: '#357abd',
-          700: '#2563eb',
-          800: '#1e40af',
-          900: '#1e3a8a',
+          50: '#e9f4f1',
+          100: '#d2e9e3',
+          200: '#a6d3c8',
+          300: '#79bcac',
+          400: '#4da690',
+          500: '#1C695C',
+          600: '#17564c',
+          700: '#12443c',
+          800: '#0e312b',
+          900: '#091f1b',
         },
         secondary: {
-          50: '#fefce8',
-          100: '#fef9c3',
-          200: '#fef08a',
-          300: '#fde047',
-          400: '#facc15',
-          500: '#FDE047', /* Yellow from Join Us Today card */
-          600: '#eab308',
-          700: '#ca8a04',
-          800: '#854d0e',
-          900: '#713f12',
+          50: '#eff9f6',
+          100: '#d9f2ec',
+          200: '#b4e4d9',
+          300: '#8ed7c5',
+          400: '#69c9b2',
+          500: '#3FA48F',
+          600: '#348474',
+          700: '#276358',
+          800: '#1b423b',
+          900: '#0e211d',
         },
         pastel: {
           blue: '#D0EAF9',
@@ -45,8 +57,9 @@ export default {
         }
       },
       fontFamily: {
-        sans: ['Quicksand', 'Nunito', 'sans-serif'],
-        display: ['Fredoka One', 'Quicksand', 'cursive'],
+        sans: ['Noto Sans', 'Noto Sans SC', 'sans-serif'],
+        display: ['Outfit', 'Noto Sans', 'Noto Sans SC', 'sans-serif'],
+        accent: ['Nunito', 'Noto Sans', 'Noto Sans SC', 'sans-serif'],
       },
       borderRadius: {
         'xl': '1rem',
@@ -55,10 +68,10 @@ export default {
         '4xl': '3rem',
       },
       boxShadow: {
-        'card': '0 4px 15px rgba(0,0,0,0.05)',
-        'card-hover': '0 8px 25px rgba(0,0,0,0.1)',
+        'card': 'rgba(0,0,0,0.1) 0px 10px 15px -3px, rgba(0,0,0,0.1) 0px 4px 6px -4px',
+        'card-hover': 'rgba(28,105,92,0.15) 0px 25px 50px -12px',
         'heavy': '0 10px 30px rgba(0,0,0,0.15)',
-        'button': '0 4px 0px rgba(0,0,0,0.2)',
+        'button': 'rgba(28,105,92,0.35) 0px 4px 14px 0px',
       },
       keyframes: {
         float: {

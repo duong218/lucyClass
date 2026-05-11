@@ -16,8 +16,8 @@ const Footer = () => {
   }, []);
 
   return (
-    <footer id="contact" className="bg-[#C2E0F9] pt-16 pb-8 px-6 text-text-main">
-      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-10 mb-12 border-b-2 border-white/50 pb-10">
+    <footer id="contact" className="bg-[#4A4A4A] pt-16 pb-0 px-4 md:px-6 lg:px-10 text-[#F5F5F0]">
+      <div className="lc-container grid grid-cols-1 md:grid-cols-3 gap-10 mb-12 border-b border-[#E6DCCF]/30 pb-10">
 
         {/* Brand & Social */}
         <div>
@@ -57,7 +57,7 @@ const Footer = () => {
               </span>
             </div>
           </div>
-          <p className="font-semibold opacity-80 mb-6 max-w-xs">
+          <p className="font-semibold opacity-90 mb-6 max-w-xs">
             {t('footer.desc')}
           </p>
           <div className="social-icons">
@@ -81,13 +81,13 @@ const Footer = () => {
 
         {/* Quick Links */}
         <div>
-          <h4 className="font-display font-black text-xl mb-6">{t('footer.quickLinks')}</h4>
+          <h4 className="font-display font-black text-xl mb-6 text-white">{t('footer.quickLinks')}</h4>
           <ul className="space-y-3 font-bold opacity-80">
-            <li><a href="#hero" className="hover:text-blue-600 transition-colors">{t('nav.home')}</a></li>
-            <li><a href="#courses" className="hover:text-blue-600 transition-colors">{t('nav.courses')}</a></li>
-            <li><a href="#teachers" className="hover:text-blue-600 transition-colors">{t('nav.teachers')}</a></li>
-            <li><a href="#activities" className="hover:text-blue-600 transition-colors">{t('nav.activities')}</a></li>
-            <li><a href="/admin/login" className="hover:text-blue-600 transition-colors">{t('nav.admin')}</a></li>
+            <li><a href="#hero" className="hover:text-[#3FA48F] transition-colors">{t('nav.home')}</a></li>
+            <li><a href="#courses" className="hover:text-[#3FA48F] transition-colors">{t('nav.courses')}</a></li>
+            <li><a href="#teachers" className="hover:text-[#3FA48F] transition-colors">{t('nav.teachers')}</a></li>
+            <li><a href="#activities" className="hover:text-[#3FA48F] transition-colors">{t('nav.activities')}</a></li>
+            <li><a href="/admin/login" className="hover:text-[#3FA48F] transition-colors">{t('nav.admin')}</a></li>
             <li>
               <a
                 onClick={(e) => {
@@ -96,8 +96,8 @@ const Footer = () => {
                 }}
                 href="#"
                 className="inline-flex items-center gap-1 px-2 py-1 rounded-md -ml-1
-                border border-blue-300
-                hover:bg-blue-600 hover:text-white hover:border-blue-600
+                border border-[#E6DCCF]
+                hover:bg-[#1C695C] hover:text-white hover:border-[#1C695C]
                 transition-all duration-200"
               >
                 <span>{t('creator.link')}</span>
@@ -108,7 +108,7 @@ const Footer = () => {
 
         {/* Contact Us */}
         <div>
-          <h4 className="font-display font-black text-xl mb-6">{t('footer.contactInfo')}</h4>
+          <h4 className="font-display font-black text-xl mb-6 text-white">{t('footer.contactInfo')}</h4>
           <ul className="space-y-4 font-bold opacity-80">
             <li className="flex items-start gap-3">
               <span className="text-xl">📍</span>
@@ -133,7 +133,7 @@ const Footer = () => {
 
       </div>
 
-      <div className="text-center font-bold opacity-70">
+      <div className="text-center font-bold bg-[#1C695C] py-4 -mx-4 md:-mx-6 lg:-mx-10 text-white">
         <p>{t('footer.copyright').replace('© 2024 Lucy\'s Class. All rights reserved.', `© ${new Date().getFullYear()} Lucy's Class. All rights reserved.`)}</p>
       </div>
 

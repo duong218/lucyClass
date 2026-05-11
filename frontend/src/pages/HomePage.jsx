@@ -16,7 +16,7 @@ import ChatBox from '../components/ChatBox/ChatBox'; // ← THÊM
 
 const HomePage = () => {
   return (
-    <div className="relative font-sans text-text-main bg-white">
+    <div className="relative font-sans text-[#4A4A4A] bg-white">
       <Fireworks />
       <Navbar />
       <ScrollHintButton />

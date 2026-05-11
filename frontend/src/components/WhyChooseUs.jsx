@@ -413,13 +413,13 @@ const WhyChooseUs = () => {
   ];
 
   return (
-    <section className="py-24 px-6 bg-[#F8FAFC] overflow-hidden relative">
+    <section className="lc-section bg-[#F5F5F0] overflow-hidden relative">
       {/* Decorative Background */}
       <div className="absolute top-20 -left-20 w-64 h-64 bg-pastel-blue/30 rounded-full blur-3xl" />
       <div className="absolute bottom-20 -right-20 w-80 h-80 bg-pastel-yellow/30 rounded-full blur-3xl" />
 
       <motion.div
-        className="max-w-7xl mx-auto"
+        className="lc-container"
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true, margin: '-100px' }}
@@ -494,7 +494,7 @@ const WhyChooseUs = () => {
                     window.scrollTo({ top: el.offsetTop - 80, behavior: 'smooth' });
                   }
                 }}
-                className="inline-flex items-center gap-3 bg-primary-500 hover:bg-primary-600 text-white px-8 py-4 rounded-full font-bold shadow-button hover:translate-y-1 transition-all"
+            className="lc-btn lc-btn-primary inline-flex items-center gap-3"
               >
                 <span>{t('whyUs.exploreMore')}</span>
                 <ArrowRight className="w-5 h-5" />

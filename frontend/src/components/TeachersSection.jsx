@@ -475,7 +475,7 @@ const TeachersSection = () => {
   };
 
   return (
-    <section ref={sectionRef} id="teachers" className="relative py-20 md:py-28 bg-gradient-to-b from-white via-blue-50/30 to-white overflow-hidden">
+    <section ref={sectionRef} id="teachers" className="relative lc-section bg-[#F5F5F0] overflow-hidden">
       <FloatingDeco />
 
       <style>{`
@@ -500,16 +500,16 @@ const TeachersSection = () => {
       `}</style>
 
       {/* ── Section header — inside centered container ── */}
-      <div className="max-w-7xl mx-auto px-6 text-center">
+      <div className="lc-container text-center">
         <div className="mb-4 reveal">
-          <span className="inline-block bg-primary-100 text-primary-600 text-sm font-bold px-4 py-1.5 rounded-full mb-4 tracking-wide uppercase">
+          <span className="inline-block bg-[#1C695C] text-white text-xs font-display font-bold px-4 py-1.5 rounded-full mb-4 tracking-wide uppercase">
             {t('teachersSection.badge')}
           </span>
         </div>
-        <h2 className="text-4xl md:text-5xl lg:text-6xl font-display font-black text-text-main mb-4 reveal stagger-1">
+        <h2 className="text-[28px] md:text-[36px] lg:text-[48px] font-display font-black text-[#4A4A4A] mb-4 reveal stagger-1">
           {t('teachersSection.title')}
         </h2>
-        <p className="text-base md:text-lg text-text-light font-semibold max-w-xl mx-auto mb-14 reveal stagger-2">
+        <p className="text-base md:text-lg text-[#4A4A4A] font-semibold max-w-xl mx-auto mb-14 reveal stagger-2">
           {t('teachersSection.subtitle')}
         </p>
       </div>
@@ -666,7 +666,7 @@ const TeachersSection = () => {
               setSelectedTeacher(displayTeachers[currentIndex]);
               setSelectedIndex(currentIndex);
             }}
-            className="w-12 h-12 bg-primary-100 text-primary-600 rounded-full shadow-lg flex items-center justify-center active:scale-90 transition-transform"
+            className="w-12 h-12 bg-[#1C695C] text-white rounded-full shadow-lg flex items-center justify-center active:scale-90 transition-transform"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
@@ -682,21 +682,7 @@ const TeachersSection = () => {
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2">
   <button
     onClick={() => setShowAllModal(true)}
-    className="
-      relative
-      bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500
-      text-white
-      font-black
-      text-sm
-      px-8 py-4
-      rounded-full
-      shadow-[0_10px_30px_rgba(59,130,246,0.4)]
-      hover:shadow-[0_15px_40px_rgba(139,92,246,0.5)]
-      active:scale-95
-      transition-all duration-300
-      uppercase tracking-widest
-      overflow-hidden
-    "
+    className="relative lc-btn lc-btn-primary text-sm px-8 py-3 active:scale-95 uppercase tracking-widest overflow-hidden"
   >
     {/* Glow effect */}
     <span className="absolute inset-0 bg-white/20 opacity-0 hover:opacity-100 transition-opacity duration-300 rounded-full" />

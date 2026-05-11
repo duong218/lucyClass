@@ -58,7 +58,7 @@ const LearningJourney = () => {
   };
 
   return (
-    <section className="py-20 px-4 md:px-6 bg-white relative overflow-hidden">
+    <section className="lc-section bg-[#F5F5F0] relative overflow-hidden">
       {/* Dot Pattern Background */}
       <div
         className="absolute inset-0 opacity-5 pointer-events-none"
@@ -88,13 +88,13 @@ const LearningJourney = () => {
         />
       ))}
 
-      <div className="max-w-6xl mx-auto relative z-10">
+      <div className="lc-container relative z-10">
         <div className="text-center mb-16 px-4">
           <motion.h2
             initial={{ opacity: 0, y: -20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-3xl md:text-5xl font-display font-black text-text-main mb-4"
+            className="text-[28px] md:text-[36px] lg:text-[48px] font-display font-black text-[#4A4A4A] mb-4"
           >
             {t('journey.title')}
           </motion.h2>
@@ -109,7 +109,7 @@ const LearningJourney = () => {
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ delay: 0.2 }}
-            className="text-gray-500 text-base md:text-lg max-w-2xl mx-auto"
+            className="text-[#4A4A4A] text-base md:text-lg max-w-2xl mx-auto"
           >
             {t('journey.subtitle')}
           </motion.p>

@@ -2,7 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
-.font-display { font-family: 'Outfit', 'Quicksand', sans-serif; }
+.font-display { font-family: 'Outfit', 'Noto Sans', 'Noto Sans SC', sans-serif; }
+
+:root {
+  --color-primary: #1C695C;
+  --color-secondary: #3FA48F;
+  --color-teal-cyan: #1C6970;
+  --color-accent-orange: #C96A3D;
+  --color-accent-yellow: #D9A441;
+  --color-accent-purple: #693D6A;
+  --color-text-body: #4A4A4A;
+  --color-bg-offwhite: #F5F5F0;
+  --color-border-beige: #E6DCCF;
+  --color-white: #FFFFFF;
+  --shadow-card: rgba(0, 0, 0, 0.1) 0px 10px 15px -3px, rgba(0, 0, 0, 0.1) 0px 4px 6px -4px;
+  --shadow-card-hover: rgba(28, 105, 92, 0.15) 0px 25px 50px -12px;
+  --shadow-brand: rgba(28, 105, 92, 0.35) 0px 4px 14px 0px;
+}
 
 /* Reset */
 * {
@@ -17,14 +33,13 @@ html {
 
 /* Body */
 body {
-  font-family: 'Quicksand', system-ui, -apple-system, BlinkMacSystemFont,
-    'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    'Noto Sans', 'Liberation Sans', sans-serif;
+  font-family: 'Noto Sans', 'Noto Sans SC', 'Segoe UI', system-ui, -apple-system,
+    BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, 'Liberation Sans', sans-serif;
 
-  color: #333;
-  background: #fff;
+  color: var(--color-text-body);
+  background: var(--color-white);
   line-height: 1.6;
-  letter-spacing: 0.2px;
+  letter-spacing: 0;
 
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -32,6 +47,145 @@ body {
   max-width: 100%;
   overflow-x: hidden;
   color-scheme: light !important;
+}
+
+h1, h2, h3 {
+  font-family: 'Outfit', 'Noto Sans', 'Noto Sans SC', sans-serif;
+  color: var(--color-text-body);
+  letter-spacing: 0;
+}
+
+h4, h5, h6, p, label, input, textarea, select, a, li {
+  font-family: 'Noto Sans', 'Noto Sans SC', sans-serif;
+}
+
+.lc-section {
+  padding: 32px 16px;
+}
+
+@media (min-width: 768px) {
+  .lc-section {
+    padding: 48px 24px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .lc-section {
+    padding: 64px 40px;
+  }
+}
+
+.lc-container {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.lc-card {
+  background: var(--color-white);
+  border-radius: 32px;
+  box-shadow: var(--shadow-card);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.lc-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.lc-btn {
+  min-height: 40px;
+  border-radius: 9999px;
+  font-family: 'Outfit', 'Noto Sans', 'Noto Sans SC', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 20px;
+  padding: 10px 24px;
+  transition: all 0.2s ease;
+}
+
+.lc-btn-primary {
+  background: var(--color-primary);
+  color: var(--color-white);
+  box-shadow: var(--shadow-brand);
+}
+
+.lc-btn-primary:hover {
+  background: var(--color-secondary);
+}
+
+.lc-btn-promo {
+  background: var(--color-accent-orange);
+  color: var(--color-white);
+  box-shadow: rgba(201, 106, 61, 0.35) 0px 4px 14px 0px;
+}
+
+.lc-btn-promo:hover {
+  background: #b85d33;
+}
+
+.lc-btn-ghost {
+  background: transparent;
+  color: var(--color-primary);
+  border: 2px solid var(--color-primary);
+}
+
+.lc-btn-ghost:hover {
+  background: var(--color-bg-offwhite);
+}
+
+.lc-input {
+  height: 52px;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background: rgba(28, 105, 92, 0.08);
+  box-shadow: rgba(0,0,0,0.05) 0px 2px 4px 0px inset;
+}
+
+.lc-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: rgba(28,105,92,0.15) 0px 0px 0px 3px, rgba(0,0,0,0.05) 0px 2px 4px 0px inset;
+}
+
+.lc-input-warm {
+  background: #FDF5E8;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  transition: all 0.2s ease;
+}
+
+input,
+select {
+  height: 52px;
+  border-radius: 9999px;
+  background: rgba(28, 105, 92, 0.08);
+  border: 2px solid transparent;
+  box-shadow: rgba(0,0,0,0.05) 0px 2px 4px 0px inset;
+  font-family: 'Noto Sans', 'Noto Sans SC', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--color-primary);
+  box-shadow: rgba(28,105,92,0.15) 0px 0px 0px 3px, rgba(0,0,0,0.05) 0px 2px 4px 0px inset;
+}
+
+textarea {
+  border-radius: 24px;
+  border: 2px solid transparent;
+  box-shadow: rgba(0,0,0,0.05) 0px 2px 4px 0px inset;
+  font-family: 'Noto Sans', 'Noto Sans SC', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
 }
 
 /* Dashboard Table Scroll Fix */
@@ -455,4 +609,23 @@ p,
 span,
 button {
   font-weight: 500;
+}
+
+/* CJK-friendly override for Chinese UI */
+html:lang(zh) body,
+html:lang(zh) h1,
+html:lang(zh) h2,
+html:lang(zh) h3,
+html:lang(zh) h4,
+html:lang(zh) h5,
+html:lang(zh) h6,
+html:lang(zh) p,
+html:lang(zh) span,
+html:lang(zh) a,
+html:lang(zh) button,
+html:lang(zh) input,
+html:lang(zh) textarea,
+html:lang(zh) select,
+html:lang(zh) label {
+  font-family: 'Noto Sans SC', 'Noto Sans', 'Segoe UI', sans-serif !important;
 }

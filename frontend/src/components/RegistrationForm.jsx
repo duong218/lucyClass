@@ -159,7 +159,7 @@ const RegistrationForm = () => {
   const isFull = selectedCourse && (selectedCourse.activeStudentCount || 0) >= selectedCourse.classSize;
 
   return (
-    <section id="register" className="py-20 px-6 bg-[#C2E0F9] relative flex flex-col md:flex-row items-center justify-center gap-10 min-h-[80vh] overflow-hidden">
+    <section id="register" className="lc-section bg-white relative flex flex-col md:flex-row items-center justify-center gap-10 min-h-[80vh] overflow-hidden">
       {/* Decorative stars */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute bottom-10 left-10 opacity-60 text-white">
         <Star size={28} fill="currentColor" />
@@ -195,9 +195,9 @@ const RegistrationForm = () => {
         initial={{ y: 50, opacity: 0 }}
         whileInView={{ y: 0, opacity: 1 }}
         viewport={{ once: true }}
-        className="bg-white rounded-[3rem] p-8 md:p-10 w-full max-w-xl shadow-[12px_12px_0_#FDE047] border-4 border-[#FDE047] relative z-10"
+        className="bg-white rounded-[32px] p-8 md:p-10 w-full max-w-xl shadow-card border border-[#E6DCCF] relative z-10"
       >
-        <h2 className="text-4xl font-display font-black text-text-main mb-8 text-center">{t('registration.title')}</h2>
+        <h2 className="text-[28px] md:text-[36px] font-display font-black text-[#4A4A4A] mb-8 text-center">{t('registration.title')}</h2>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -211,7 +211,7 @@ const RegistrationForm = () => {
                   type="text"
                   value={formData.parentName}
                   onChange={e => handleChange('parentName', e.target.value)}
-                  className={`w-full bg-[#D0EAF9] rounded-full py-3.5 pl-12 pr-6 text-sm outline-none border-2 transition-all placeholder-gray-400 font-semibold shadow-inner ${fieldErrors.parentName ? 'border-red-500 bg-red-50' : 'border-transparent focus:border-blue-400 focus:bg-white'}`}
+                  className={`w-full lc-input rounded-full py-3.5 pl-12 pr-6 text-sm outline-none transition-all placeholder-gray-400 font-semibold ${fieldErrors.parentName ? 'border-red-500 bg-red-50' : 'focus:bg-white'}`}
                   placeholder={t('registration.placeholderName')}
                 />
                 <AnimatePresence>
@@ -239,7 +239,7 @@ const RegistrationForm = () => {
                   type="tel"
                   value={formData.phone}
                   onChange={e => handleChange('phone', e.target.value)}
-                  className={`w-full bg-[#D0EAF9] rounded-full py-3.5 pl-12 pr-6 text-sm outline-none border-2 transition-all placeholder-gray-400 font-semibold shadow-inner ${fieldErrors.phone ? 'border-red-500 bg-red-50' : 'border-transparent focus:border-blue-400 focus:bg-white'}`}
+                  className={`w-full lc-input rounded-full py-3.5 pl-12 pr-6 text-sm outline-none transition-all placeholder-gray-400 font-semibold ${fieldErrors.phone ? 'border-red-500 bg-red-50' : 'focus:bg-white'}`}
                   placeholder={t('registration.placeholderPhone')}
                 />
                 <AnimatePresence>
@@ -267,7 +267,7 @@ const RegistrationForm = () => {
                   type="text"
                   value={formData.childName}
                   onChange={e => handleChange('childName', e.target.value)}
-                  className={`w-full bg-[#D0EAF9] rounded-full py-3.5 pl-12 pr-6 text-sm outline-none border-2 transition-all placeholder-gray-400 font-semibold shadow-inner ${fieldErrors.childName ? 'border-red-500 bg-red-50' : 'border-transparent focus:border-blue-400 focus:bg-white'}`}
+                  className={`w-full lc-input rounded-full py-3.5 pl-12 pr-6 text-sm outline-none transition-all placeholder-gray-400 font-semibold ${fieldErrors.childName ? 'border-red-500 bg-red-50' : 'focus:bg-white'}`}
                   placeholder={t('registration.placeholderChild')}
                 />
                 <AnimatePresence>
@@ -294,7 +294,7 @@ const RegistrationForm = () => {
                   name="childAge"
                   value={formData.childAge}
                   onChange={e => handleChange('childAge', e.target.value)}
-                  className={`w-full bg-[#D0EAF9] rounded-full py-3.5 pl-12 pr-10 text-sm outline-none border-2 transition-all font-semibold appearance-none shadow-inner ${fieldErrors.childAge ? 'border-red-500 bg-red-50' : 'border-transparent focus:border-blue-400 focus:bg-white'}`}
+                  className={`w-full lc-input rounded-full py-3.5 pl-12 pr-10 text-sm outline-none transition-all font-semibold appearance-none ${fieldErrors.childAge ? 'border-red-500 bg-red-50' : 'focus:bg-white'}`}
                 >
                   <option value="preschool">{t('ageGroup.preschool')}</option>
                   <option value="primary">{t('ageGroup.primary')}</option>
@@ -328,7 +328,7 @@ const RegistrationForm = () => {
                 name="courseId"
                 value={formData.courseId}
                 onChange={e => handleChange('courseId', e.target.value)}
-                className={`w-full bg-[#FDF0C6] rounded-full py-3.5 pl-12 pr-10 text-sm outline-none border-2 transition-all font-semibold appearance-none shadow-inner ${fieldErrors.courseId ? 'border-red-500 bg-red-50' : 'border-transparent focus:border-yellow-400 focus:bg-white'}`}
+                className={`w-full lc-input lc-input-warm rounded-full py-3.5 pl-12 pr-10 text-sm outline-none transition-all font-semibold appearance-none ${fieldErrors.courseId ? 'border-red-500 bg-red-50' : 'focus:bg-white focus:border-[#D9A441]'}`}
               >
                 <option value="" disabled>{t('registration.selectCourse')}</option>
                 {courses.map(c => {
@@ -360,7 +360,7 @@ const RegistrationForm = () => {
                   type="email"
                   value={formData.email}
                   onChange={e => handleChange('email', e.target.value)}
-                  className="w-full bg-[#FDF0C6] rounded-full py-3.5 pl-12 pr-6 text-sm outline-none border-2 border-transparent focus:border-yellow-400 focus:bg-white transition-all placeholder-gray-400 font-semibold shadow-inner"
+                  className="w-full lc-input lc-input-warm rounded-full py-3.5 pl-12 pr-6 text-sm outline-none transition-all placeholder-gray-400 font-semibold focus:bg-white focus:border-[#D9A441]"
                   placeholder={t('registration.optional')}
                 />
               </div>
@@ -381,7 +381,7 @@ const RegistrationForm = () => {
                   rows="1"
                   value={formData.message}
                   onChange={e => handleChange('message', e.target.value)}
-                  className="w-full bg-[#FDF0C6] rounded-2xl py-3.5 pl-12 pr-6 text-sm outline-none border-2 border-transparent focus:border-yellow-400 focus:bg-white transition-all placeholder-gray-400 font-semibold shadow-inner resize-none min-h-[50px]"
+                  className="w-full lc-input lc-input-warm rounded-[24px] py-3.5 pl-12 pr-6 text-sm outline-none transition-all placeholder-gray-400 font-semibold resize-none min-h-[52px] focus:bg-white focus:border-[#D9A441]"
                   placeholder={t('registration.optional')}
                 />
               </div>
@@ -397,7 +397,7 @@ const RegistrationForm = () => {
               whileTap={{ scale: 0.95 }}
               type="submit"
               disabled={status.loading || isFull || !recaptchaReady}
-              className={`bg-[#4CAF50] text-white px-12 py-4 rounded-full text-xl font-display font-black transition-all shadow-[0_8px_0_#2E7D32] active:shadow-none active:translate-y-2 border-2 border-[#2E7D32] flex items-center justify-center gap-3 ${(status.loading || isFull || !recaptchaReady) ? 'opacity-60 cursor-not-allowed grayscale pointer-events-none' : ''}`}
+              className={`lc-btn lc-btn-promo text-sm md:text-sm px-10 py-3 border-0 flex items-center justify-center gap-3 w-full md:w-auto ${(status.loading || isFull || !recaptchaReady) ? 'opacity-60 cursor-not-allowed grayscale pointer-events-none' : ''}`}
             >
               {status.loading ? (
                 <>
@@ -445,7 +445,7 @@ const RegistrationForm = () => {
               <div className="flex gap-4">
                 <button
                   onClick={() => setDuplicateConfirm(null)}
-                  className="flex-1 py-4 rounded-2xl bg-gray-100 font-bold hover:bg-gray-200 transition-all text-text-main"
+                  className="flex-1 py-4 rounded-[24px] bg-gray-100 font-bold hover:bg-gray-200 transition-all text-text-main"
                 >
                   {t('admin.cancel')}
                 </button>
@@ -453,7 +453,7 @@ const RegistrationForm = () => {
                   onClick={() => {
                     handleSubmit(null, true);
                   }}
-                  className="flex-1 py-4 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-100 transition-all border-b-4 border-blue-800 active:border-b-0 active:translate-y-1"
+                  className="flex-1 py-4 rounded-[24px] bg-[#1C695C] text-white font-bold hover:bg-[#3FA48F] shadow-lg transition-all border-b-4 border-[#12443c] active:border-b-0 active:translate-y-1"
                 >
                   {t('admin.confirm')}
                 </button>

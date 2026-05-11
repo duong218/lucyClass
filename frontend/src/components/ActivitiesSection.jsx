@@ -41,14 +41,14 @@ const ActivitiesSection = () => {
   };
 
   return (
-    <section id="activities" className="py-20 px-6 bg-white overflow-hidden">
-      <div className="max-w-6xl mx-auto">
+    <section id="activities" className="lc-section bg-white overflow-hidden">
+      <div className="lc-container">
         {/* Section Header */}
         <div className="text-center mb-12 md:mb-16 animate-fadeInUp">
-          <h2 className="text-3xl md:text-4xl font-display font-black text-[#333333] mb-4">
+          <h2 className="text-[28px] md:text-[36px] lg:text-[48px] font-display font-black text-[#4A4A4A] mb-4">
             {t('activities.title')}
           </h2>
-          <p className="text-base md:text-lg text-[#666666] max-w-2xl mx-auto font-medium">
+          <p className="text-base md:text-lg text-[#4A4A4A] max-w-2xl mx-auto font-medium">
             {t('activities.description')}
           </p>
         </div>
@@ -60,7 +60,7 @@ const ActivitiesSection = () => {
               key={act.key}
               className="group flex flex-col items-center cursor-pointer"
             >
-              <div className="w-full aspect-square overflow-hidden rounded-2xl shadow-md transition-all duration-300 transform group-hover:scale-105 group-hover:shadow-xl relative bg-gray-50">
+              <div className="w-full aspect-square overflow-hidden rounded-[32px] shadow-card transition-all duration-300 transform group-hover:scale-105 group-hover:shadow-card-hover relative bg-white border border-[#E6DCCF]">
                 <img
                   src={act.image}
                   alt={t(act.nameKey)}
@@ -69,7 +69,7 @@ const ActivitiesSection = () => {
                   loading="lazy"
                 />
               </div>
-              <p className="mt-4 font-bold text-[#333333] text-lg transition-colors duration-300 group-hover:text-[#F5C542]">
+              <p className="mt-4 font-bold text-[#4A4A4A] text-lg transition-colors duration-300 group-hover:text-[#1C695C]">
                 {t(act.nameKey)}
               </p>
             </div>
@@ -81,7 +81,7 @@ const ActivitiesSection = () => {
             <button
               type="button"
               onClick={() => setShowAll((prev) => !prev)}
-              className="text-blue-500 font-semibold text-sm hover:underline"
+              className="text-[#1C6970] font-semibold text-sm hover:underline"
             >
               {showAll ? t('activities.showLess') : t('activities.showMore')}
             </button>
@@ -92,7 +92,7 @@ const ActivitiesSection = () => {
         <div className="mt-12 md:mt-16 text-center animate-fadeInUp stagger-3">
           <button
             onClick={handleViewSchedule}
-            className="inline-flex items-center gap-2 bg-[#F5C542] hover:bg-[#E0B030] text-white px-8 py-3 md:px-10 md:py-4 rounded-full text-lg font-bold transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-1 active:scale-95"
+            className="inline-flex items-center gap-2 lc-btn lc-btn-promo text-sm md:text-sm hover:-translate-y-1 active:scale-95"
           >
             <span>📅</span> {t('activities.viewSchedule')}
           </button>

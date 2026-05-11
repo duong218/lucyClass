@@ -17,4 +17,13 @@ i18n.use(initReactI18next).init({
   }
 });
 
+const setDocumentLang = (lng) => {
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = lng || 'vi';
+  }
+};
+
+setDocumentLang(i18n.language);
+i18n.on('languageChanged', setDocumentLang);
+
 export default i18n;
