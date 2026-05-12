@@ -68,7 +68,7 @@ const Navbar = () => {
   };
 
   return (
-    <header className="fixed top-0 left-0 w-full z-[100] bg-white/95 backdrop-blur-md border-b border-[#E6DCCF] h-[72px] px-4 lg:px-10">
+    <header className="fixed top-0 left-0 w-full z-[100] bg-white border-b border-[#E6DCCF] h-[72px] px-4 lg:px-10">
       <nav className="h-full lc-container flex items-center justify-between gap-4">
 
         {/* ───────── Logo Section ───────── */}
@@ -212,7 +212,7 @@ const Navbar = () => {
 
         {/* Mobile Menu Panel */}
         <div
-          className={`fixed top-[72px] right-0 bottom-0 left-0 bg-[rgba(28,105,92,0.97)] z-[40] lg:hidden flex flex-col items-center justify-start gap-4 transition-all duration-300 ease-in-out px-6 py-8 ${
+          className={`fixed top-[72px] right-0 bottom-0 left-0 bg-[#1C695C] z-[40] lg:hidden flex flex-col items-center justify-start gap-4 transition-all duration-300 ease-in-out px-6 py-8 ${
             isMenuOpen ? "opacity-100 translate-x-0" : "opacity-0 translate-x-full pointer-events-none"
           }`}
         >
