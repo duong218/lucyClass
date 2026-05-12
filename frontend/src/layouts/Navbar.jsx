@@ -68,14 +68,14 @@ const Navbar = () => {
   };
 
   return (
-    <header className="fixed top-0 left-0 w-full z-[100] bg-white border-b border-[#E6DCCF] h-[72px] px-4 lg:px-10">
+    <header className="fixed top-0 left-0 w-full z-[100] h-[72px] px-4 lg:px-10 border-b border-[#14524680]" style={{ background: "linear-gradient(100deg, #1C695C 0%, #1C6970 100%)", boxShadow: "0 4px 24px rgba(28,105,92,0.22)" }}>
       <nav className="h-full lc-container flex items-center justify-between gap-4">
 
         {/* ───────── Logo Section ───────── */}
         <div
           onClick={() => scrollToSection("hero")}
-          className="flex items-center gap-3 cursor-pointer group bg-white rounded-full px-4 py-2 shadow-sm hover:shadow-md transition-all duration-300 border"
-          style={{ borderColor: "#3FA48F30", textDecoration: "none" }}
+          className="flex items-center gap-3 cursor-pointer group bg-white/10 hover:bg-white/20 rounded-full px-4 py-2 transition-all duration-300 border border-white/30"
+          style={{ textDecoration: "none" }}
         >
           {/* Logo image pill */}
           <div
@@ -103,7 +103,7 @@ const Navbar = () => {
               className="font-black tracking-widest uppercase transition-colors duration-300"
               style={{
                 fontSize: "1.15rem",
-                color: "#1C695C",
+                color: "#FFFFFF",
                 letterSpacing: "0.18em",
                 lineHeight: 1,
                 fontFamily: "'Outfit', 'Quicksand', sans-serif",
@@ -117,7 +117,7 @@ const Navbar = () => {
               className="font-black tracking-[0.22em] uppercase transition-colors duration-300"
               style={{
                 fontSize: "0.72rem",
-                color: "#C96A3D",
+                color: "#F4C97A",
                 letterSpacing: "0.28em",
                 lineHeight: 1.2,
                 fontFamily: "'Outfit', 'Quicksand', sans-serif",
@@ -131,7 +131,7 @@ const Navbar = () => {
               className="hidden md:block mt-0.5 font-medium italic"
               style={{
                 fontSize: "0.55rem",
-                color: "#3FA48F",
+                color: "rgba(255,255,255,0.75)",
                 letterSpacing: "0.04em",
                 lineHeight: 1,
                 fontFamily: "Georgia, 'Times New Roman', serif",
@@ -144,15 +144,15 @@ const Navbar = () => {
         {/* ───────── End Logo ───────── */}
 
         {/* Desktop Menu - Floating Pill Style */}
-        <div className="hidden lg:flex items-center bg-white rounded-full px-2 py-2 border border-[#E6DCCF] gap-1">
+        <div className="hidden lg:flex items-center bg-white/10 rounded-full px-2 py-2 border border-white/20 gap-1">
           {menuItems.map((item) => (
             <button
               key={item.id}
               onClick={() => scrollToSection(item.id)}
               className={`px-4 py-2 rounded-full font-sans text-base transition-all duration-200 active:scale-95 whitespace-nowrap ${
                 activeSection === item.id
-                  ? "text-[#1C695C] font-bold border-b-[3px] border-[#1C695C] rounded-none"
-                  : "text-[#4A4A4A] font-normal"
+                  ? "text-white font-bold border-b-[3px] border-white rounded-none"
+                  : "text-white/75 font-normal"
               }`}
               style={
                 activeSection === item.id
@@ -161,7 +161,7 @@ const Navbar = () => {
               }
               onMouseEnter={(e) => {
                 if (activeSection !== item.id) {
-                  e.currentTarget.style.color = "#1C695C";
+                  e.currentTarget.style.color = "#FFFFFF";
                 }
               }}
               onMouseLeave={(e) => {
@@ -181,8 +181,7 @@ const Navbar = () => {
           {/* Streak Button */}
           <button
             onClick={openStreakModal}
-            className="h-10 bg-white rounded-full flex items-center justify-center font-display font-bold text-xs shadow-sm hover:shadow-md hover:scale-105 active:scale-95 transition-all border px-3 gap-1.5"
-            style={{ color: "#1C695C", borderColor: "#3FA48F40" }}
+            className="h-10 bg-white/15 hover:bg-white/25 rounded-full flex items-center justify-center font-display font-bold text-xs hover:scale-105 active:scale-95 transition-all border border-white/30 px-3 gap-1.5 text-white"
             title="Streak"
           >
             <span>🔥</span>
@@ -192,8 +191,7 @@ const Navbar = () => {
           {/* Language Switcher */}
           <button
             onClick={toggleLang}
-            className="w-10 h-10 bg-white rounded-full flex items-center justify-center font-display font-bold text-xs shadow-sm hover:shadow-md hover:scale-105 active:scale-95 transition-all border"
-            style={{ color: "#1C695C", borderColor: "#3FA48F40" }}
+            className="w-10 h-10 bg-white/15 hover:bg-white/25 rounded-full flex items-center justify-center font-display font-bold text-xs hover:scale-105 active:scale-95 transition-all border border-white/30 text-white"
           >
             {i18n.language.toUpperCase()}
           </button>
@@ -201,8 +199,7 @@ const Navbar = () => {
           {/* Hamburger (Mobile) */}
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="lg:hidden w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm text-xl hover:scale-105 active:scale-95 transition-all z-50 border"
-            style={{ color: "#1C695C", borderColor: "#3FA48F40" }}
+            className="lg:hidden w-10 h-10 bg-white/15 hover:bg-white/25 rounded-full flex items-center justify-center text-xl hover:scale-105 active:scale-95 transition-all z-50 border border-white/30 text-white"
           >
             <span className="transform transition-transform duration-300">
               {isMenuOpen ? "✕" : "☰"}

@@ -195,7 +195,7 @@ const RegistrationForm = () => {
         initial={{ y: 50, opacity: 0 }}
         whileInView={{ y: 0, opacity: 1 }}
         viewport={{ once: true }}
-        className="bg-white rounded-[32px] p-8 md:p-10 w-full max-w-xl shadow-card border border-[#E6DCCF] relative z-10"
+        className="bg-white rounded-[32px] p-8 md:p-10 w-full max-w-xl shadow-2xl border-2 border-[#3FA48F] relative z-10"
       >
         <h2 className="text-[28px] md:text-[36px] font-display font-black text-[#4A4A4A] mb-8 text-center">{t('registration.title')}</h2>
 
@@ -203,7 +203,7 @@ const RegistrationForm = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Parent Name */}
             <div className="group">
-              <label className="block font-bold text-text-main mb-2 ml-1 text-sm">{t('registration.parentName')}</label>
+              <label className="block font-bold text-[#1C695C] mb-2 ml-1 text-sm">{t('registration.parentName')}</label>
               <div className="relative">
                 <User size={17} className="absolute left-4 top-3.5 text-blue-400 group-focus-within:text-blue-600 transition-colors pointer-events-none" />
                 <input
@@ -211,7 +211,7 @@ const RegistrationForm = () => {
                   type="text"
                   value={formData.parentName}
                   onChange={e => handleChange('parentName', e.target.value)}
-                  className={`w-full lc-input rounded-full py-3.5 pl-12 pr-6 text-sm outline-none transition-all placeholder-gray-400 font-semibold ${fieldErrors.parentName ? 'border-red-500 bg-red-50' : 'focus:bg-white'}`}
+                  className={`w-full rounded-full py-3.5 pl-12 pr-6 text-sm outline-none transition-all placeholder-gray-400 font-semibold border-2 bg-[#F7FFFE] ${fieldErrors.parentName ? 'border-red-500 bg-red-50' : 'border-[#3FA48F] focus:border-[#1C695C] focus:bg-white'}`}
                   placeholder={t('registration.placeholderName')}
                 />
                 <AnimatePresence>
@@ -231,7 +231,7 @@ const RegistrationForm = () => {
 
             {/* Phone */}
             <div className="group">
-              <label className="block font-bold text-text-main mb-2 ml-1 text-sm">{t('registration.phone')}</label>
+              <label className="block font-bold text-[#1C695C] mb-2 ml-1 text-sm">{t('registration.phone')}</label>
               <div className="relative">
                 <Phone size={17} className="absolute left-4 top-3.5 text-blue-400 group-focus-within:text-blue-600 transition-colors pointer-events-none" />
                 <input
@@ -239,7 +239,7 @@ const RegistrationForm = () => {
                   type="tel"
                   value={formData.phone}
                   onChange={e => handleChange('phone', e.target.value)}
-                  className={`w-full lc-input rounded-full py-3.5 pl-12 pr-6 text-sm outline-none transition-all placeholder-gray-400 font-semibold ${fieldErrors.phone ? 'border-red-500 bg-red-50' : 'focus:bg-white'}`}
+                  className={`w-full rounded-full py-3.5 pl-12 pr-6 text-sm outline-none transition-all placeholder-gray-400 font-semibold border-2 bg-[#F7FFFE] ${fieldErrors.phone ? 'border-red-500 bg-red-50' : 'border-[#3FA48F] focus:border-[#1C695C] focus:bg-white'}`}
                   placeholder={t('registration.placeholderPhone')}
                 />
                 <AnimatePresence>
@@ -259,7 +259,7 @@ const RegistrationForm = () => {
 
             {/* Child Name */}
             <div className="group">
-              <label className="block font-bold text-text-main mb-2 ml-1 text-sm">{t('registration.childName')}</label>
+              <label className="block font-bold text-[#1C695C] mb-2 ml-1 text-sm">{t('registration.childName')}</label>
               <div className="relative">
                 <Baby size={17} className="absolute left-4 top-3.5 text-blue-400 group-focus-within:text-blue-600 transition-colors pointer-events-none" />
                 <input
@@ -267,7 +267,7 @@ const RegistrationForm = () => {
                   type="text"
                   value={formData.childName}
                   onChange={e => handleChange('childName', e.target.value)}
-                  className={`w-full lc-input rounded-full py-3.5 pl-12 pr-6 text-sm outline-none transition-all placeholder-gray-400 font-semibold ${fieldErrors.childName ? 'border-red-500 bg-red-50' : 'focus:bg-white'}`}
+                  className={`w-full rounded-full py-3.5 pl-12 pr-6 text-sm outline-none transition-all placeholder-gray-400 font-semibold border-2 bg-[#F7FFFE] ${fieldErrors.childName ? 'border-red-500 bg-red-50' : 'border-[#3FA48F] focus:border-[#1C695C] focus:bg-white'}`}
                   placeholder={t('registration.placeholderChild')}
                 />
                 <AnimatePresence>
@@ -287,14 +287,14 @@ const RegistrationForm = () => {
 
             {/* Child Age Group */}
             <div className="group">
-              <label className="block font-bold text-text-main mb-2 ml-1 text-sm">{t('registration.childAge')}</label>
+              <label className="block font-bold text-[#1C695C] mb-2 ml-1 text-sm">{t('registration.childAge')}</label>
               <div className="relative">
                 <CalendarDays size={17} className="absolute left-4 top-3.5 text-blue-400 group-focus-within:text-blue-600 transition-colors pointer-events-none" />
                 <select
                   name="childAge"
                   value={formData.childAge}
                   onChange={e => handleChange('childAge', e.target.value)}
-                  className={`w-full lc-input rounded-full py-3.5 pl-12 pr-10 text-sm outline-none transition-all font-semibold appearance-none ${fieldErrors.childAge ? 'border-red-500 bg-red-50' : 'focus:bg-white'}`}
+                  className={`w-full rounded-full py-3.5 pl-12 pr-10 text-sm outline-none transition-all font-semibold appearance-none border-2 bg-[#F7FFFE] ${fieldErrors.childAge ? 'border-red-500 bg-red-50' : 'border-[#3FA48F] focus:border-[#1C695C] focus:bg-white'}`}
                 >
                   <option value="preschool">{t('ageGroup.preschool')}</option>
                   <option value="primary">{t('ageGroup.primary')}</option>
@@ -321,14 +321,14 @@ const RegistrationForm = () => {
 
           {/* Course Selection */}
           <div className="group">
-            <label className="block font-bold text-text-main mb-2 ml-1 text-sm">{t('registration.courseSelect')}</label>
+            <label className="block font-bold text-[#1C695C] mb-2 ml-1 text-sm">{t('registration.courseSelect')}</label>
             <div className="relative">
               <BookOpenCheck size={17} className="absolute left-4 top-3.5 text-amber-500 group-focus-within:text-amber-600 transition-colors pointer-events-none" />
               <select
                 name="courseId"
                 value={formData.courseId}
                 onChange={e => handleChange('courseId', e.target.value)}
-                className={`w-full lc-input lc-input-warm rounded-full py-3.5 pl-12 pr-10 text-sm outline-none transition-all font-semibold appearance-none ${fieldErrors.courseId ? 'border-red-500 bg-red-50' : 'focus:bg-white focus:border-[#D9A441]'}`}
+                className={`w-full rounded-full py-3.5 pl-12 pr-10 text-sm outline-none transition-all font-semibold appearance-none border-2 bg-[#FFFBF3] ${fieldErrors.courseId ? 'border-red-500 bg-red-50' : 'border-[#D9A441] focus:border-[#C96A3D] focus:bg-white'}`}
               >
                 <option value="" disabled>{t('registration.selectCourse')}</option>
                 {courses.map(c => {
@@ -352,7 +352,7 @@ const RegistrationForm = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Parent Email */}
             <div className="group">
-              <label className="block font-bold text-text-main mb-2 ml-1 text-sm">{t('registration.email')}</label>
+              <label className="block font-bold text-[#1C695C] mb-2 ml-1 text-sm">{t('registration.email')}</label>
               <div className="relative">
                 <Mail size={17} className="absolute left-4 top-3.5 text-amber-500 group-focus-within:text-amber-600 transition-colors pointer-events-none" />
                 <input
@@ -360,7 +360,7 @@ const RegistrationForm = () => {
                   type="email"
                   value={formData.email}
                   onChange={e => handleChange('email', e.target.value)}
-                  className="w-full lc-input lc-input-warm rounded-full py-3.5 pl-12 pr-6 text-sm outline-none transition-all placeholder-gray-400 font-semibold focus:bg-white focus:border-[#D9A441]"
+                  className="w-full rounded-full py-3.5 pl-12 pr-6 text-sm outline-none transition-all placeholder-gray-400 font-semibold border-2 border-[#D9A441] bg-[#FFFBF3] focus:border-[#C96A3D] focus:bg-white"
                   placeholder={t('registration.optional')}
                 />
               </div>
@@ -368,7 +368,7 @@ const RegistrationForm = () => {
 
             {/* Message/Note */}
             <div className="group">
-              <label className="block font-bold text-text-main mb-2 ml-1 text-sm">
+              <label className="block font-bold text-[#1C695C] mb-2 ml-1 text-sm">
                 {t('registration.message')}
                 <span className={`ml-2 text-[10px] ${formData.message.length >= 180 ? 'text-red-500' : 'text-gray-400'}`}>
                   ({formData.message.length}/200)
@@ -381,7 +381,7 @@ const RegistrationForm = () => {
                   rows="1"
                   value={formData.message}
                   onChange={e => handleChange('message', e.target.value)}
-                  className="w-full lc-input lc-input-warm rounded-[24px] py-3.5 pl-12 pr-6 text-sm outline-none transition-all placeholder-gray-400 font-semibold resize-none min-h-[52px] focus:bg-white focus:border-[#D9A441]"
+                  className="w-full rounded-[24px] py-3.5 pl-12 pr-6 text-sm outline-none transition-all placeholder-gray-400 font-semibold resize-none min-h-[52px] border-2 border-[#D9A441] bg-[#FFFBF3] focus:border-[#C96A3D] focus:bg-white"
                   placeholder={t('registration.optional')}
                 />
               </div>
