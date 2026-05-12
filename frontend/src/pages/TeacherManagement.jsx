@@ -358,13 +358,13 @@ const TeacherManagement = () => {
 
               <div>
                 <div className="flex justify-between mb-1.5">
-                  <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Nhận xét từ học viên</label>
+                  <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Bẳng cấp, kĩ năng nổi bật của giáo viên.</label>
                   <span className={`text-[10px] font-bold ${(formData.feedback?.length || 0) > 500 ? 'text-red-500' : 'text-gray-400'}`}>{formData.feedback?.length || 0}/500</span>
                 </div>
                 <textarea value={formData.feedback}
                   onChange={e => setFormData({ ...formData, feedback: e.target.value.slice(0, 500) })} rows="3"
                   className={`w-full px-4 py-2.5 rounded-xl border-2 outline-none text-sm resize-none transition-colors ${errors.feedback ? 'border-red-400' : 'border-gray-200 focus:border-blue-400'}`}
-                  placeholder="Nhận xét từ phụ huynh hoặc học viên (không bắt buộc)" />
+                  placeholder="Bằng cấp, kĩ năng nổi bật của giáo viên." />
                 {errors.feedback && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.feedback}</p>}
               </div>
 

@@ -78,7 +78,7 @@ const TeacherCard = ({ teacher, index, onHoverStart, onHoverEnd }) => {
       />
 
       {/* Avatar */}
-      <div className="relative w-28 h-28 mb-4 rounded-full overflow-hidden bg-white shadow-lg ring-4 ring-white group-hover:rotate-3 transition-transform duration-300">
+      <div className="relative w-40 h-40 mb-4 rounded-[1.5rem] overflow-hidden bg-white shadow-lg ring-4 ring-white group-hover:scale-105 transition-transform duration-300">
         {teacher.avatar ? (
           <img
             src={getImageUrl(teacher.avatar)}
@@ -583,7 +583,7 @@ const TeachersSection = () => {
               setSelectedIndex(currentIndex);
             }}
           >
-            <div className="w-24 h-24 mx-auto rounded-full overflow-hidden ring-4 ring-white shadow-md bg-[#F5F5F0] mb-4">
+            <div className="w-36 h-36 mx-auto rounded-[1.25rem] overflow-hidden ring-4 ring-white shadow-md bg-[#F5F5F0] mb-4">
               {displayTeachers[currentIndex]?.avatar ? (
                 <img
                   src={getImageUrl(displayTeachers[currentIndex].avatar)}
