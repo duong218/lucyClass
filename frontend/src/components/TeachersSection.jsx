@@ -254,8 +254,9 @@ const TeacherModal = ({ teacher, index, onClose }) => {
    ═══════════════════════════════════════ */
 const ShowAllModal = ({ teachers, onClose, onSelectTeacher, t }) => {
   useEffect(() => {
-    openModal();
-    return () => closeModal();
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
   }, []);
 
   return (
@@ -272,9 +273,9 @@ const ShowAllModal = ({ teachers, onClose, onSelectTeacher, t }) => {
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        className="relative bg-white w-full rounded-t-[3rem] shadow-heavy overflow-hidden max-h-[85vh] flex flex-col"
+        className="relative bg-white w-full rounded-t-[3rem] shadow-heavy max-h-[85vh] flex flex-col"
       >
-        <div className="p-6 pb-20 overflow-y-auto custom-scrollbar">
+        <div className="flex-1 p-6 pb-8 overflow-y-auto custom-scrollbar" style={{ overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}>
           <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6" />
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-2xl font-black text-text-main">{t('teachersSection.viewAll')}</h3>
@@ -631,8 +632,9 @@ const TeachersSection = () => {
           </button>
           <button
             onClick={() => {
-              setSelectedTeacher(displayTeachers[currentIndex]);
-              setSelectedIndex(currentIndex);
+              handleUserInteraction();
+              setShowAllModal(true);
+              setIsPaused(true);
             }}
             className="lc-btn lc-btn-primary px-6 text-xs"
           >
